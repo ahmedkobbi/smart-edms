@@ -1,0 +1,696 @@
+// Smart EDMS — Prisma schema
+// Multi-tenant Electronic Document Management System
+// Database: SQLite (dev). The schema is portable to PostgreSQL by changing
+// the datasource provider; row-level security can then be added in a migration.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+//  TENANCY
+// ============================================================================
+
+model Tenant {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  status          String   @default("active") // active | suspended | deleted
+  settings        String   @default("{}") // JSON blob: branding, residency, feature flags
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  users                  User[]
+  groups                 Group[]
+  roles                  Role[]
+  policies               Policy[]
+  classifications        Classification[]
+  metadataSchemas        MetadataSchema[]
+  documents              Document[]
+  folders                Folder[]
+  workflows              Workflow[]
+  workflowDefinitions    WorkflowDefinition[]
+  retentionSchedules     RetentionSchedule[]
+  legalHolds             LegalHold[]
+  auditEvents            AuditEvent[]
+  notifications          Notification[]
+  shares                 Share[]
+  apiKeys                ApiKey[]
+  webhooks               Webhook[]
+  sessions               Session[]
+  accounts               Account[]
+  verificationTokens     VerificationToken[]
+  devices                Device[]
+  classificationChanges  ClassificationChange[]
+}
+
+// ============================================================================
+//  IDENTITY & ACCESS
+// ============================================================================
+
+model User {
+  id                String   @id @default(cuid())
+  tenantId          String
+  email             String
+  emailVerified     DateTime?
+  name              String?
+  passwordHash      String?
+  status            String   @default("active") // active | suspended | invited | locked
+  mfaEnabled        Boolean  @default(false)
+  mfaSecretEnc      String?  // encrypted TOTP secret
+  mfaBackupCodesEnc String?  // encrypted JSON array of backup codes
+  passkeyCredentials String  @default("[]") // JSON array of WebAuthn credential descriptors
+  lastLoginAt       DateTime?
+  lastLoginIp       String?
+  lastLoginUserAgent String?
+  failedLoginAttempts Int    @default(0)
+  lockedUntil       DateTime?
+  avatarUrl         String?
+  jobTitle          String?
+  department        String?
+  createdBy         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  groupMemberships GroupMember[]
+  roleAssignments RoleAssignment[]
+  documents       Document[]   @relation("DocumentOwner")
+  documentVersions DocumentVersion[]
+  auditEvents     AuditEvent[]
+  approvals       Approval[]
+  delegationsReceived ApprovalDelegation[]
+  notifications   Notification[]
+  shares          Share[]
+  sessions        Session[]
+  accounts        Account[]
+  verificationTokens VerificationToken[]
+  devices         Device[]
+  workflowInitiated Workflow[]
+  approvalDelegationsFrom ApprovalDelegation[] @relation("ApprovalDelegationFrom")
+  classificationChangesAsActor ClassificationChange[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([email])
+}
+
+model Group {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members   GroupMember[]
+  policies  Policy[]      @relation("PolicyGroup")
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  groupId   String
+  userId    String
+  tenantId  String
+  addedAt   DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@index([tenantId])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  permissions String   @default("[]") // JSON array of permission strings
+  isSystem    Boolean  @default(false) // system roles cannot be deleted
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignments RoleAssignment[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model RoleAssignment {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  roleId    String
+  scope     String?  // optional scope: folder:abc or doc:xyz
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, scope])
+  @@index([tenantId])
+}
+
+model Policy {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  effect      String   // allow | deny
+  action      String   // e.g. "document:read", "*"
+  resource    String   // e.g. "document:*", "folder:abc"
+  conditions  String   @default("{}") // JSON: classification, hasTag, timeOfDay, etc.
+  priority    Int      @default(100)
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  groups  Group[] @relation("PolicyGroup")
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model ApiKey {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  // We store only the hash; the raw key is shown ONCE at creation.
+  keyHash     String   @unique
+  keyPrefix   String   // first 8 chars for identification in UI
+  scopes      String   @default("[]") // JSON array of permission strings
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  createdBy   String?
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model Webhook {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  url         String
+  events      String   @default("[]") // JSON array of event names
+  secretHash  String?
+  enabled     Boolean  @default(true)
+  lastStatus  String?
+  lastSentAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model Device {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String
+  label       String
+  fingerprint String   // hashed user-agent + IP-range + geo hint
+  trusted     Boolean  @default(false)
+  lastSeenAt  DateTime @default(now())
+  lastSeenIp  String?
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ============================================================================
+//  DOCUMENT MANAGEMENT
+// ============================================================================
+
+model Folder {
+  id          String   @id @default(cuid())
+  tenantId    String
+  parentId    String?
+  name        String
+  description String?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent    Folder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Folder[] @relation("FolderTree")
+  documents Document[]
+
+  @@index([tenantId, parentId])
+}
+
+model Classification {
+  id           String   @id @default(cuid())
+  tenantId     String
+  code         String   // e.g. "PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED", "HS"
+  name         String
+  description  String?
+  level        Int      // 0=lowest, higher=more sensitive
+  color        String   // hex banner color
+  defaultPolicy String? // JSON policy snippet for documents of this class
+  isSystem     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant            Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  documents         Document[]
+  changesAsFrom     ClassificationChange[] @relation("ClassChangeFrom")
+  changesAsTo       ClassificationChange[] @relation("ClassChangeTo")
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model MetadataSchema {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  fields      String   // JSON: [{name,label,type,required,options,validation}]
+  appliesTo   String   @default("*") // document type filter
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+}
+
+model Document {
+  id              String   @id @default(cuid())
+  tenantId        String
+  folderId        String?
+  ownerId         String?
+  title           String
+  description     String?
+  documentType    String   @default("generic") // contract, policy, invoice, etc.
+  classificationId String?
+  tags            String   @default("[]") // JSON array
+  metadata        String   @default("{}") // JSON
+  state           String   @default("draft") // draft | active | record | archived | disposed
+  isRecord        Boolean  @default(false)
+  isLocked        Boolean  @default(false)
+  lockedBy        String?
+  lockedReason    String?
+  lockedUntil     DateTime?
+  currentVersion  Int      @default(0)
+  retentionScheduleId String?
+  retentionStartDate DateTime?
+  retentionDisposeAfter DateTime?
+  legalHold       Boolean  @default(false)
+  legalHoldReason String?
+  legalHoldSetBy  String?
+  legalHoldSetAt  DateTime?
+  shareAllowed    Boolean  @default(true)
+  downloadAllowed Boolean  @default(true)
+  previewAllowed  Boolean  @default(true)
+  watermarkEnabled Boolean @default(true)
+  redactionCount  Int      @default(0)
+  aiClassificationSuggested String? // suggested by AI, awaiting approval
+  aiClassificationReason String?
+  aiSuggestionState String? // pending | approved | rejected
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  folder          Folder?        @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  owner           User?          @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  classification  Classification? @relation(fields: [classificationId], references: [id], onDelete: SetNull)
+  versions        DocumentVersion[]
+  auditEvents     AuditEvent[]   @relation("DocumentAudit")
+  approvals       Approval[]
+  shares          Share[]
+  classificationChanges ClassificationChange[]
+  legalHoldJoins  LegalHoldDocument[] @relation("LegalHoldDocumentJoin")
+  retentionSchedule RetentionSchedule? @relation(fields: [retentionScheduleId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, folderId])
+  @@index([tenantId, state])
+  @@index([tenantId, classificationId])
+  @@index([tenantId, ownerId])
+}
+
+model DocumentVersion {
+  id            String   @id @default(cuid())
+  tenantId      String
+  documentId    String
+  versionNumber Int
+  storageKey    String   // path in object storage
+  fileName      String
+  mimeType      String
+  sizeBytes     Int
+  checksumSha256 String
+  checksumSha1  String?
+  uploadedById  String?
+  changeReason  String?
+  redacted      Boolean  @default(false)
+  derivedFrom   String?  // parent version id, if this is a derivative (e.g. redacted)
+  metadata      String   @default("{}") // JSON snapshot of doc metadata at this version
+  createdAt     DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  uploader User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@unique([documentId, versionNumber])
+  @@index([tenantId, documentId])
+}
+
+// ============================================================================
+//  WORKFLOW & APPROVALS
+// ============================================================================
+
+model WorkflowDefinition {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  steps       String   // JSON: [{name, approverType, approverIds, mode, dueInHours, escalatesTo}]
+  triggerEvent String? // document.upload | document.classify | manual
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workflows Workflow[]
+
+  @@index([tenantId])
+}
+
+model Workflow {
+  id             String   @id @default(cuid())
+  tenantId       String
+  definitionId   String?
+  documentId     String?
+  initiatedById  String?
+  name           String
+  status         String   @default("pending") // pending | approved | rejected | cancelled | escalated
+  currentStep    Int      @default(0)
+  dueAt          DateTime?
+  completedAt    DateTime?
+  reason         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  definition  WorkflowDefinition? @relation(fields: [definitionId], references: [id], onDelete: SetNull)
+  initiator   User?       @relation(fields: [initiatedById], references: [id], onDelete: SetNull)
+  approvals   Approval[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, documentId])
+}
+
+model Approval {
+  id          String   @id @default(cuid())
+  tenantId    String
+  workflowId  String
+  documentId  String?
+  stepIndex   Int
+  stepName    String
+  approverId  String
+  status      String   @default("pending") // pending | approved | rejected | delegated | escalated
+  comment     String?
+  signature   String?  // attestation hash
+  delegatedTo String?
+  dueAt       DateTime?
+  decidedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  document Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  approver User     @relation(fields: [approverId], references: [id], onDelete: Cascade)
+  delegations ApprovalDelegation[]
+
+  @@index([tenantId, approverId, status])
+  @@index([tenantId, workflowId])
+}
+
+model ApprovalDelegation {
+  id           String   @id @default(cuid())
+  approvalId   String
+  fromUserId   String
+  toUserId     String
+  reason       String?
+  delegatedAt  DateTime @default(now())
+
+  approval Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  fromUser User     @relation("ApprovalDelegationFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User     @relation(fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([fromUserId])
+  @@index([toUserId])
+}
+
+// ============================================================================
+//  RETENTION, DISPOSITION & LEGAL HOLD
+// ============================================================================
+
+model RetentionSchedule {
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String
+  description     String?
+  retentionDays   Int      // total retention from trigger event
+  startTrigger    String   // document.created | document.closed | document.lastModified | custom
+  dispositionAction String // delete | archive | review
+  requireApproval Boolean  @default(true)
+  appliesTo       String   @default("*") // document type filter
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  documents Document[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model LegalHold {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  reason      String
+  caseRef     String?
+  setById     String?
+  releasedAt  DateTime?
+  releasedBy  String?
+  releaseReason String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  documents   LegalHoldDocument[] @relation("LegalHoldDocs")
+
+  @@index([tenantId])
+}
+
+// Explicit join model for LegalHold <-> Document (many-to-many)
+model LegalHoldDocument {
+  id          String   @id @default(cuid())
+  tenantId    String
+  legalHoldId String
+  documentId  String
+  addedAt     DateTime @default(now())
+  addedBy     String?
+
+  legalHold  LegalHold @relation("LegalHoldDocs", fields: [legalHoldId], references: [id], onDelete: Cascade)
+  document   Document  @relation("LegalHoldDocumentJoin", fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([legalHoldId, documentId])
+  @@index([tenantId, documentId])
+}
+
+// ============================================================================
+//  SHARING
+// ============================================================================
+
+model Share {
+  id              String   @id @default(cuid())
+  tenantId        String
+  documentId      String
+  createdBy       String?
+  token           String   @unique
+  recipientEmail  String?
+  recipientUserId String?
+  mode            String   @default("view") // view | download | review
+  passwordHash    String?
+  expiresAt       DateTime?
+  maxViews        Int?
+  viewCount       Int      @default(0)
+  watermark       Boolean  @default(true)
+  revokedAt       DateTime?
+  revokeReason    String?
+  createdAt       DateTime @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  creator  User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, documentId])
+  @@index([token])
+}
+
+// ============================================================================
+//  AUDIT (tamper-evident, hash-chained)
+// ============================================================================
+
+model AuditEvent {
+  id           String   @id @default(cuid())
+  tenantId     String
+  sequenceNum  Int      // monotonic per-tenant sequence for chaining
+  eventType    String   // auth.login | document.read | admin.policy.update ...
+  actorId      String?
+  actorEmail   String?
+  actorIp      String?
+  actorUserAgent String?
+  action       String   // create | read | update | delete | login | approve | ...
+  resourceType String?  // document | user | policy | classification ...
+  resourceId   String?
+  resourceName String?
+  result       String   @default("allow") // allow | deny | error
+  reason       String?
+  correlationId String?
+  sessionId    String?
+  metadata     String   @default("{}") // JSON
+  prevHash     String   // hash of previous event in chain
+  eventHash    String   // hash of this event's contents (for verification)
+  createdAt    DateTime @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor    User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  document Document? @relation("DocumentAudit", fields: [resourceId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, sequenceNum])
+  @@index([tenantId, eventType, createdAt])
+  @@index([tenantId, resourceType, resourceId])
+  @@index([tenantId, actorId])
+  @@index([tenantId, createdAt])
+}
+
+model ClassificationChange {
+  id           String   @id @default(cuid())
+  tenantId     String
+  documentId   String
+  fromClassId  String?
+  toClassId    String?
+  reason       String?
+  actorId      String?
+  isDowngrade  Boolean  @default(false)
+  approved     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document      Document       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  fromClass     Classification? @relation("ClassChangeFrom", fields: [fromClassId], references: [id], onDelete: SetNull)
+  toClass       Classification? @relation("ClassChangeTo", fields: [toClassId], references: [id], onDelete: SetNull)
+  actor         User?          @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, documentId])
+}
+
+// ============================================================================
+//  NOTIFICATIONS
+// ============================================================================
+
+model Notification {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String
+  type        String   // workflow.assigned | share.created | audit.anomaly ...
+  title       String
+  body        String
+  severity    String   @default("info") // info | success | warning | critical
+  link        String?
+  readAt      DateTime?
+  metadata    String   @default("{}") // JSON
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, readAt])
+}
+
+// ============================================================================
+//  NextAuth-required models (compatible with the adapter contract)
+// ============================================================================
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  tenantId     String
+  userId       String
+  expires      DateTime
+  ip           String?
+  userAgent    String?
+  csrfToken    String?
+  createdAt    DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tenantId])
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  tenantId          String
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model VerificationToken {
+  id           String   @id @default(cuid())
+  tenantId     String
+  identifier   String
+  token        String   @unique
+  expires      DateTime
+  createdAt    DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+
+  @@index([identifier])
+}
