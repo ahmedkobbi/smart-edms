@@ -18,6 +18,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   ArrowLeft, Download, Lock, Unlock, FileLock, Shield, History, Share2, Sparkles,
   Loader2, Eye, FileText, CheckCircle2, XCircle, AlertTriangle, Clock,
+  ShieldAlert, Copy, MessageSquare, Send, Star,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSessionData } from '@/components/providers/use-session-data';
@@ -211,6 +212,7 @@ export default function DocumentDetailPage() {
                 <Download className="mr-2 h-3.5 w-3.5" /> Download
               </Button>
             )}
+            <FavoriteButton docId={params.id} />
             {hasPermission(perms, PERMISSIONS.DOCUMENT_LOCK) && (
               <Button
                 variant="outline"
@@ -238,12 +240,14 @@ export default function DocumentDetailPage() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 lg:w-fit">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-7 lg:w-fit">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="preview">Preview</TabsTrigger>
           <TabsTrigger value="versions">Versions</TabsTrigger>
+          <TabsTrigger value="comments">Comments</TabsTrigger>
           <TabsTrigger value="audit">Audit</TabsTrigger>
           <TabsTrigger value="share">Share</TabsTrigger>
-          <TabsTrigger value="ai">AI Assist</TabsTrigger>
+          <TabsTrigger value="ai">AI</TabsTrigger>
         </TabsList>
 
         {/* Overview */}
@@ -464,6 +468,16 @@ export default function DocumentDetailPage() {
           <ShareManager docId={params.id} shares={sharesData?.shares ?? []} classifications={[]} doc={doc} />
         </TabsContent>
 
+        {/* Preview */}
+        <TabsContent value="preview" className="space-y-4">
+          <DocumentPreview docId={params.id} doc={doc} />
+        </TabsContent>
+
+        {/* Comments */}
+        <TabsContent value="comments" className="space-y-4">
+          <CommentsPanel docId={params.id} />
+        </TabsContent>
+
         {/* AI */}
         <TabsContent value="ai" className="space-y-4">
           <Card>
@@ -497,6 +511,58 @@ export default function DocumentDetailPage() {
                   Request suggestion
                 </Button>
               )}
+            </CardContent>
+          </Card>
+
+          {/* PII Detection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Shield className="h-4 w-4" /> PII detection
+              </CardTitle>
+              <CardDescription>Heuristic regex-based scan for personal data (email, phone, SSN, credit card, IBAN, IP, passport).</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PiiScanner docId={params.id} />
+            </CardContent>
+          </Card>
+
+          {/* Summarization */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Sparkles className="h-4 w-4" /> Document summary
+              </CardTitle>
+              <CardDescription>LLM-powered summary (falls back to heuristic when no AI key configured).</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Summarizer docId={params.id} />
+            </CardContent>
+          </Card>
+
+          {/* Policy Risk */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4" /> Policy risk analysis
+              </CardTitle>
+              <CardDescription>Identifies policy violations, mis-classifications, and compliance gaps.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PolicyRiskAnalyzer docId={params.id} />
+            </CardContent>
+          </Card>
+
+          {/* Duplicate Detection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Copy className="h-4 w-4" /> Duplicate detection
+              </CardTitle>
+              <CardDescription>Finds exact (SHA-256) and near (same name + size) duplicates in your tenant.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DuplicateChecker docId={params.id} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -630,4 +696,451 @@ function safeParseArray(s: string | null | undefined): any[] {
 function safeParseObject(s: string | null | undefined): Record<string, unknown> {
   if (!s) return {};
   try { const v = JSON.parse(s); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch { return {}; }
+}
+
+// ---------------------------------------------------------------------------
+//  Document Preview component
+// ---------------------------------------------------------------------------
+
+function DocumentPreview({ docId, doc }: { docId: string; doc: any }) {
+  const { toast } = useToast();
+  const [preview, setPreview] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function loadPreview() {
+    setLoading(true);
+    try {
+      const res = await api.get<{ url: string; watermark: boolean; watermarkText: string | null; fileName: string; mimeType: string }>(`/api/documents/${docId}/preview`);
+      setPreview(res);
+    } catch (err: any) {
+      toast({ title: 'Preview failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!doc.previewAllowed) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center">
+          <AlertTriangle className="h-8 w-8 mx-auto text-amber-500 mb-2" />
+          <p className="text-sm font-medium">Preview disabled</p>
+          <p className="text-xs text-muted-foreground mt-1">Preview is disabled for this document by policy.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Eye className="h-4 w-4" /> In-browser preview
+        </CardTitle>
+        <CardDescription>
+          {doc.watermarkEnabled ? 'Dynamic watermark enabled — viewer identity is overlaid on the document.' : 'No watermark.'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {!preview ? (
+          <Button onClick={loadPreview} disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Eye className="mr-2 h-4 w-4" /> Load preview
+          </Button>
+        ) : (
+          <div className="space-y-3">
+            {preview.watermark && preview.watermarkText && (
+              <Alert>
+                <AlertDescription className="text-xs">
+                  <strong>Watermark:</strong> <span className="font-mono">{preview.watermarkText}</span>
+                </AlertDescription>
+              </Alert>
+            )}
+            <div className="border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden">
+              {preview.mimeType.startsWith('image/') ? (
+                <img src={preview.url} alt={preview.fileName} className="max-w-full h-auto" />
+              ) : preview.mimeType === 'application/pdf' ? (
+                <iframe src={preview.url} className="w-full h-[70vh]" title={preview.fileName} />
+              ) : preview.mimeType.startsWith('text/') ? (
+                <iframe src={preview.url} className="w-full h-[70vh] bg-white" title={preview.fileName} />
+              ) : (
+                <div className="p-8 text-center">
+                  <FileText className="h-10 w-10 mx-auto text-muted-foreground/50 mb-2" />
+                  <p className="text-sm">Preview not available for {preview.mimeType}</p>
+                  <a href={preview.url} target="_blank" rel="noreferrer">
+                    <Button variant="outline" size="sm" className="mt-2">
+                      <Download className="mr-2 h-3.5 w-3.5" /> Download instead
+                    </Button>
+                  </a>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">URL expires in 60 seconds. Click "Load preview" again to refresh.</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+//  Comments panel
+// ---------------------------------------------------------------------------
+
+function CommentsPanel({ docId }: { docId: string }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [body, setBody] = useState('');
+
+  const { data, isLoading } = useQuery<{ comments: any[] }>({
+    queryKey: ['document-comments', docId],
+    queryFn: () => api.get(`/api/documents/${docId}/comments`),
+  });
+
+  const add = useMutation({
+    mutationFn: () => api.post(`/api/documents/${docId}/comments`, { body }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['document-comments', docId] });
+      setBody('');
+    },
+    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+  });
+
+  const resolve = useMutation({
+    mutationFn: (id: string) => api.patch(`/api/documents/${docId}/comments/${id}`, { resolved: true }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-comments', docId] }),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <MessageSquare className="h-4 w-4" /> Comments
+        </CardTitle>
+        <CardDescription>Threaded discussion on this document</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex gap-2">
+          <Textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Add a comment…"
+            rows={2}
+          />
+          <Button size="sm" onClick={() => add.mutate()} disabled={!body.trim() || add.isPending} className="self-end">
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-4"><Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" /></div>
+        ) : !data?.comments?.length ? (
+          <p className="text-center text-sm text-muted-foreground py-6">No comments yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {data.comments.map((c: any) => (
+              <div key={c.id} className={`p-3 rounded-md border ${c.resolvedAt ? 'opacity-60 bg-slate-50 dark:bg-slate-900' : 'border-slate-200 dark:border-slate-800'}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium text-sm">{c.author?.name ?? c.author?.email ?? 'Unknown'}</span>
+                  <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}</span>
+                  {c.resolvedAt && <Badge variant="secondary" className="text-[10px]">Resolved</Badge>}
+                </div>
+                <p className="text-sm">{c.body}</p>
+                {!c.resolvedAt && (
+                  <Button variant="ghost" size="sm" className="mt-2 h-6 text-xs" onClick={() => resolve.mutate(c.id)}>
+                    Resolve
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+//  PII Scanner
+// ---------------------------------------------------------------------------
+
+function PiiScanner({ docId }: { docId: string }) {
+  const { toast } = useToast();
+  const [result, setResult] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function scan() {
+    setLoading(true);
+    try {
+      const res = await api.post(`/api/documents/${docId}/analyze-pii`);
+      setResult(res);
+    } catch (err: any) {
+      toast({ title: 'Scan failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <Button variant="outline" size="sm" onClick={scan} disabled={loading}>
+        {loading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Shield className="mr-2 h-3.5 w-3.5" />}
+        Scan for PII
+      </Button>
+      {result && (
+        <div className="space-y-2">
+          {result.totalMatches === 0 ? (
+            <Alert>
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertDescription>No PII detected.</AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              <Alert variant="default">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>{result.totalMatches}</strong> PII match(es) found ({result.source}).
+                </AlertDescription>
+              </Alert>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                {Object.entries(result.byType).map(([type, count]: any) => (
+                  <div key={type} className="p-2 border border-slate-200 dark:border-slate-800 rounded">
+                    <p className="text-xs text-muted-foreground">{type}</p>
+                    <p className="font-semibold">{count}</p>
+                  </div>
+                ))}
+              </div>
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground">View masked findings</summary>
+                <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+                  {result.findings.slice(0, 30).map((f: any, i: number) => (
+                    <div key={i} className="font-mono text-[10px] text-muted-foreground">
+                      {f.type}: {f.value}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+//  Summarizer
+// ---------------------------------------------------------------------------
+
+function Summarizer({ docId }: { docId: string }) {
+  const { toast } = useToast();
+  const [result, setResult] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function summarize() {
+    setLoading(true);
+    try {
+      const res = await api.post(`/api/documents/${docId}/summarize`);
+      setResult(res);
+    } catch (err: any) {
+      toast({ title: 'Failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <Button variant="outline" size="sm" onClick={summarize} disabled={loading}>
+        {loading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-2 h-3.5 w-3.5" />}
+        Generate summary
+      </Button>
+      {result && (
+        <div className="space-y-2">
+          <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-md">
+            <p className="text-sm">{result.summary}</p>
+          </div>
+          {result.keyPoints?.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground mb-1">Key points</p>
+              <ul className="space-y-1">
+                {result.keyPoints.map((p: string, i: number) => (
+                  <li key={i} className="text-sm flex items-start gap-2">
+                    <span className="text-muted-foreground">•</span>
+                    <span>{p}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <Badge variant="outline" className="text-xs">Source: {result.source}</Badge>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+//  Policy Risk Analyzer
+// ---------------------------------------------------------------------------
+
+function PolicyRiskAnalyzer({ docId }: { docId: string }) {
+  const { toast } = useToast();
+  const [result, setResult] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function analyze() {
+    setLoading(true);
+    try {
+      const res = await api.post(`/api/documents/${docId}/policy-risk`);
+      setResult(res);
+    } catch (err: any) {
+      toast({ title: 'Failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const severityColor: Record<string, string> = {
+    critical: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900',
+    high: 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-900',
+    medium: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900',
+    low: 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900',
+  };
+
+  return (
+    <div className="space-y-3">
+      <Button variant="outline" size="sm" onClick={analyze} disabled={loading}>
+        {loading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <ShieldAlert className="mr-2 h-3.5 w-3.5" />}
+        Analyze risks
+      </Button>
+      {result && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-800 rounded-md">
+            <span className="text-sm font-medium">Overall risk</span>
+            <Badge variant={result.overallRisk === 'critical' || result.overallRisk === 'high' ? 'destructive' : 'secondary'} className="capitalize">
+              {result.overallRisk}
+            </Badge>
+          </div>
+          {result.risks?.length === 0 ? (
+            <Alert>
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertDescription>No risks detected. Document is compliant.</AlertDescription>
+            </Alert>
+          ) : (
+            <div className="space-y-2">
+              {result.risks.map((r: any, i: number) => (
+                <div key={i} className={`p-3 border rounded-md ${severityColor[r.severity] || ''}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant={r.severity === 'critical' || r.severity === 'high' ? 'destructive' : 'secondary'} className="text-xs capitalize">
+                      {r.severity}
+                    </Badge>
+                    <span className="text-xs font-mono text-muted-foreground">{r.category}</span>
+                  </div>
+                  <p className="text-sm">{r.description}</p>
+                  <p className="text-xs text-muted-foreground mt-1">→ {r.recommendation}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {result.requiresHumanReview && (
+            <Alert variant="default">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                This document requires human review due to high/critical risk findings.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+//  Duplicate Checker
+// ---------------------------------------------------------------------------
+
+function DuplicateChecker({ docId }: { docId: string }) {
+  const { data, isLoading } = useQuery<{ exactDuplicates: any[]; nearDuplicates: any[] }>({
+    queryKey: ['document-duplicates', docId],
+    queryFn: () => api.get(`/api/documents/${docId}/duplicate-check`),
+  });
+
+  if (isLoading) {
+    return <div className="text-center py-4"><Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" /></div>;
+  }
+
+  if (!data) return null;
+
+  if (data.exactDuplicates.length === 0 && data.nearDuplicates.length === 0) {
+    return (
+      <Alert>
+        <CheckCircle2 className="h-4 w-4" />
+        <AlertDescription>No duplicates found. This document is unique in your tenant.</AlertDescription>
+      </Alert>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {data.exactDuplicates.length > 0 && (
+        <div>
+          <p className="text-sm font-medium text-red-600 mb-2">Exact duplicates ({data.exactDuplicates.length})</p>
+          <div className="space-y-1">
+            {data.exactDuplicates.map((d: any) => (
+              <Link key={d.documentId} href={`/documents/${d.documentId}`} className="block p-2 border border-red-200 dark:border-red-900 rounded text-sm hover:bg-red-50 dark:hover:bg-red-950/30">
+                <p className="font-medium">{d.documentTitle}</p>
+                <p className="text-xs text-muted-foreground">v{d.versionNumber} · {d.classification?.code ?? 'unclassified'} · {d.owner?.email}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+      {data.nearDuplicates.length > 0 && (
+        <div>
+          <p className="text-sm font-medium text-amber-600 mb-2">Near duplicates ({data.nearDuplicates.length})</p>
+          <div className="space-y-1">
+            {data.nearDuplicates.map((d: any) => (
+              <Link key={d.documentId} href={`/documents/${d.documentId}`} className="block p-2 border border-amber-200 dark:border-amber-900 rounded text-sm hover:bg-amber-50 dark:hover:bg-amber-950/30">
+                <p className="font-medium">{d.documentTitle}</p>
+                <p className="text-xs text-muted-foreground">v{d.versionNumber} · size diff: {d.sizeDiff} bytes</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+//  Favorite Button
+// ---------------------------------------------------------------------------
+
+function FavoriteButton({ docId }: { docId: string }) {
+  const qc = useQueryClient();
+  const { data: favorites } = useQuery<{ items: any[] }>({
+    queryKey: ['me-favorites'],
+    queryFn: () => api.get('/api/me/favorites'),
+  });
+  const isFavorited = favorites?.items?.some((d: any) => d.id === docId) ?? false;
+
+  const toggle = useMutation({
+    mutationFn: () => isFavorited ? api.delete(`/api/documents/${docId}/favorite`) : api.post(`/api/documents/${docId}/favorite`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['me-favorites'] });
+    },
+  });
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => toggle.mutate()}
+      disabled={toggle.isPending}
+    >
+      <Star className={`h-3.5 w-3.5 ${isFavorited ? 'fill-amber-400 text-amber-400' : ''}`} />
+    </Button>
+  );
 }

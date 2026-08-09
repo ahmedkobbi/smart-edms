@@ -6,7 +6,7 @@ import {
   Shield, FileText, Search, GitBranch, Clock, FileLock, ScrollText, Settings,
   LayoutDashboard, Users, ShieldCheck, BookMarked, KeyRound, Webhook, Database,
   Bot, ShieldAlert, FileCheck, Smartphone, Mail, BookOpen, LogIn, RefreshCw,
-  AlertTriangle, CreditCard, Building2,
+  AlertTriangle, CreditCard, Building2, FolderOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSessionData } from '@/components/providers/use-session-data';
@@ -25,6 +25,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/documents', label: 'Documents', icon: FileText, permission: PERMISSIONS.SEARCH_USE },
+      { href: '/folders', label: 'Folders', icon: FolderOpen, permission: PERMISSIONS.SEARCH_USE },
       { href: '/search', label: 'Search', icon: Search, permission: PERMISSIONS.SEARCH_USE },
       { href: '/workflows', label: 'Workflows', icon: GitBranch, permission: PERMISSIONS.WORKFLOW_APPROVE },
     ],
@@ -58,6 +59,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { href: '/admin/sso-providers', label: 'SSO Providers', icon: LogIn, permission: PERMISSIONS.ADMIN_INTEGRATIONS_MANAGE },
       { href: '/admin/devices', label: 'Devices', icon: Smartphone, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
       { href: '/admin/tenants', label: 'Tenants', icon: Building2, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
+      { href: '/admin/tenant', label: 'Tenant Settings', icon: Settings, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
       { href: '/admin/billing', label: 'Billing', icon: CreditCard, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
     ],
   },

@@ -14,6 +14,7 @@ import { ScrollText, Download, ShieldCheck, Loader2, AlertTriangle, CheckCircle2
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { truncateHash } from '@/lib/utils/format';
+import { AuditReceiptsPanel } from '@/components/audit/audit-receipts-panel';
 
 interface AuditItem {
   id: string;
@@ -184,6 +185,8 @@ export default function AuditPage() {
           <Button variant="outline" size="sm" disabled={page * 50 >= data.total} onClick={() => setPage((p) => p + 1)}>Next</Button>
         </div>
       )}
+
+      <AuditReceiptsPanel />
 
       {/* Event detail dialog */}
       <Dialog open={!!selected} onOpenChange={(v) => !v && setSelected(null)}>

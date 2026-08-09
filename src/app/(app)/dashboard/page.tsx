@@ -5,7 +5,7 @@ import { api } from '@/lib/api/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FileText, FileCheck, GitBranch, FileLock, TrendingUp, Activity, ArrowRight } from 'lucide-react';
+import { FileText, FileCheck, GitBranch, FileLock, TrendingUp, Activity, ArrowRight, Star, Clock, History } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -23,6 +23,8 @@ interface DashboardData {
   };
   recentDocuments: any[];
   recentActivity: any[];
+  myFavorites?: any[];
+  myRecentViews?: any[];
 }
 
 const STATE_LABELS: Record<string, string> = {
@@ -198,6 +200,80 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* Favorites + Recent views */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Star className="h-4 w-4" />
+              My favorites
+            </CardTitle>
+            <CardDescription>Documents you've starred</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!data.myFavorites || data.myFavorites.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                No favorites yet. Click the star icon on a document to add it.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {data.myFavorites.map((doc) => (
+                  <Link
+                    key={doc.id}
+                    href={`/documents/${doc.id}`}
+                    className="flex items-center gap-3 p-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
+                  >
+                    <div
+                      className="h-2 w-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: doc.classification?.color || '#94a3b8' }}
+                    />
+                    <span className="text-sm truncate flex-1">{doc.title}</span>
+                    <Badge variant="outline" className="text-xs">{doc.state}</Badge>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <History className="h-4 w-4" />
+              Recently viewed
+            </CardTitle>
+            <CardDescription>Your last 5 accessed documents</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!data.myRecentViews || data.myRecentViews.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                No recent views.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {data.myRecentViews.map((doc) => (
+                  <Link
+                    key={doc.id}
+                    href={`/documents/${doc.id}`}
+                    className="flex items-center gap-3 p-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
+                  >
+                    <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                    <div
+                      className="h-2 w-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: doc.classification?.color || '#94a3b8' }}
+                    />
+                    <span className="text-sm truncate flex-1">{doc.title}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(doc.viewedAt), { addSuffix: true })}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Recent activity */}

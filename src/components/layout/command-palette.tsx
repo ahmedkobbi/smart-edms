@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
-import { FileText, Search, GitBranch, ScrollText, Settings, LayoutDashboard, Users, KeyRound, BookMarked, ShieldCheck, FileLock, Clock, Shield, Upload, Plus, Bell } from 'lucide-react';
+import { FileText, Search, GitBranch, ScrollText, Settings, LayoutDashboard, Users, KeyRound, BookMarked, ShieldCheck, FileLock, Clock, Shield, Upload, Plus, Bell, FolderOpen } from 'lucide-react';
 import { useSessionData } from '@/components/providers/use-session-data';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions.client';
 
@@ -48,6 +48,14 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           <CommandItem onSelect={() => go('/documents')}>
             <FileText className="mr-2 h-4 w-4" />
             Documents
+          </CommandItem>
+          <CommandItem onSelect={() => go('/folders')}>
+            <FolderOpen className="mr-2 h-4 w-4" />
+            Folders
+          </CommandItem>
+          <CommandItem onSelect={() => go('/search')}>
+            <Search className="mr-2 h-4 w-4" />
+            Search
           </CommandItem>
           {hasPermission(perms, PERMISSIONS.WORKFLOW_APPROVE) && (
             <CommandItem onSelect={() => go('/workflows')}>

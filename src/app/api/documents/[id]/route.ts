@@ -28,7 +28,7 @@ export const GET = createApiHandler(
           take: 20,
           include: { uploader: { select: { id: true, name: true, email: true } } },
         },
-        _count: { select: { shares: true, auditEvents: true, approvals: true } },
+        _count: { select: { shares: true, approvals: true, versions: true, comments: true } },
       },
     });
     if (!doc) throw ApiError.notFound('document_not_found', 'Document not found');
