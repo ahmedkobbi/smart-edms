@@ -2,7 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Shield, FileText, FolderOpen, Search, GitBranch, Clock, FileLock, ScrollText, Settings, LayoutDashboard, Users, ShieldCheck, BookMarked, KeyRound, Webhook, Database, Bot, ShieldAlert, FileCheck } from 'lucide-react';
+import {
+  Shield, FileText, Search, GitBranch, Clock, FileLock, ScrollText, Settings,
+  LayoutDashboard, Users, ShieldCheck, BookMarked, KeyRound, Webhook, Database,
+  Bot, ShieldAlert, FileCheck, Smartphone, Mail, BookOpen, LogIn, RefreshCw,
+  AlertTriangle, CreditCard, Building2,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSessionData } from '@/components/providers/use-session-data';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions.client';
@@ -12,7 +17,6 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   permission?: string;
-  badge?: string;
 }
 
 const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
@@ -38,15 +42,23 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     title: 'Administration',
     items: [
       { href: '/admin/security', label: 'Security Posture', icon: ShieldAlert, permission: PERMISSIONS.ADMIN_VIEW },
+      { href: '/admin/anomalies', label: 'Anomalies', icon: AlertTriangle, permission: PERMISSIONS.ADMIN_VIEW },
       { href: '/admin/users', label: 'Users', icon: Users, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
+      { href: '/admin/invitations', label: 'Invitations', icon: Mail, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
       { href: '/admin/groups', label: 'Groups', icon: Users, permission: PERMISSIONS.ADMIN_GROUPS_MANAGE },
       { href: '/admin/roles', label: 'Roles', icon: KeyRound, permission: PERMISSIONS.ADMIN_ROLES_MANAGE },
+      { href: '/admin/recertification', label: 'Recertification', icon: RefreshCw, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
       { href: '/admin/classifications', label: 'Classifications', icon: BookMarked, permission: PERMISSIONS.ADMIN_CLASSIFICATIONS_MANAGE },
       { href: '/admin/policies', label: 'Policies', icon: ShieldCheck, permission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
       { href: '/admin/metadata-schemas', label: 'Metadata Schemas', icon: Database, permission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
+      { href: '/admin/vocabularies', label: 'Vocabularies', icon: BookOpen, permission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
       { href: '/admin/api-keys', label: 'API Keys', icon: KeyRound, permission: PERMISSIONS.ADMIN_API_KEYS_MANAGE },
       { href: '/admin/service-accounts', label: 'Service Accounts', icon: Bot, permission: PERMISSIONS.ADMIN_API_KEYS_MANAGE },
       { href: '/admin/webhooks', label: 'Webhooks', icon: Webhook, permission: PERMISSIONS.ADMIN_WEBHOOKS_MANAGE },
+      { href: '/admin/sso-providers', label: 'SSO Providers', icon: LogIn, permission: PERMISSIONS.ADMIN_INTEGRATIONS_MANAGE },
+      { href: '/admin/devices', label: 'Devices', icon: Smartphone, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
+      { href: '/admin/tenants', label: 'Tenants', icon: Building2, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
+      { href: '/admin/billing', label: 'Billing', icon: CreditCard, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
     ],
   },
   {

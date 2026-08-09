@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler } from '@/lib/api/handler';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
+import { searchTextIndex } from '@/lib/documents/text-extraction';
 import { z } from 'zod';
 
 const querySchema = z.object({
@@ -72,6 +73,16 @@ export const GET = createApiHandler(
       }),
     ]);
 
+    // Augment with full-text matches from DocumentTextIndex (OCR + extracted)
+    let fullTextMatches: { documentId: string; snippet: string }[] = [];
+    if (q.q && q.q.length >= 3) {
+      try {
+        fullTextMatches = await searchTextIndex(ctx.tenantId, q.q, { limit: 10 });
+      } catch {
+        // ignore if text index unavailable
+      }
+    }
+
     // Filter by tags (post-query because tags are JSON-encoded)
     let filtered = items;
     if (tagList.length > 0) {
@@ -109,6 +120,7 @@ export const GET = createApiHandler(
       page: q.page,
       pageSize: q.pageSize,
       query: q.q,
+      fullTextMatches,
       facets: {
         classifications: Array.from(classificationFacet.entries()).map(([id, count]) => ({ id, count })),
         tags: Array.from(tagFacet.entries()).map(([name, count]) => ({ name, count })),

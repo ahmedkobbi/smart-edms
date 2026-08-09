@@ -56,6 +56,27 @@ const KEYWORDS_INTERNAL = [
 ];
 
 export async function suggestClassification(input: ClassifyInput): Promise<ClassifyOutput> {
+  // Check tenant AI feature flag
+  const tenant = await db.tenant.findUnique({
+    where: { id: input.tenantId },
+    select: { settings: true },
+  });
+  let aiEnabled = true;
+  try {
+    const settings = JSON.parse(tenant?.settings || '{}');
+    aiEnabled = settings?.features?.ai !== false;
+  } catch {}
+
+  if (!aiEnabled) {
+    return {
+      code: 'PUBLIC',
+      name: 'Public',
+      reason: 'AI features are disabled for this tenant.',
+      confidence: 0,
+      source: 'heuristic',
+    };
+  }
+
   // Try LLM if configured
   if (process.env.AI_API_KEY) {
     try {

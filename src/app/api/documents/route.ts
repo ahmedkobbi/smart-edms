@@ -13,6 +13,9 @@ import { getFileStorage, buildStorageKey } from '@/lib/storage/file-storage';
 import { validateUploadedFile } from '@/lib/storage/file-validation';
 import { sha256, sha1 } from '@/lib/auth/crypto';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
+import { scanFile } from '@/lib/security/malware-scanner';
+import { createDocumentDek, encryptWithDek } from '@/lib/storage/envelope-encryption';
+import { indexDocumentText } from '@/lib/documents/text-extraction';
 import { z } from 'zod';
 
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024; // 100 MB
@@ -153,6 +156,34 @@ export const POST = createApiHandler(
     const checksumSha256 = sha256(buf);
     const checksumSha1 = sha1(buf);
 
+    // Malware scan (synchronous — fast heuristic; ClamAV would be async via queue)
+    const mimeType = validation.detectedMime || file.type;
+    const scanResult = await scanFile(ctx.tenantId, 'pending', buf, file.name, mimeType);
+    if (scanResult.status === 'infected') {
+      await recordAuditEvent({
+        tenantId: ctx.tenantId,
+        actorId: ctx.userId,
+        actorEmail: ctx.session.user.email,
+        actorIp: ctx.ip,
+        actorUserAgent: ctx.userAgent,
+        correlationId: ctx.correlationId,
+        eventType: 'document.malware.blocked',
+        action: 'create',
+        resourceType: 'document',
+        result: 'deny',
+        reason: `Malware detected: ${scanResult.threatName}`,
+        metadata: {
+          fileName: file.name,
+          scanner: scanResult.scanner,
+          threat: scanResult.threatName,
+        },
+      });
+      throw ApiError.badRequest('malware_detected', `File rejected: ${scanResult.threatName}`, {
+        threat: scanResult.threatName,
+        scanner: scanResult.scanner,
+      });
+    }
+
     // Create document + version in a transaction
     const storage = getFileStorage();
     const result = await db.$transaction(async (tx) => {
@@ -189,14 +220,21 @@ export const POST = createApiHandler(
         }
       }
 
+      // Generate per-document DEK (envelope encryption)
+      const { dek } = await createDocumentDek(ctx.tenantId, doc.id, tx);
+      const encrypted = encryptWithDek(dek, buf);
+
       const versionId = `${doc.id}_v1`;
       const storageKey = buildStorageKey(ctx.tenantId, doc.id, versionId, file.name);
-      const mimeType = validation.detectedMime || file.type;
-      await storage.put(storageKey, buf, mimeType, {
+      // Store the encrypted buffer; the IV is recorded in the version row
+      const encryptedBuf = Buffer.from(encrypted.ciphertext, 'base64');
+      await storage.put(storageKey, encryptedBuf, mimeType, {
         tenantId: ctx.tenantId,
         documentId: doc.id,
         version: '1',
         uploadedBy: ctx.userId,
+        encrypted: 'true',
+        iv: encrypted.iv,
       });
 
       const version = await tx.documentVersion.create({
@@ -212,11 +250,16 @@ export const POST = createApiHandler(
           checksumSha1,
           uploadedById: ctx.userId,
           changeReason,
-          metadata: JSON.stringify(metadata),
+          metadata: JSON.stringify({ ...metadata, _encIv: encrypted.iv }),
         },
       });
 
       return { doc, version };
+    });
+
+    // Index text for full-text search + AI (best-effort, non-blocking)
+    indexDocumentText(ctx.tenantId, result.doc.id, result.version.id).catch((err) => {
+      console.warn('[text-index] failed:', err);
     });
 
     // Audit log

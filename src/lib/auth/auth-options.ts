@@ -16,6 +16,8 @@ import { verifyPassword } from './crypto';
 import { decryptTotpSecret, verifyTotp } from './totp';
 import { SYSTEM_ROLE_PERMISSIONS, SYSTEM_ROLES } from './permissions';
 import { authRateLimiter } from '@/lib/security/rate-limit';
+import { recordAuditEvent } from '@/lib/audit/audit-service';
+import { notify } from '@/lib/notifications/notify';
 
 // MFA pending token is short-lived (5 minutes)
 const MFA_PENDING_TTL_MS = 5 * 60 * 1000;
@@ -126,16 +128,66 @@ export const authOptions: NextAuthOptions = {
 
         if (!user || !passwordOk) {
           if (user) {
+            const newFailCount = user.failedLoginAttempts + 1;
             await db.user.update({
               where: { id: user.id },
               data: {
                 failedLoginAttempts: { increment: 1 },
                 lockedUntil:
-                  user.failedLoginAttempts + 1 >= 5
+                  newFailCount >= 5
                     ? new Date(Date.now() + 15 * 60 * 1000)
                     : undefined,
               },
             });
+
+            // Audit the failed login
+            await recordAuditEvent({
+              tenantId: user.tenantId,
+              eventType: 'auth.login',
+              action: 'login',
+              resourceType: 'user',
+              resourceId: user.id,
+              resourceName: user.email,
+              result: 'deny',
+              reason: 'invalid_password',
+              actorEmail: user.email,
+              actorIp: ip,
+              actorUserAgent: (req.headers?.['user-agent'] as string) || null,
+              metadata: { attempt: newFailCount, locked: newFailCount >= 5 },
+            }).catch(() => {});
+
+            // Notify user on 3rd failure + tenant admins on 5th
+            if (newFailCount === 3) {
+              await notify({
+                tenantId: user.tenantId,
+                userId: user.id,
+                type: 'security.failed_login',
+                title: 'Failed login attempt',
+                body: `There were 3 failed login attempts on your account from IP ${ip}. If this wasn't you, consider changing your password.`,
+                severity: 'warning',
+                metadata: { ip, attempt: newFailCount },
+              }).catch(() => {});
+            }
+            if (newFailCount >= 5) {
+              const admins = await db.roleAssignment.findMany({
+                where: { tenantId: user.tenantId, role: { name: SYSTEM_ROLES.TENANT_ADMIN } },
+                select: { userId: true },
+              });
+              for (const a of admins) {
+                await notify({
+                  tenantId: user.tenantId,
+                  userId: a.userId,
+                  type: 'security.account_locked',
+                  title: 'Account locked',
+                  body: `Account ${user.email} was locked after 5 failed login attempts from IP ${ip}.`,
+                  severity: 'critical',
+                  metadata: { email: user.email, ip },
+                }).catch(() => {});
+              }
+            }
+          } else {
+            // Unknown email — log to console only (can't audit without a valid tenant)
+            console.warn(`[auth] failed login for unknown email: ${credentials.email} from ${ip}`);
           }
           return null;
         }

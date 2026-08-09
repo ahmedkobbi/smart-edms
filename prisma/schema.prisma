@@ -55,6 +55,17 @@ model Tenant {
   dispositionRecords     DispositionRecord[]
   serviceAccounts        ServiceAccount[]
   stepUpSessions         StepUpSession[]
+  documentEncryptionKeys DocumentEncryptionKey[]
+  malwareScans           MalwareScan[]
+  controlledVocabularies ControlledVocabulary[]
+  invitations            Invitation[]
+  recertificationCampaigns RecertificationCampaign[]
+  breakGlassAccesses     BreakGlassAccess[]
+  ssoProviders           SsoProvider[]
+  auditReceipts          AuditReceipt[]
+  subscription           Subscription?
+  documentTextIndexes    DocumentTextIndex[]
+  securityAnomalies      SecurityAnomaly[]
 }
 
 // ============================================================================
@@ -353,7 +364,6 @@ model Document {
   owner           User?          @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   classification  Classification? @relation(fields: [classificationId], references: [id], onDelete: SetNull)
   versions        DocumentVersion[]
-  auditEvents     AuditEvent[]   @relation("DocumentAudit")
   approvals       Approval[]
   shares          Share[]
   classificationChanges ClassificationChange[]
@@ -363,6 +373,8 @@ model Document {
   favorites       Favorite[]
   recentViews     RecentView[] @relation("DocumentRecentViews")
   redactions      Redaction[]
+  encryptionKey   DocumentEncryptionKey?
+  textIndex       DocumentTextIndex?
 
   @@index([tenantId, folderId])
   @@index([tenantId, state])
@@ -598,7 +610,6 @@ model AuditEvent {
 
   tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   actor    User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
-  document Document? @relation("DocumentAudit", fields: [resourceId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, sequenceNum])
   @@index([tenantId, eventType, createdAt])
@@ -878,4 +889,271 @@ model StepUpSession {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
+}
+
+// ============================================================================
+//  ENVELOPE ENCRYPTION (per-document Data Encryption Keys)
+// ============================================================================
+
+model DocumentEncryptionKey {
+  id            String   @id @default(cuid())
+  tenantId      String
+  documentId    String   @unique
+  // AES-256-GCM-encrypted DEK (wrapped by the tenant KEK)
+  encryptedDek  String
+  // IV used to encrypt the DEK
+  iv            String
+  // Key version for rotation tracking
+  keyVersion    Int      @default(1)
+  createdAt     DateTime @default(now())
+  rotatedAt     DateTime?
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+// ============================================================================
+//  MALWARE SCAN RESULTS
+// ============================================================================
+
+model MalwareScan {
+  id           String   @id @default(cuid())
+  tenantId     String
+  documentVersionId String
+  status       String   // pending | clean | infected | error
+  scanner      String   // clamav | signature | heuristic
+  signatureHash String?
+  threatName   String?
+  quarantined  Boolean  @default(false)
+  scannedAt    DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, documentVersionId])
+  @@index([tenantId, status])
+}
+
+// ============================================================================
+//  CONTROLLED VOCABULARIES
+// ============================================================================
+
+model ControlledVocabulary {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  terms       String   @default("[]") // JSON array of strings
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+// ============================================================================
+//  INVITATIONS
+// ============================================================================
+
+model Invitation {
+  id           String   @id @default(cuid())
+  tenantId     String
+  email        String
+  token        String   @unique
+  invitedBy    String
+  roleNames    String   @default("[]") // JSON
+  status       String   @default("pending") // pending | accepted | expired | revoked
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  acceptedById String?
+  createdAt    DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, email])
+  @@index([tenantId, status])
+}
+
+// ============================================================================
+//  ACCESS RECERTIFICATION
+// ============================================================================
+
+model RecertificationCampaign {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  status      String   @default("open") // open | completed | cancelled
+  dueAt       DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  RecertificationItem[]
+
+  @@index([tenantId, status])
+}
+
+model RecertificationItem {
+  id          String   @id @default(cuid())
+  campaignId  String
+  tenantId    String
+  userId      String
+  reviewerId  String
+  decision    String   @default("pending") // pending | keep | revoke | change
+  reason      String?
+  decidedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  campaign RecertificationCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, reviewerId, decision])
+  @@unique([campaignId, userId])
+}
+
+// ============================================================================
+//  BREAK-GLASS EMERGENCY ACCESS
+// ============================================================================
+
+model BreakGlassAccess {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String
+  reason      String
+  justification String
+  grantedAt   DateTime @default(now())
+  expiresAt   DateTime
+  reviewed    Boolean  @default(false)
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNotes String?
+  // The escalated permissions granted
+  grantedPermissions String @default("[]") // JSON
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, reviewed])
+  @@index([tenantId, userId])
+}
+
+// ============================================================================
+//  SSO PROVIDER CONFIGURATION (OIDC / SAML)
+// ============================================================================
+
+model SsoProvider {
+  id            String   @id @default(cuid())
+  tenantId      String
+  name          String
+  type          String   // oidc | saml
+  // OIDC
+  issuerUrl     String?
+  authorizationEndpoint String?
+  tokenEndpoint String?
+  userInfoEndpoint String?
+  jwksUri       String?
+  clientId      String
+  clientSecretEnc String? // encrypted
+  scopes        String   @default("openid profile email")
+  // SAML
+  metadataUrl   String?
+  entityId      String?
+  // Mapping
+  emailAttribute String  @default("email")
+  nameAttribute  String  @default("name")
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+// ============================================================================
+//  AUDIT SIGNED RECEIPTS (periodic integrity snapshots)
+// ============================================================================
+
+model AuditReceipt {
+  id              String   @id @default(cuid())
+  tenantId        String
+  periodStart     DateTime
+  periodEnd       DateTime
+  eventCount      Int
+  lastSequenceNum Int
+  lastEventHash   String
+  receiptHash     String  // hash of period summary
+  signature       String  // HMAC signature using receipt key
+  createdAt       DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, periodEnd])
+}
+
+// ============================================================================
+//  BILLING / SUBSCRIPTION
+// ============================================================================
+
+model Subscription {
+  id           String   @id @default(cuid())
+  tenantId     String   @unique
+  plan         String   @default("trial") // trial | starter | business | enterprise
+  status       String   @default("active") // active | past_due | canceled | trialing
+  seats        Int      @default(1)
+  storageBytes BigInt   @default(1073741824) // 1GB default
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================================
+//  DOCUMENT TEXT INDEX (for OCR + full-text search)
+// ============================================================================
+
+model DocumentTextIndex {
+  id           String   @id @default(cuid())
+  tenantId     String
+  documentId   String   @unique
+  versionId    String
+  extractedText String  @default("")
+  ocrApplied   Boolean  @default(false)
+  language     String   @default("en")
+  pageCount    Int      @default(0)
+  indexedAt    DateTime @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+// ============================================================================
+//  ANOMALY DETECTION
+// ============================================================================
+
+model SecurityAnomaly {
+  id          String   @id @default(cuid())
+  tenantId    String
+  type        String   // burst_failed_logins | off_hours_access | unusual_download | mass_export
+  severity    String   @default("warning") // info | warning | critical
+  description String
+  actorEmail  String?
+  actorIp     String?
+  metadata    String   @default("{}")
+  resolved    Boolean  @default(false)
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, resolved, createdAt])
+  @@index([tenantId, severity])
 }
