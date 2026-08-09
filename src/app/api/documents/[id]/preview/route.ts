@@ -65,6 +65,7 @@ export const GET = createApiHandler(
       watermarkText: doc.watermarkEnabled
         ? `${ctx.session.user.email} • ${new Date().toISOString()} • ${doc.id.slice(-8)}`
         : null,
+      noDownload: !doc.downloadAllowed,
       classification: doc.classification
         ? { code: doc.classification.code, name: doc.classification.name, color: doc.classification.color }
         : null,

@@ -18,7 +18,10 @@ import { getServerSession, SmartEdmsSession } from '@/lib/auth/auth-options';
 import { hasPermission } from '@/lib/auth/permissions';
 import { apiRateLimiter, getClientIp } from '@/lib/security/rate-limit';
 import { recordAuditEvent, AuditEventInput } from '@/lib/audit/audit-service';
+import { logger, setRequestContext, clearRequestContext } from '@/lib/config/logger';
 import { randomUUID } from 'crypto';
+
+const MAX_REQUEST_BODY_SIZE = 10 * 1024 * 1024; // 10MB for JSON bodies (uploads use multipart, separate limit)
 
 export interface ApiContext {
   session: SmartEdmsSession;
@@ -68,10 +71,26 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
     const ip = getClientIp(req);
     const userAgent = req.headers.get('user-agent') || 'unknown';
 
+    // Set structured logging context
+    setRequestContext({ correlationId, ip, userAgent });
+
+    // Check request body size for non-multipart requests
+    const contentType = req.headers.get('content-type') || '';
+    if (contentType.includes('application/json') || contentType.includes('text/')) {
+      const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
+      if (contentLength > MAX_REQUEST_BODY_SIZE) {
+        logger.warn('api.request_too_large', { contentLength, limit: MAX_REQUEST_BODY_SIZE, path: req.nextUrl.pathname });
+        return jsonError(413, 'request_too_large', `Request body exceeds ${MAX_REQUEST_BODY_SIZE} bytes`);
+      }
+    }
+
     const session = await getServerSession();
     if (!session?.user) {
       return jsonError(401, 'unauthenticated', 'Authentication required');
     }
+
+    // Update logging context with user info
+    setRequestContext({ tenantId: session.user.tenantId, userId: session.user.id });
 
     if (opts.rateLimit) {
       const rlKey = `${session.user.tenantId}:${session.user.id}:${req.method}:${req.nextUrl.pathname}`;
@@ -138,6 +157,15 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
       const code = err?.code || 'internal_error';
       const message = err?.message || 'Internal server error';
 
+      logger.error('api.error', {
+        path: req.nextUrl.pathname,
+        method: req.method,
+        code,
+        status,
+        error: message,
+        stack: process.env.NODE_ENV === 'production' ? undefined : err?.stack,
+      });
+
       await ctx.audit({
         eventType: 'api.error',
         action: req.method.toLowerCase(),
@@ -149,10 +177,11 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
       });
 
       if (status >= 500) {
-        console.error('[api:error]', err);
         return jsonError(500, 'internal_error', 'An unexpected error occurred');
       }
       return jsonError(status, code, message);
+    } finally {
+      clearRequestContext();
     }
   };
 }

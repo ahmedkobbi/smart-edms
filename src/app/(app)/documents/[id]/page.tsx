@@ -18,7 +18,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   ArrowLeft, Download, Lock, Unlock, FileLock, Shield, History, Share2, Sparkles,
   Loader2, Eye, FileText, CheckCircle2, XCircle, AlertTriangle, Clock,
-  ShieldAlert, Copy, MessageSquare, Send, Star,
+  ShieldAlert, Copy, MessageSquare, Send, Star, ShieldCheck, FolderOpen,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSessionData } from '@/components/providers/use-session-data';
@@ -214,6 +214,22 @@ export default function DocumentDetailPage() {
               </Button>
             )}
             <FavoriteButton docId={params.id} />
+            {hasPermission(perms, PERMISSIONS.DOCUMENT_DECLARE_RECORD) && !doc.isRecord && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (confirm('Declare this document as a record? Records are immutable and can only be disposed via retention disposition.')) {
+                    api.post(`/api/documents/${params.id}/declare-record`, { reason: 'Manual declaration' })
+                      .then(() => { toast({ title: 'Record declared' }); qc.invalidateQueries({ queryKey: ['document', params.id] }); })
+                      .catch((err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }));
+                  }
+                }}
+              >
+                <ShieldCheck className="mr-2 h-3.5 w-3.5" /> Declare Record
+              </Button>
+            )}
+            <MoveCopyDialog docId={params.id} />
             {hasPermission(perms, PERMISSIONS.DOCUMENT_LOCK) && (
               <Button
                 variant="outline"
@@ -1144,5 +1160,94 @@ function FavoriteButton({ docId }: { docId: string }) {
     >
       <Star className={`h-3.5 w-3.5 ${isFavorited ? 'fill-amber-400 text-amber-400' : ''}`} />
     </Button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+//  Move / Copy Dialog
+// ---------------------------------------------------------------------------
+
+function MoveCopyDialog({ docId }: { docId: string }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<'move' | 'copy'>('move');
+  const [folderId, setFolderId] = useState<string>('');
+
+  const { data: folders } = useQuery<{ items: any[] }>({
+    queryKey: ['folders-root'],
+    queryFn: () => api.get('/api/folders'),
+    enabled: open,
+  });
+
+  const execute = useMutation({
+    mutationFn: () => {
+      if (mode === 'move') {
+        return api.post(`/api/documents/${docId}/move`, { folderId: folderId || null });
+      } else {
+        return api.post(`/api/documents/${docId}/copy`, { folderId: folderId || null });
+      }
+    },
+    onSuccess: () => {
+      toast({ title: mode === 'move' ? 'Document moved' : 'Document copied' });
+      qc.invalidateQueries({ queryKey: ['document', docId] });
+      setOpen(false);
+    },
+    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          <FolderOpen className="mr-2 h-3.5 w-3.5" /> Move/Copy
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Move or copy document</DialogTitle>
+          <DialogDescription>Select a destination folder (or root if none selected).</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="flex gap-2">
+            <Button
+              variant={mode === 'move' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setMode('move')}
+              className="flex-1"
+            >
+              Move
+            </Button>
+            <Button
+              variant={mode === 'copy' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setMode('copy')}
+              className="flex-1"
+            >
+              Copy
+            </Button>
+          </div>
+          <div className="space-y-1">
+            <Label>Destination folder</Label>
+            <Select value={folderId} onValueChange={setFolderId}>
+              <SelectTrigger><SelectValue placeholder="Root (no folder)" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Root (no folder)</SelectItem>
+                {folders?.items?.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={() => execute.mutate()} disabled={execute.isPending}>
+            {execute.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+            {mode === 'move' ? 'Move' : 'Copy'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

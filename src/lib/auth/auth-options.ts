@@ -256,6 +256,36 @@ export const authOptions: NextAuthOptions = {
           },
         });
 
+        // Concurrent session limit: track recent logins, alert if too many
+        const recentLogins = await db.auditEvent.count({
+          where: {
+            tenantId: user.tenantId,
+            actorId: user.id,
+            eventType: 'auth.login',
+            result: 'allow',
+            createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) }, // last hour
+          },
+        });
+        if (recentLogins > 10) {
+          // Anomaly: too many concurrent sessions
+          await recordAuditEvent({
+            tenantId: user.tenantId,
+            actorId: user.id,
+            actorEmail: user.email,
+            actorIp: ip,
+            actorUserAgent: (req.headers?.['user-agent'] as string) || null,
+            correlationId: undefined,
+            eventType: 'auth.concurrent_session_warning',
+            action: 'login',
+            resourceType: 'user',
+            resourceId: user.id,
+            resourceName: user.email,
+            result: 'allow',
+            reason: `${recentLogins} logins in the last hour`,
+            metadata: { count: recentLogins },
+          }).catch(() => {});
+        }
+
         return {
           id: user.id,
           email: user.email,
