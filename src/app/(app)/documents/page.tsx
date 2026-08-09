@@ -100,7 +100,7 @@ export default function DocumentsPage() {
         />
       </div>
 
-      <Card>
+      <Card className="glass-card border-0">
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
@@ -139,7 +139,7 @@ export default function DocumentsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="glass-card border-0">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center">

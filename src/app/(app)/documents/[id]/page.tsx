@@ -25,6 +25,7 @@ import { useSessionData } from '@/components/providers/use-session-data';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions.client';
 import { formatDistanceToNow } from 'date-fns';
 import { formatBytes, truncateHash } from '@/lib/utils/format';
+import { VersionCompare } from '@/components/documents/version-compare';
 
 interface DocDetail {
   document: {
@@ -370,7 +371,8 @@ export default function DocumentDetailPage() {
 
         {/* Versions */}
         <TabsContent value="versions" className="space-y-4">
-          <Card>
+          <VersionCompare docId={params.id} versions={doc.versions} />
+          <Card className="glass-card border-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <div>
                 <CardTitle className="text-base">Version history</CardTitle>

@@ -75,17 +75,20 @@ export function Sidebar() {
   const perms = session?.user?.permissions ?? [];
 
   return (
-    <aside className="hidden md:flex w-60 flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 h-screen sticky top-0">
-      <div className="h-14 flex items-center gap-2 px-4 border-b border-slate-200 dark:border-slate-800">
+    <aside className="hidden md:flex w-60 flex-col glass border-r border-white/10 dark:border-white/5 h-screen sticky top-0 z-40">
+      <div className="h-14 flex items-center gap-2 px-4 border-b border-white/10 dark:border-white/5">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-400 flex items-center justify-center">
-            <Shield className="h-4 w-4 text-white dark:text-slate-900" />
+          <div className="relative">
+            <div className="absolute inset-0 blur-md opacity-30 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg" />
+            <div className="relative h-8 w-8 rounded-lg bg-gradient-to-br from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-400 flex items-center justify-center">
+              <Shield className="h-4 w-4 text-white dark:text-slate-900" />
+            </div>
           </div>
-          <span className="font-semibold tracking-tight">Smart EDMS</span>
+          <span className="font-semibold tracking-tight gradient-text">Smart EDMS</span>
         </Link>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-6">
+      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-6 scrollbar-premium">
         {NAV_GROUPS.map((group) => {
           const items = group.items.filter((i) => !i.permission || hasPermission(perms, i.permission));
           if (items.length === 0) return null;

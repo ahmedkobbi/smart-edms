@@ -73,7 +73,7 @@ export function TopBar() {
 
   return (
     <>
-      <header className="h-14 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur sticky top-0 z-30">
+      <header className="h-14 glass border-b border-white/10 dark:border-white/5 sticky top-0 z-30">
         <div className="h-full px-4 flex items-center justify-between gap-4">
           <div className="flex-1 max-w-md">
             <button
