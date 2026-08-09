@@ -4,6 +4,20 @@ A production-grade, multi-tenant SaaS Electronic Document Management System buil
 
 > **Compliance posture statement**: Smart EDMS is *designed to support* controls aligned with ISO 27001, SOC 2, GDPR, and HIPAA. It does **not** claim any certification or accreditation. Achieving formal compliance requires deployment-specific configuration, infrastructure hardening, and external audit.
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Deployment Guide](./docs/DEPLOYMENT.md) | Docker, PostgreSQL, S3, SMTP, WebSocket setup |
+| [API Documentation (Swagger)](./api-docs) | Interactive OpenAPI 3.1 spec for all ~95 endpoints |
+| [OpenAPI Spec](./docs/openapi.json) | Raw OpenAPI 3.1 JSON |
+| [API Auth Guide](./docs/API-AUTH.md) | Authentication methods, authorization model, rate limits |
+| [Security Architecture](./docs/SECURITY.md) | Threat model, encryption, audit, anomaly detection |
+| [PostgreSQL Migration](./docs/POSTGRESQL-MIGRATION.md) | SQLite → PostgreSQL with Row-Level Security |
+| [Architecture Decision Records](./docs/adr/README.md) | 12 ADRs covering key design decisions |
+| [Backup & Restore](./scripts/backup.sh) | Database + storage backup scripts |
+| [Cross-Tenant Isolation Tests](./scripts/test-isolation.ts) | 5-test suite verifying tenant isolation |
+
 ---
 
 ## Architecture Overview

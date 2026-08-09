@@ -1,0 +1,532 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Smart EDMS API",
+    "version": "1.0.0",
+    "description": "Secure multi-tenant SaaS Electronic Document Management System. All endpoints require authentication (NextAuth JWT) unless marked as public. Every request is tenant-scoped and audit-logged.\n\n## Authentication\nAll authenticated endpoints expect a valid NextAuth session cookie. API keys and service accounts use `Authorization: Bearer <key>` header.\n\n## Error Format\nAll errors return: `{ \"error\": { \"code\": string, \"message\": string, ...details } }`",
+    "contact": { "name": "Smart EDMS", "url": "https://github.com/ahmedkobbi/smart-edms" },
+    "license": { "name": "Proprietary" }
+  },
+  "servers": [
+    { "url": "http://localhost:3000", "description": "Local development" },
+    { "url": "https://app.smartedms.com", "description": "Production" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "smart_edms_session",
+        "description": "NextAuth JWT session cookie"
+      },
+      "apiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "Bearer token for API keys (se_...) or service accounts (sa_...)"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" }
+            },
+            "required": ["code", "message"]
+          }
+        },
+        "required": ["error"]
+      },
+      "Document": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "state": { "type": "string", "enum": ["draft", "active", "record", "archived", "disposed"] },
+          "documentType": { "type": "string" },
+          "classification": { "$ref": "#/components/schemas/Classification" },
+          "owner": { "$ref": "#/components/schemas/User" },
+          "currentVersion": { "type": "integer" },
+          "isLocked": { "type": "boolean" },
+          "legalHold": { "type": "boolean" },
+          "isRecord": { "type": "boolean" },
+          "shareAllowed": { "type": "boolean" },
+          "downloadAllowed": { "type": "boolean" },
+          "watermarkEnabled": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Classification": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "code": { "type": "string" },
+          "name": { "type": "string" },
+          "level": { "type": "integer" },
+          "color": { "type": "string" },
+          "isSystem": { "type": "boolean" }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "email": { "type": "string" },
+          "name": { "type": "string", "nullable": true },
+          "status": { "type": "string" },
+          "mfaEnabled": { "type": "boolean" }
+        }
+      },
+      "AuditEvent": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "sequenceNum": { "type": "integer" },
+          "eventType": { "type": "string" },
+          "actorEmail": { "type": "string", "nullable": true },
+          "action": { "type": "string" },
+          "resourceType": { "type": "string", "nullable": true },
+          "resourceId": { "type": "string", "nullable": true },
+          "result": { "type": "string", "enum": ["allow", "deny", "error"] },
+          "reason": { "type": "string", "nullable": true },
+          "eventHash": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Workflow": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "approved", "rejected", "cancelled", "escalated"] },
+          "currentStep": { "type": "integer" },
+          "document": { "$ref": "#/components/schemas/Document" },
+          "initiator": { "$ref": "#/components/schemas/User" },
+          "approvals": { "type": "array", "items": { "type": "object" } }
+        }
+      },
+      "Share": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "token": { "type": "string" },
+          "mode": { "type": "string", "enum": ["view", "download", "review"] },
+          "recipientEmail": { "type": "string", "nullable": true },
+          "expiresAt": { "type": "string", "format": "date-time", "nullable": true },
+          "watermark": { "type": "boolean" },
+          "viewCount": { "type": "integer" },
+          "revokedAt": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "title": { "type": "string" },
+          "body": { "type": "string" },
+          "severity": { "type": "string", "enum": ["info", "success", "warning", "critical"] },
+          "link": { "type": "string", "nullable": true },
+          "readAt": { "type": "string", "format": "date-time", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  },
+  "tags": [
+    { "name": "Auth", "description": "Authentication & session management" },
+    { "name": "Documents", "description": "Document CRUD, versioning, preview" },
+    { "name": "Search", "description": "Permission-aware search" },
+    { "name": "Workflows", "description": "Approval workflows" },
+    { "name": "Audit", "description": "Tamper-evident audit log" },
+    { "name": "Admin - Users", "description": "User management" },
+    { "name": "Admin - Roles", "description": "RBAC role management" },
+    { "name": "Admin - Classifications", "description": "Classification taxonomy" },
+    { "name": "Admin - Policies", "description": "ABAC policy management" },
+    { "name": "Admin - Retention", "description": "Retention schedules" },
+    { "name": "Admin - Legal Holds", "description": "Legal hold management" },
+    { "name": "Admin - Integrations", "description": "API keys, webhooks, SSO, service accounts" },
+    { "name": "Admin - Tenant", "description": "Tenant settings & billing" },
+    { "name": "Me", "description": "Current user profile & security" },
+    { "name": "Public", "description": "Public endpoints (no auth required)" }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Health check",
+        "description": "Returns service health status. No authentication required — safe for load balancer probes.",
+        "security": [],
+        "responses": {
+          "200": { "description": "Service healthy" },
+          "503": { "description": "Service degraded" }
+        }
+      }
+    },
+    "/api/auth/signin": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Sign in",
+        "description": "Authenticate with email + password (+ optional MFA). Returns JWT session cookie.",
+        "security": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string" },
+                  "password": { "type": "string" },
+                  "mfaToken": { "type": "string", "description": "6-digit TOTP code (if MFA enabled)" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Signed in" }, "401": { "description": "Invalid credentials" } }
+      }
+    },
+    "/api/documents": {
+      "get": {
+        "tags": ["Documents"],
+        "summary": "List documents",
+        "security": [{ "session": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "classificationId", "in": "query", "schema": { "type": "string" } },
+          { "name": "state", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated document list",
+            "content": { "application/json": { "schema": { "type": "object", "properties": {
+              "items": { "type": "array", "items": { "$ref": "#/components/schemas/Document" } },
+              "total": { "type": "integer" },
+              "page": { "type": "integer" },
+              "pageSize": { "type": "integer" }
+            } } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Documents"],
+        "summary": "Upload document",
+        "description": "Multipart upload. Files are validated by magic bytes, malware-scanned, checksummed (SHA-256), and encrypted with a per-document DEK (envelope encryption).",
+        "security": [{ "session": [] }],
+        "requestBody": {
+          "content": { "multipart/form-data": { "schema": { "type": "object", "properties": {
+            "file": { "type": "string", "format": "binary" },
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "documentType": { "type": "string" },
+            "classificationId": { "type": "string" },
+            "tags": { "type": "string", "description": "JSON array" },
+            "metadata": { "type": "string", "description": "JSON object" },
+            "retentionScheduleId": { "type": "string" }
+          } } } }
+        },
+        "responses": { "201": { "description": "Document created" }, "400": { "description": "Invalid file" } }
+      }
+    },
+    "/api/documents/{id}": {
+      "get": {
+        "tags": ["Documents"],
+        "summary": "Get document detail",
+        "security": [{ "session": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Document with versions + classification" }, "404": { "description": "Not found" } }
+      },
+      "patch": {
+        "tags": ["Documents"],
+        "summary": "Update document metadata",
+        "description": "Classification changes are audited. Downgrades require elevated permission and are blocked under legal hold.",
+        "security": [{ "session": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Updated" }, "403": { "description": "Downgrade forbidden" } }
+      },
+      "delete": {
+        "tags": ["Documents"],
+        "summary": "Soft-delete document",
+        "description": "Respects legal hold and record status.",
+        "security": [{ "session": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Deleted" }, "403": { "description": "Legal hold blocks deletion" } }
+      }
+    },
+    "/api/documents/{id}/download": {
+      "get": {
+        "tags": ["Documents"],
+        "summary": "Get signed download URL",
+        "description": "Returns a short-lived (60s) HMAC-signed URL. The storage resolver decrypts the file with the document's DEK before streaming.",
+        "security": [{ "session": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Signed URL" } }
+      }
+    },
+    "/api/documents/{id}/preview": {
+      "get": {
+        "tags": ["Documents"],
+        "summary": "Get preview URL + watermark",
+        "security": [{ "session": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Preview data" } }
+      }
+    },
+    "/api/documents/{id}/versions": {
+      "get": { "tags": ["Documents"], "summary": "List versions", "security": [{ "session": [] }], "responses": { "200": { "description": "Version list" } } },
+      "post": { "tags": ["Documents"], "summary": "Upload new version", "security": [{ "session": [] }], "responses": { "201": { "description": "Version created" } } }
+    },
+    "/api/documents/{id}/versions/{vid}/restore": {
+      "post": {
+        "tags": ["Documents"],
+        "summary": "Restore previous version",
+        "description": "Creates a NEW version with the content of the specified old version. Does NOT mutate the original — restores are forward-only.",
+        "security": [{ "session": [] }],
+        "responses": { "200": { "description": "Restored" } }
+      }
+    },
+    "/api/documents/{id}/redact": {
+      "post": {
+        "tags": ["Documents"],
+        "summary": "Redact document regions",
+        "description": "Creates a new DERIVATIVE version with black rectangles over specified regions. Original is preserved immutably. Supports PDF (pdf-lib) and images (sharp).",
+        "security": [{ "session": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": {
+          "regions": { "type": "array", "items": { "type": "object", "properties": {
+            "page": { "type": "integer" },
+            "x": { "type": "number" }, "y": { "type": "number" },
+            "w": { "type": "number" }, "h": { "type": "number" }
+          } } },
+          "reason": { "type": "string" }
+        } } } } },
+        "responses": { "201": { "description": "Redacted version created" } }
+      }
+    },
+    "/api/documents/{id}/comments": {
+      "get": { "tags": ["Documents"], "summary": "List comments", "security": [{ "session": [] }], "responses": { "200": { "description": "Comments" } } },
+      "post": { "tags": ["Documents"], "summary": "Add comment", "security": [{ "session": [] }], "responses": { "201": { "description": "Comment added" } } }
+    },
+    "/api/documents/{id}/share": {
+      "get": { "tags": ["Documents"], "summary": "List shares", "security": [{ "session": [] }], "responses": { "200": { "description": "Shares" } } },
+      "post": {
+        "tags": ["Documents"],
+        "summary": "Create share link",
+        "description": "Creates a time-limited, optionally password-protected share link. Blocked for Restricted/HS classifications.",
+        "security": [{ "session": [] }],
+        "responses": { "201": { "description": "Share created" } }
+      }
+    },
+    "/api/documents/{id}/ai-suggest": {
+      "post": {
+        "tags": ["Documents"],
+        "summary": "AI classification suggestion",
+        "description": "Advisory only — never auto-applies. Heuristic + LLM fallback. Respects tenant AI feature flag.",
+        "security": [{ "session": [] }],
+        "responses": { "200": { "description": "Suggestion" } }
+      }
+    },
+    "/api/documents/{id}/analyze-pii": {
+      "post": { "tags": ["Documents"], "summary": "PII detection", "security": [{ "session": [] }], "responses": { "200": { "description": "PII findings" } } }
+    },
+    "/api/documents/{id}/summarize": {
+      "post": { "tags": ["Documents"], "summary": "Document summary", "security": [{ "session": [] }], "responses": { "200": { "description": "Summary" } } }
+    },
+    "/api/documents/{id}/policy-risk": {
+      "post": { "tags": ["Documents"], "summary": "Policy risk analysis", "security": [{ "session": [] }], "responses": { "200": { "description": "Risk assessment" } } }
+    },
+    "/api/documents/{id}/duplicate-check": {
+      "get": { "tags": ["Documents"], "summary": "Duplicate detection", "security": [{ "session": [] }], "responses": { "200": { "description": "Duplicates" } } }
+    },
+    "/api/documents/{id}/compare": {
+      "get": { "tags": ["Documents"], "summary": "Version compare (diff)", "security": [{ "session": [] }], "responses": { "200": { "description": "Line diff" } } }
+    },
+    "/api/search": {
+      "get": {
+        "tags": ["Search"],
+        "summary": "Search documents",
+        "description": "Permission-aware search. End users see only owned documents. Includes full-text matches from DocumentTextIndex (OCR + extracted text).",
+        "security": [{ "session": [] }],
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" } },
+          { "name": "classifications", "in": "query", "schema": { "type": "string" } },
+          { "name": "state", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Search results + facets" } }
+      }
+    },
+    "/api/workflows": {
+      "get": { "tags": ["Workflows"], "summary": "List workflows", "security": [{ "session": [] }], "responses": { "200": { "description": "Workflows" } } },
+      "post": { "tags": ["Workflows"], "summary": "Create workflow", "security": [{ "session": [] }], "responses": { "201": { "description": "Workflow created" } } }
+    },
+    "/api/workflows/{id}/approve": {
+      "post": { "tags": ["Workflows"], "summary": "Approve/reject workflow", "security": [{ "session": [] }], "responses": { "200": { "description": "Decision recorded" } } }
+    },
+    "/api/audit": {
+      "get": {
+        "tags": ["Audit"],
+        "summary": "Search audit log",
+        "security": [{ "session": [] }],
+        "parameters": [
+          { "name": "eventType", "in": "query", "schema": { "type": "string" } },
+          { "name": "actorId", "in": "query", "schema": { "type": "string" } },
+          { "name": "result", "in": "query", "schema": { "type": "string", "enum": ["allow", "deny", "error"] } },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date-time" } }
+        ],
+        "responses": { "200": { "description": "Audit events" } }
+      }
+    },
+    "/api/audit/verify": {
+      "get": {
+        "tags": ["Audit"],
+        "summary": "Verify audit chain integrity",
+        "description": "Walks the per-tenant SHA-256 hash chain and reports any broken links.",
+        "security": [{ "session": [] }],
+        "responses": { "200": { "description": "Verification result" } }
+      }
+    },
+    "/api/audit/export": {
+      "get": {
+        "tags": ["Audit"],
+        "summary": "Export audit log as CSV",
+        "security": [{ "session": [] }],
+        "responses": { "200": { "description": "CSV file" } }
+      }
+    },
+    "/api/admin/users": {
+      "get": { "tags": ["Admin - Users"], "summary": "List users", "security": [{ "session": [] }], "responses": { "200": { "description": "Users" } } },
+      "post": { "tags": ["Admin - Users"], "summary": "Create user", "security": [{ "session": [] }], "responses": { "201": { "description": "User created" } } }
+    },
+    "/api/admin/users/{id}": {
+      "get": { "tags": ["Admin - Users"], "summary": "Get user detail", "security": [{ "session": [] }], "responses": { "200": { "description": "User" } } },
+      "patch": { "tags": ["Admin - Users"], "summary": "Update user", "security": [{ "session": [] }], "responses": { "200": { "description": "Updated" } } },
+      "delete": { "tags": ["Admin - Users"], "summary": "Suspend user", "security": [{ "session": [] }], "responses": { "200": { "description": "Suspended" } } }
+    },
+    "/api/admin/roles": {
+      "get": { "tags": ["Admin - Roles"], "summary": "List roles", "security": [{ "session": [] }], "responses": { "200": { "description": "Roles" } } },
+      "post": { "tags": ["Admin - Roles"], "summary": "Create role", "security": [{ "session": [] }], "responses": { "201": { "description": "Role created" } } }
+    },
+    "/api/admin/classifications": {
+      "get": { "tags": ["Admin - Classifications"], "summary": "List classifications", "security": [{ "session": [] }], "responses": { "200": { "description": "Classifications" } } },
+      "post": { "tags": ["Admin - Classifications"], "summary": "Create classification", "security": [{ "session": [] }], "responses": { "201": { "description": "Created" } } }
+    },
+    "/api/admin/policies": {
+      "get": { "tags": ["Admin - Policies"], "summary": "List ABAC policies", "security": [{ "session": [] }], "responses": { "200": { "description": "Policies" } } },
+      "post": { "tags": ["Admin - Policies"], "summary": "Create policy", "security": [{ "session": [] }], "responses": { "201": { "description": "Created" } } }
+    },
+    "/api/admin/retention": {
+      "get": { "tags": ["Admin - Retention"], "summary": "List retention schedules", "security": [{ "session": [] }], "responses": { "200": { "description": "Schedules" } } },
+      "post": { "tags": ["Admin - Retention"], "summary": "Create retention schedule", "security": [{ "session": [] }], "responses": { "201": { "description": "Created" } } }
+    },
+    "/api/admin/legal-holds": {
+      "get": { "tags": ["Admin - Legal Holds"], "summary": "List legal holds", "security": [{ "session": [] }], "responses": { "200": { "description": "Holds" } } },
+      "post": { "tags": ["Admin - Legal Holds"], "summary": "Create legal hold", "security": [{ "session": [] }], "responses": { "201": { "description": "Created" } } }
+    },
+    "/api/admin/api-keys": {
+      "get": { "tags": ["Admin - Integrations"], "summary": "List API keys", "security": [{ "session": [] }], "responses": { "200": { "description": "Keys" } } },
+      "post": { "tags": ["Admin - Integrations"], "summary": "Create API key", "description": "Raw key shown ONCE. Only hash stored.", "security": [{ "session": [] }], "responses": { "201": { "description": "Created with raw key" } } }
+    },
+    "/api/admin/webhooks": {
+      "get": { "tags": ["Admin - Integrations"], "summary": "List webhooks", "security": [{ "session": [] }], "responses": { "200": { "description": "Webhooks" } } },
+      "post": { "tags": ["Admin - Integrations"], "summary": "Create webhook", "description": "Signing secret shown ONCE. HMAC-SHA256 payload signing.", "security": [{ "session": [] }], "responses": { "201": { "description": "Created" } } }
+    },
+    "/api/admin/sso-providers": {
+      "get": { "tags": ["Admin - Integrations"], "summary": "List SSO providers", "security": [{ "session": [] }], "responses": { "200": { "description": "Providers" } } },
+      "post": { "tags": ["Admin - Integrations"], "summary": "Create SSO provider (OIDC/SAML)", "security": [{ "session": [] }], "responses": { "201": { "description": "Created" } } }
+    },
+    "/api/admin/tenant": {
+      "get": { "tags": ["Admin - Tenant"], "summary": "Get tenant settings", "security": [{ "session": [] }], "responses": { "200": { "description": "Settings" } } },
+      "patch": { "tags": ["Admin - Tenant"], "summary": "Update tenant settings", "security": [{ "session": [] }], "responses": { "200": { "description": "Updated" } } }
+    },
+    "/api/admin/billing": {
+      "get": { "tags": ["Admin - Tenant"], "summary": "Get subscription + usage", "security": [{ "session": [] }], "responses": { "200": { "description": "Billing data" } } }
+    },
+    "/api/admin/break-glass": {
+      "post": {
+        "tags": ["Admin - Users"],
+        "summary": "Break-glass emergency access",
+        "description": "Grants 30-min elevated permissions with mandatory justification. Notifies all other admins. All actions audit-logged with break-glass attribution.",
+        "security": [{ "session": [] }],
+        "responses": { "201": { "description": "Access granted" } }
+      }
+    },
+    "/api/admin/dispositions": {
+      "get": { "tags": ["Admin - Retention"], "summary": "List dispositions", "security": [{ "session": [] }], "responses": { "200": { "description": "Dispositions" } } },
+      "post": { "tags": ["Admin - Retention"], "summary": "Create disposition request", "security": [{ "session": [] }], "responses": { "201": { "description": "Created" } } }
+    },
+    "/api/admin/dispositions/{id}/approve": {
+      "post": {
+        "tags": ["Admin - Retention"],
+        "summary": "Approve/reject disposition",
+        "description": "If approved + action=delete: soft-deletes document and generates certificate of destruction (SHA-256 hash).",
+        "security": [{ "session": [] }],
+        "responses": { "200": { "description": "Executed" } }
+      }
+    },
+    "/api/me": {
+      "get": { "tags": ["Me"], "summary": "Get current user + tenant", "security": [{ "session": [] }], "responses": { "200": { "description": "Profile" } } }
+    },
+    "/api/me/password": {
+      "post": { "tags": ["Me"], "summary": "Change password", "security": [{ "session": [] }], "responses": { "200": { "description": "Changed" } } }
+    },
+    "/api/me/mfa": {
+      "post": {
+        "tags": ["Me"],
+        "summary": "MFA setup/enable/disable",
+        "description": "Use ?action=setup|enable|disable. Setup returns QR code. Enable returns backup codes (shown once).",
+        "security": [{ "session": [] }],
+        "responses": { "200": { "description": "MFA result" } }
+      }
+    },
+    "/api/me/step-up": {
+      "post": {
+        "tags": ["Me"],
+        "summary": "Step-up authentication",
+        "description": "Verifies a second factor (TOTP or password) and issues a 5-min step-up token for privileged actions.",
+        "security": [{ "session": [] }],
+        "responses": { "200": { "description": "Step-up token" } }
+      }
+    },
+    "/api/notifications": {
+      "get": { "tags": ["Me"], "summary": "List notifications", "security": [{ "session": [] }], "responses": { "200": { "description": "Notifications" } } }
+    },
+    "/api/shares/{token}": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Get share info (public)",
+        "description": "No auth required — the token IS the credential. Returns document metadata for the share screen.",
+        "security": [],
+        "responses": { "200": { "description": "Share info" }, "410": { "description": "Expired/revoked" } }
+      },
+      "post": {
+        "tags": ["Public"],
+        "summary": "Access shared document (public)",
+        "description": "Verifies password (if set), returns signed URL + watermark text. Increments view count.",
+        "security": [],
+        "responses": { "200": { "description": "Document URL" } }
+      }
+    },
+    "/api/admin/invitations/{token}/accept": {
+      "get": { "tags": ["Public"], "summary": "Check invitation validity (public)", "security": [], "responses": { "200": { "description": "Invitation info" } } },
+      "post": { "tags": ["Public"], "summary": "Accept invitation + create account (public)", "security": [], "responses": { "200": { "description": "Account created" } } }
+    },
+    "/api/cron/escalate": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Workflow escalation cron (key-protected)",
+        "description": "Processes overdue approvals + sends reminders. Protected by CRON_SECRET query param. Configure external scheduler to hit hourly.",
+        "security": [],
+        "parameters": [{ "name": "key", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Escalation result" }, "401": { "description": "Invalid key" } }
+      }
+    }
+  }
+}
