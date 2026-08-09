@@ -11,6 +11,7 @@ import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { hashPassword, randomToken, timingSafeEqualStr } from '@/lib/auth/crypto';
+import { notify, fireWebhook } from '@/lib/notifications/notify';
 import { z } from 'zod';
 
 const createSchema = z.object({
@@ -108,6 +109,44 @@ export const POST = createApiHandler(
         hasPassword: !!body.password,
         watermark: body.watermark,
       },
+    });
+
+    // Notify document owner (if not the sharer)
+    if (doc.ownerId && doc.ownerId !== ctx.userId) {
+      await notify({
+        tenantId: ctx.tenantId,
+        userId: doc.ownerId,
+        type: 'share.created',
+        title: 'Document shared',
+        body: `${ctx.session.user.email} shared "${doc.title}" with ${body.recipientEmail ?? 'an external recipient'}.`,
+        severity: 'info',
+        link: `/documents/${doc.id}`,
+        metadata: { shareId: share.id, documentId: doc.id },
+      });
+    }
+
+    // Notify internal recipient if userId specified
+    if (body.recipientUserId && body.recipientUserId !== ctx.userId) {
+      await notify({
+        tenantId: ctx.tenantId,
+        userId: body.recipientUserId,
+        type: 'share.received',
+        title: 'Document shared with you',
+        body: `${ctx.session.user.email} shared "${doc.title}" with you.`,
+        severity: 'info',
+        link: `/documents/${doc.id}`,
+        metadata: { shareId: share.id, documentId: doc.id },
+      });
+    }
+
+    // Fire webhook
+    await fireWebhook(ctx.tenantId, 'share.created', {
+      shareId: share.id,
+      documentId: doc.id,
+      documentTitle: doc.title,
+      sharedBy: ctx.userId,
+      recipientEmail: body.recipientEmail,
+      mode: body.mode,
     });
 
     return NextResponse.json(

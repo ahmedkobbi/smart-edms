@@ -69,6 +69,13 @@ export const GET = createApiHandler(
       metadata: { classificationId: doc.classificationId, state: doc.state },
     });
 
+    // Track recent view (fire-and-forget)
+    await db.recentView.upsert({
+      where: { userId_documentId: { userId: ctx.userId, documentId: doc.id } },
+      update: { viewedAt: new Date() },
+      create: { tenantId: ctx.tenantId, userId: ctx.userId, documentId: doc.id },
+    }).catch(() => {});
+
     return NextResponse.json({ document: doc });
   },
 );

@@ -47,6 +47,14 @@ model Tenant {
   verificationTokens     VerificationToken[]
   devices                Device[]
   classificationChanges  ClassificationChange[]
+  comments               DocumentComment[]
+  favorites              Favorite[]
+  recentViews            RecentView[]
+  savedSearches          SavedSearch[]
+  redactions             Redaction[]
+  dispositionRecords     DispositionRecord[]
+  serviceAccounts        ServiceAccount[]
+  stepUpSessions         StepUpSession[]
 }
 
 // ============================================================================
@@ -94,6 +102,11 @@ model User {
   workflowInitiated Workflow[]
   approvalDelegationsFrom ApprovalDelegation[] @relation("ApprovalDelegationFrom")
   classificationChangesAsActor ClassificationChange[]
+  comments               DocumentComment[] @relation("UserComments")
+  favorites              Favorite[] @relation("UserFavorites")
+  recentViews            RecentView[] @relation("UserRecentViews")
+  savedSearches          SavedSearch[] @relation("UserSavedSearches")
+  stepUpSessions         StepUpSession[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -346,6 +359,10 @@ model Document {
   classificationChanges ClassificationChange[]
   legalHoldJoins  LegalHoldDocument[] @relation("LegalHoldDocumentJoin")
   retentionSchedule RetentionSchedule? @relation(fields: [retentionScheduleId], references: [id], onDelete: SetNull)
+  comments        DocumentComment[] @relation("DocumentComments")
+  favorites       Favorite[]
+  recentViews     RecentView[] @relation("DocumentRecentViews")
+  redactions      Redaction[]
 
   @@index([tenantId, folderId])
   @@index([tenantId, state])
@@ -693,4 +710,172 @@ model VerificationToken {
   userId String?
 
   @@index([identifier])
+}
+
+// ============================================================================
+//  DOCUMENT COMMENTS
+// ============================================================================
+
+model DocumentComment {
+  id          String   @id @default(cuid())
+  tenantId    String
+  documentId  String
+  authorId    String
+  body        String
+  parentId    String?  // for threaded replies
+  resolvedAt  DateTime?
+  resolvedBy  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document Document @relation("DocumentComments", fields: [documentId], references: [id], onDelete: Cascade)
+  author   User     @relation("UserComments", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, documentId, createdAt])
+  @@index([tenantId, parentId])
+}
+
+// ============================================================================
+//  FAVORITES & RECENT
+// ============================================================================
+
+model Favorite {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String
+  documentId String
+  createdAt  DateTime @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation("UserFavorites", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentId])
+  @@index([tenantId, userId])
+}
+
+model RecentView {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String
+  documentId String
+  viewedAt   DateTime @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document Document @relation("DocumentRecentViews", fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation("UserRecentViews", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentId])
+  @@index([tenantId, userId, viewedAt])
+}
+
+// ============================================================================
+//  SAVED SEARCHES
+// ============================================================================
+
+model SavedSearch {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  name      String
+  query     String   // JSON-encoded query object
+  isShared  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation("UserSavedSearches", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, name])
+  @@index([tenantId, userId])
+}
+
+// ============================================================================
+//  REDACTION RECORDS
+// ============================================================================
+
+model Redaction {
+  id            String   @id @default(cuid())
+  tenantId      String
+  documentId    String
+  versionId     String
+  redactorId    String
+  regions       String   // JSON: [{page, x, y, w, h, reason}]
+  reason        String?
+  derivativeVersionId String?
+  createdAt     DateTime @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, documentId])
+}
+
+// ============================================================================
+//  DISPOSITION RECORDS (certificates of destruction)
+// ============================================================================
+
+model DispositionRecord {
+  id              String   @id @default(cuid())
+  tenantId        String
+  documentId      String
+  scheduleId      String?
+  action          String   // delete | archive | review
+  requestedById   String
+  approvedById    String?
+  status          String   @default("pending") // pending | approved | executed | cancelled
+  reason          String?
+  certificateHash String?
+  executedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, documentId])
+}
+
+// ============================================================================
+//  SERVICE ACCOUNTS
+// ============================================================================
+
+model ServiceAccount {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  keyHash     String   @unique
+  keyPrefix   String
+  scopes      String   @default("[]")
+  createdBy   String?
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+// ============================================================================
+//  STEP-UP AUTH SESSIONS (short-lived elevated sessions)
+// ============================================================================
+
+model StepUpSession {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String
+  token      String   @unique
+  challenge  String   // 'totp' | 'password'
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }

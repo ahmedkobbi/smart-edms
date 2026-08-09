@@ -10,6 +10,7 @@ import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
+import { notify, fireWebhook } from '@/lib/notifications/notify';
 import { z } from 'zod';
 
 export const GET = createApiHandler(
@@ -135,6 +136,28 @@ export const POST = createApiHandler(
         stepCount: body.steps.length,
         firstStepApprovers: body.steps[0].approverIds,
       },
+    });
+
+    // Notify first-step approvers
+    for (const approverId of body.steps[0].approverIds) {
+      await notify({
+        tenantId: ctx.tenantId,
+        userId: approverId,
+        type: 'workflow.assigned',
+        title: 'Approval requested',
+        body: `You have been assigned to approve "${doc.title}" (${result.name}).`,
+        severity: 'warning',
+        link: `/workflows/${result.id}`,
+        metadata: { workflowId: result.id, documentId: doc.id, stepIndex: 0 },
+      });
+    }
+
+    // Fire webhook
+    await fireWebhook(ctx.tenantId, 'workflow.created', {
+      workflowId: result.id,
+      documentId: doc.id,
+      documentTitle: doc.title,
+      initiatedBy: ctx.userId,
     });
 
     return NextResponse.json({ workflow: result }, { status: 201 });

@@ -25,6 +25,8 @@ export const GET = createApiHandler(
       myDocs,
       recentAudit,
       legalHolds,
+      myFavorites,
+      myRecentViews,
     ] = await Promise.all([
       db.document.count({ where: { tenantId: ctx.tenantId, deletedAt: null } }),
       db.document.groupBy({
@@ -59,6 +61,26 @@ export const GET = createApiHandler(
         },
       }),
       db.legalHold.count({ where: { tenantId: ctx.tenantId, releasedAt: null } }),
+      db.favorite.findMany({
+        where: { userId: ctx.userId, tenantId: ctx.tenantId },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: {
+          document: {
+            select: { id: true, title: true, state: true, classification: { select: { code: true, name: true, color: true } } },
+          },
+        },
+      }),
+      db.recentView.findMany({
+        where: { userId: ctx.userId, tenantId: ctx.tenantId },
+        orderBy: { viewedAt: 'desc' },
+        take: 5,
+        include: {
+          document: {
+            select: { id: true, title: true, state: true, classification: { select: { code: true, name: true, color: true } } },
+          },
+        },
+      }),
     ]);
 
     // Resolve classification names
@@ -88,6 +110,8 @@ export const GET = createApiHandler(
       },
       recentDocuments: recentDocs,
       recentActivity: recentAudit,
+      myFavorites: myFavorites.map((f) => ({ ...f.document, favoritedAt: f.createdAt })),
+      myRecentViews: myRecentViews.map((r) => ({ ...r.document, viewedAt: r.viewedAt })),
     });
   },
 );

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Shield, FileText, FolderOpen, Search, GitBranch, Clock, FileLock, ScrollText, Settings, LayoutDashboard, Users, ShieldCheck, BookMarked, KeyRound } from 'lucide-react';
+import { Shield, FileText, FolderOpen, Search, GitBranch, Clock, FileLock, ScrollText, Settings, LayoutDashboard, Users, ShieldCheck, BookMarked, KeyRound, Webhook, Database, Bot, ShieldAlert, FileCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSessionData } from '@/components/providers/use-session-data';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions.client';
@@ -31,15 +31,22 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { href: '/audit', label: 'Audit Log', icon: ScrollText, permission: PERMISSIONS.AUDIT_READ },
       { href: '/admin/legal-holds', label: 'Legal Holds', icon: FileLock, permission: PERMISSIONS.LEGAL_HOLD_MANAGE },
       { href: '/admin/retention', label: 'Retention', icon: Clock, permission: PERMISSIONS.RETENTION_MANAGE },
+      { href: '/admin/dispositions', label: 'Dispositions', icon: FileCheck, permission: PERMISSIONS.RETENTION_MANAGE },
     ],
   },
   {
     title: 'Administration',
     items: [
+      { href: '/admin/security', label: 'Security Posture', icon: ShieldAlert, permission: PERMISSIONS.ADMIN_VIEW },
       { href: '/admin/users', label: 'Users', icon: Users, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
+      { href: '/admin/groups', label: 'Groups', icon: Users, permission: PERMISSIONS.ADMIN_GROUPS_MANAGE },
       { href: '/admin/roles', label: 'Roles', icon: KeyRound, permission: PERMISSIONS.ADMIN_ROLES_MANAGE },
       { href: '/admin/classifications', label: 'Classifications', icon: BookMarked, permission: PERMISSIONS.ADMIN_CLASSIFICATIONS_MANAGE },
       { href: '/admin/policies', label: 'Policies', icon: ShieldCheck, permission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
+      { href: '/admin/metadata-schemas', label: 'Metadata Schemas', icon: Database, permission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
+      { href: '/admin/api-keys', label: 'API Keys', icon: KeyRound, permission: PERMISSIONS.ADMIN_API_KEYS_MANAGE },
+      { href: '/admin/service-accounts', label: 'Service Accounts', icon: Bot, permission: PERMISSIONS.ADMIN_API_KEYS_MANAGE },
+      { href: '/admin/webhooks', label: 'Webhooks', icon: Webhook, permission: PERMISSIONS.ADMIN_WEBHOOKS_MANAGE },
     ],
   },
   {
