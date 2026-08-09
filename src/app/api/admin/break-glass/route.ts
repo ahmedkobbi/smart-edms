@@ -16,6 +16,7 @@ import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS, SYSTEM_ROLE_PERMISSIONS, SYSTEM_ROLES } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { notify } from '@/lib/notifications/notify';
+import { sendBreakGlassAlert } from '@/lib/notifications/email';
 import { randomToken } from '@/lib/auth/crypto';
 import { z } from 'zod';
 
@@ -112,6 +113,20 @@ export const POST = createApiHandler(
         link: '/admin/security',
         metadata: { breakGlassId: breakGlass.id, userId: ctx.userId, expiresAt: breakGlass.expiresAt },
       });
+      // Send email alert
+      const adminUser = await db.user.findUnique({
+        where: { id: a.userId },
+        select: { email: true },
+      });
+      if (adminUser?.email) {
+        sendBreakGlassAlert(
+          adminUser.email,
+          ctx.session.user.name || ctx.session.user.email,
+          ctx.session.user.email,
+          body.reason,
+          breakGlass.expiresAt,
+        ).catch(() => {});
+      }
     }
 
     return NextResponse.json({

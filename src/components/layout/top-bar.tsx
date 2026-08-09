@@ -26,6 +26,7 @@ import { api } from '@/lib/api/client';
 import { useSessionData } from '@/components/providers/use-session-data';
 import { signOut } from 'next-auth/react';
 import { CommandPalette } from '@/components/layout/command-palette';
+import { useWebSocketNotifications } from '@/hooks/use-websocket-notifications';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Notification {
@@ -44,6 +45,7 @@ export function TopBar() {
   const qc = useQueryClient();
   const { session } = useSessionData();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const { connected: wsConnected } = useWebSocketNotifications();
 
   // Keyboard shortcut: Cmd/Ctrl+K
   useEffect(() => {
@@ -57,10 +59,11 @@ export function TopBar() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  // Poll less frequently when WebSocket is connected (WS handles real-time push)
   const { data: notifData } = useQuery<{ items: Notification[]; unreadCount: number }>({
     queryKey: ['notifications'],
     queryFn: () => api.get('/api/notifications'),
-    refetchInterval: 30_000,
+    refetchInterval: wsConnected ? 120_000 : 30_000, // 2min with WS, 30s without
   });
 
   const readAll = useMutation({
@@ -74,7 +77,7 @@ export function TopBar() {
   return (
     <>
       <header className="h-14 glass border-b border-white/10 dark:border-white/5 sticky top-0 z-30">
-        <div className="h-full px-4 flex items-center justify-between gap-4">
+        <div className="h-full px-4 pl-14 md:pl-4 flex items-center justify-between gap-4">
           <div className="flex-1 max-w-md">
             <button
               onClick={() => setPaletteOpen(true)}

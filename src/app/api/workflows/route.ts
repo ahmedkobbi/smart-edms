@@ -11,6 +11,7 @@ import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { notify, fireWebhook } from '@/lib/notifications/notify';
+import { sendWorkflowAssignedEmail } from '@/lib/notifications/email';
 import { z } from 'zod';
 
 export const GET = createApiHandler(
@@ -150,6 +151,15 @@ export const POST = createApiHandler(
         link: `/workflows/${result.id}`,
         metadata: { workflowId: result.id, documentId: doc.id, stepIndex: 0 },
       });
+      // Send email notification
+      const approver = await db.user.findUnique({
+        where: { id: approverId },
+        select: { email: true },
+      });
+      if (approver?.email) {
+        const wfUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/workflows/${result.id}`;
+        sendWorkflowAssignedEmail(approver.email, doc.title, result.name, wfUrl).catch(() => {});
+      }
     }
 
     // Fire webhook

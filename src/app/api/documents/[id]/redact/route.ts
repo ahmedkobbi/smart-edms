@@ -58,21 +58,19 @@ export const POST = createApiHandler(
     const storage = getFileStorage();
     const buf = await storage.get(sourceVersion.storageKey);
 
-    // Apply redaction for supported types (PDF/image). For unsupported types,
-    // the derivative is stored with the redaction record; downstream viewers
-    // can apply the regions as overlays.
+    // Apply redaction for supported types (PDF/image)
     let redactedBuf = buf;
     if (sourceVersion.mimeType === 'application/pdf') {
-      // For production PDF redaction, integrate pdf-lib or qpdf here.
-      // Currently we store the original + redaction record; the secure viewer
-      // overlays redaction rectangles.
-      redactedBuf = buf;
+      try {
+        redactedBuf = await redactPdf(buf, body.regions);
+      } catch (err) {
+        console.warn('[redact:pdf] failed, falling back to overlay:', err);
+        redactedBuf = buf;
+      }
     } else if (sourceVersion.mimeType.startsWith('image/')) {
-      // Image redaction: paint black rectangles
       try {
         redactedBuf = await redactImage(buf, body.regions, sourceVersion.mimeType);
       } catch (err) {
-        // Fallback: keep original, rely on viewer overlay
         console.warn('[redact:image] failed, falling back to overlay:', err);
       }
     }
@@ -177,4 +175,49 @@ async function redactImage(buf: Buffer, regions: any[], mimeType: string): Promi
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${rects}</svg>`;
 
   return image.composite([{ input: Buffer.from(svg), top: 0, left: 0 }]).toBuffer();
+}
+
+/**
+ * Redact a PDF by drawing black rectangles over the specified regions.
+ * Uses pdf-lib to load the PDF, draw rectangles on each page, and save.
+ *
+ * Regions are normalized (0-1) coordinates: { page, x, y, w, h }
+ * where x/y are top-left origin and w/h are width/height as fractions
+ * of page dimensions.
+ *
+ * Note: This draws visual redaction rectangles. For true content removal
+ * (so the text is not in the file at all), use qpdf or pdf-redact in
+ * production. The current approach prevents visual reading but the
+ * underlying text streams may still be extractable by sophisticated tools.
+ */
+async function redactPdf(buf: Buffer, regions: any[]): Promise<Buffer> {
+  const { PDFDocument, rgb } = await import('pdf-lib');
+
+  const pdfDoc = await PDFDocument.load(buf);
+  const pages = pdfDoc.getPages();
+
+  for (const region of regions) {
+    const pageIndex = (region.page || 1) - 1;
+    const page = pages[pageIndex];
+    if (!page) continue;
+
+    const { width, height } = page.getSize();
+    // PDF coordinate system is bottom-left origin; our regions use top-left
+    const x = region.x * width;
+    const y = height - (region.y * height) - (region.h * height);
+    const w = region.w * width;
+    const h = region.h * height;
+
+    page.drawRectangle({
+      x,
+      y,
+      width: w,
+      height: h,
+      color: rgb(0, 0, 0),
+      opacity: 1,
+    });
+  }
+
+  const redactedBytes = await pdfDoc.save();
+  return Buffer.from(redactedBytes);
 }

@@ -18,6 +18,7 @@ import { SYSTEM_ROLE_PERMISSIONS, SYSTEM_ROLES } from './permissions';
 import { authRateLimiter } from '@/lib/security/rate-limit';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { notify } from '@/lib/notifications/notify';
+import { sendFailedLoginAlert, sendAccountLockedAlert } from '@/lib/notifications/email';
 
 // MFA pending token is short-lived (5 minutes)
 const MFA_PENDING_TTL_MS = 5 * 60 * 1000;
@@ -167,11 +168,13 @@ export const authOptions: NextAuthOptions = {
                 severity: 'warning',
                 metadata: { ip, attempt: newFailCount },
               }).catch(() => {});
+              // Send email alert
+              sendFailedLoginAlert(user.email, ip, newFailCount).catch(() => {});
             }
             if (newFailCount >= 5) {
               const admins = await db.roleAssignment.findMany({
                 where: { tenantId: user.tenantId, role: { name: SYSTEM_ROLES.TENANT_ADMIN } },
-                select: { userId: true },
+                select: { userId: true, user: { select: { email: true } } },
               });
               for (const a of admins) {
                 await notify({
@@ -183,6 +186,8 @@ export const authOptions: NextAuthOptions = {
                   severity: 'critical',
                   metadata: { email: user.email, ip },
                 }).catch(() => {});
+                // Send email to each admin
+                sendAccountLockedAlert(a.user.email, user.email, ip).catch(() => {});
               }
             }
           } else {

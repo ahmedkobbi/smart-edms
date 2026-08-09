@@ -2,15 +2,18 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import {
   Shield, FileText, Search, GitBranch, Clock, FileLock, ScrollText, Settings,
   LayoutDashboard, Users, ShieldCheck, BookMarked, KeyRound, Webhook, Database,
   Bot, ShieldAlert, FileCheck, Smartphone, Mail, BookOpen, LogIn, RefreshCw,
-  AlertTriangle, CreditCard, Building2, FolderOpen,
+  AlertTriangle, CreditCard, Building2, FolderOpen, Menu, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSessionData } from '@/components/providers/use-session-data';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions.client';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 interface NavItem {
   href: string;
@@ -69,15 +72,15 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   },
 ];
 
-export function Sidebar() {
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { session } = useSessionData();
   const perms = session?.user?.permissions ?? [];
 
   return (
-    <aside className="hidden md:flex w-60 flex-col glass border-r border-white/10 dark:border-white/5 h-screen sticky top-0 z-40">
+    <>
       <div className="h-14 flex items-center gap-2 px-4 border-b border-white/10 dark:border-white/5">
-        <Link href="/dashboard" className="flex items-center gap-2">
+        <Link href="/dashboard" className="flex items-center gap-2" onClick={onNavigate}>
           <div className="relative">
             <div className="absolute inset-0 blur-md opacity-30 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg" />
             <div className="relative h-8 w-8 rounded-lg bg-gradient-to-br from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-400 flex items-center justify-center">
@@ -104,6 +107,7 @@ export function Sidebar() {
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={onNavigate}
                       className={cn(
                         'flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors',
                         active
@@ -122,15 +126,55 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-3 border-t border-slate-200 dark:border-slate-800">
+      <div className="p-3 border-t border-white/10 dark:border-white/5">
         <Link
           href="/settings"
+          onClick={onNavigate}
           className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground hover:bg-slate-50 dark:hover:bg-slate-900"
         >
           <Shield className="h-3.5 w-3.5" />
           <span className="truncate">Security &amp; privacy</span>
         </Link>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export function Sidebar() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-60 flex-col glass border-r border-white/10 dark:border-white/5 h-screen sticky top-0 z-40">
+        <SidebarContent />
+      </aside>
+
+      {/* Mobile hamburger trigger (rendered in TopBar area) */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden fixed top-2 left-2 z-50 glass"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-72 p-0 glass">
+          <div className="flex flex-col h-full">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+              <span className="text-sm font-medium">Navigation</span>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setMobileOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <SidebarContent onNavigate={() => setMobileOpen(false)} />
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }

@@ -11,6 +11,7 @@ import { PERMISSIONS } from '@/lib/auth/permissions';
 import { randomToken } from '@/lib/auth/crypto';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { notify } from '@/lib/notifications/notify';
+import { sendInvitationEmail } from '@/lib/notifications/email';
 import { z } from 'zod';
 
 export const GET = createApiHandler(
@@ -77,14 +78,24 @@ export const POST = createApiHandler(
       metadata: { roleNames: body.roleNames, expiresAt: invitation.expiresAt },
     });
 
-    // In production: send email via SMTP/SendGrid/etc.
-    // For now: return the invitation URL for manual delivery
+    // Send invitation email
     const inviteUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/accept-invite?token=${token}`;
+
+    const tenant = await db.tenant.findUnique({
+      where: { id: ctx.tenantId },
+      select: { name: true },
+    });
+    await sendInvitationEmail(
+      body.email,
+      tenant?.name || 'Smart EDMS',
+      inviteUrl,
+      ctx.session.user.email || 'unknown',
+    );
 
     return NextResponse.json({
       invitation,
       inviteUrl,
-      message: 'Invitation created. Deliver the URL to the recipient securely.',
+      message: 'Invitation created and email sent.',
     }, { status: 201 });
   },
 );
