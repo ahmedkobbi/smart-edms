@@ -1,0 +1,25 @@
+# Smart EDMS — .dockerignore
+# Reduce build context size
+
+node_modules
+.next
+.git
+*.md
+.env
+.env*.local
+storage/
+db/
+backups/
+.kee
+.kek
+dev.log
+server.log
+*.log
+tests/
+scripts/test-isolation.ts
+download/
+agent-ctx/
+mini-services/
+examples/
+skills/
+.zscripts/

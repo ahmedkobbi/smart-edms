@@ -1,0 +1,101 @@
+# Smart EDMS — Docker Compose for production-like local development
+# Usage: docker compose up -d
+# Then run migrations: docker compose exec app npx prisma migrate deploy
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: smartedms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: smartedms
+      POSTGRES_USER: smartedms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smartedms_dev_change_me}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartedms -d smartedms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smartedms
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smartedms-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Database (PostgreSQL in production)
+      DATABASE_URL: postgresql://smartedms:${POSTGRES_PASSWORD:-smartedms_dev_change_me}@postgres:5432/smartedms?schema=public
+
+      # NextAuth
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+
+      # Key Encryption Key (32 bytes hex) — generate with: openssl rand -hex 32
+      SMART_EDMS_KEK: ${SMART_EDMS_KEK:?SMART_EDMS_KEK is required}
+
+      # Storage
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_ROOT: /app/storage
+
+      # S3 (optional)
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+
+      # AI (optional)
+      AI_API_KEY: ${AI_API_KEY:-}
+
+      # Cron
+      CRON_SECRET: ${CRON_SECRET:-}
+
+      # Node
+      NODE_ENV: production
+    volumes:
+      - app_storage:/app/storage
+    ports:
+      - "3000:3000"
+    networks:
+      - smartedms
+
+  # Optional: MinIO for local S3-compatible storage testing
+  minio:
+    image: minio/minio:latest
+    container_name: smartedms-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    profiles:
+      - minio
+    networks:
+      - smartedms
+
+volumes:
+  postgres_data:
+  app_storage:
+  minio_data:
+
+networks:
+  smartedms:
+    driver: bridge
