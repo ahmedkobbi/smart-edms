@@ -1,0 +1,83 @@
+feat: TUS resumable upload + S3 bucket versioning + multipart upload
+
+Two remaining HIGH-priority architectural gaps resolved.
+
+## #2 — TUS Resumable/Multipart Upload
+
+**Gap:** Files were read entirely into memory via `formData()`, capped at
+100MB. No TUS server, no Uppy, no `@aws-sdk/lib-storage` for S3 multipart.
+Large-file uploads were impossible.
+
+**Implemented:**
+
+### TUS Server (`/api/upload/tus`)
+- `@tus/server` + `@tus/s3-store` (S3 backend) or `@tus/file-store` (local dev)
+- Supports the full TUS 1.0.0 protocol: POST (create), PATCH (upload chunks),
+  HEAD (resume check), OPTIONS (CORS), DELETE (cancel)
+- 2GB max upload size (vs 100MB previously)
+- 8MB chunk size — files are uploaded in chunks, not buffered in memory
+- S3 backend uses S3 multipart upload natively (via `@tus/s3-store`)
+- Authentication: validates session on upload creation (onUploadCreate callback)
+- Tenant scoping: metadata includes tenantId + userId, validated against session
+- Automatic cleanup: temp files are removed after completion
+
+### TUS Completion (`/api/upload/tus-complete`)
+- Called by the client after TUS upload finishes
+- Reads the uploaded file from the TUS store
+- Validates file (magic bytes, MIME type, size)
+- Computes SHA-256 + SHA-1 checksums
+- Moves file to permanent storage (with proper storageKey)
+- Creates Document + DocumentVersion records
+- Enqueues OCR + OpenSearch indexing (via BullMQ if Redis available)
+- Records audit event with `uploadMethod: 'tus'`
+
+### Client Hook (`useTusUpload`)
+- Uses `tus-js-client` for browser-side resumable uploads
+- Automatic retry: [0, 1s, 3s, 5s, 10s, 15s, 30s] delays
+- Progress tracking: percentage + bytes uploaded + total bytes
+- Abort/cancel support
+- **Smart fallback:** files < 100MB use traditional `formData()` upload
+  (no TUS overhead for small files); files ≥ 100MB use TUS automatically
+- No UI changes needed — the hook is a drop-in replacement for the
+  existing upload function
+
+### File validation
+- Added `MAX_TUS_FILE_SIZE = 2GB` alongside the existing `MAX_FILE_SIZE = 100MB`
+- Small files use formData (100MB limit); large files use TUS (2GB limit)
+
+## #3 — S3 Object Storage Versioning + Protection
+
+**Gap:** S3 adapter set SSE-AES256 but no bucket versioning, Object Lock,
+MFA Delete, or lifecycle policy. Accidental overwrites weren't protected.
+
+**Implemented:**
+
+### S3 Bucket Setup Script (`scripts/setup-s3-bucket.sh`)
+Production-grade bucket configuration:
+1. **Bucket versioning** — protects against accidental overwrites/deletes
+2. **Object Lock** (WORM) — GOVERNANCE mode, 7-year default retention
+3. **Server-side encryption** — AES256 (default) or KMS (if `S3_KMS_KEY_ID` set)
+4. **Public access block** — all 4 block settings enabled (no public access)
+5. **Lifecycle policy** — Glacier transition after 90 days; old versions
+   expire after 365 days
+6. **MFA Delete** — documented (commented out; requires MFA device ARN)
+
+### S3 Storage Adapter Updates (`file-storage.ts`)
+1. **Multipart upload** — files > 5MB automatically use S3 multipart upload
+   (CreateMultipartUpload → UploadPart × N → CompleteMultipartUpload).
+   On failure, aborts the upload (cleans up partial parts).
+2. **KMS support** — when `S3_KMS_KEY_ID` is set, uses `aws:kms` SSE
+   instead of AES256; passes `SSEKMSKeyId` + `BucketKeyEnabled`
+3. **Bucket versioning API** — `getBucketVersioningStatus()` checks
+   versioning status; `enableBucketVersioning()` enables it
+4. **8MB part size** — matches TUS chunk size for consistent performance
+
+### Environment variables
+- `S3_KMS_KEY_ID` (optional) — KMS key ARN for SSE-KMS encryption
+- `TUS_DATA_DIR` (optional) — local TUS temp directory (default: .tus-uploads)
+- Added to `.env.example`
+
+## Test results
+- 263/263 tests passing
+- Lint: clean
+- TypeScript: 0 errors

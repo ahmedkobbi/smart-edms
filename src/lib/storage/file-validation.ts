@@ -15,7 +15,8 @@ export const ALLOWED_MIME_TYPES = new Set([
   'application/zip', 'application/x-7z-compressed', 'application/gzip', 'application/x-tar',
 ]);
 
-export const MAX_FILE_SIZE = 100 * 1024 * 1024;
+export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB for formData uploads
+export const MAX_TUS_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB for TUS resumable uploads
 
 interface MagicRule { mime: string; offset: number; pattern: number[]; }
 

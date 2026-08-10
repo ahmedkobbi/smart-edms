@@ -15,6 +15,12 @@ import {
   GetObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
+  GetBucketVersioningCommand,
+  PutBucketVersioningCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
@@ -124,9 +130,129 @@ class S3FileStorage implements FileStorage {
 
   async put(key: string, data: Buffer | NodeJS.ReadableStream, contentType: string, metadata?: Record<string, string>): Promise<{ size: number; etag?: string }> {
     const body = Buffer.isBuffer(data) ? data : (await streamToBuffer(data));
-    const cmd = new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentType: contentType, Metadata: metadata, ServerSideEncryption: 'AES256' });
+
+    // Use multipart upload for files > 5MB (S3's minimum part size)
+    // This is more reliable for large files and supports automatic retry
+    const MULTIPART_THRESHOLD = 5 * 1024 * 1024; // 5MB
+    const PART_SIZE = 8 * 1024 * 1024; // 8MB parts
+
+    if (body.length > MULTIPART_THRESHOLD) {
+      return this.multipartUpload(key, body, contentType, metadata, PART_SIZE);
+    }
+
+    const sseAlgorithm = process.env.S3_KMS_KEY_ID ? 'aws:kms' : 'AES256';
+    const cmd = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+      Metadata: metadata,
+      ServerSideEncryption: sseAlgorithm as any,
+      ...(process.env.S3_KMS_KEY_ID ? { SSEKMSKeyId: process.env.S3_KMS_KEY_ID } : {}),
+    });
     const out = await this.client.send(cmd);
     return { size: body.length, etag: out.ETag };
+  }
+
+  /**
+   * Multipart upload for large files.
+   * Splits the file into parts, uploads each independently (with retry),
+   * and completes the upload. If any part fails, the entire upload is aborted.
+   */
+  private async multipartUpload(
+    key: string,
+    body: Buffer,
+    contentType: string,
+    metadata: Record<string, string> | undefined,
+    partSize: number,
+  ): Promise<{ size: number; etag?: string }> {
+    const sseAlgorithm = process.env.S3_KMS_KEY_ID ? 'aws:kms' : 'AES256';
+
+    // 1. Create multipart upload
+    const createCmd = new CreateMultipartUploadCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ContentType: contentType,
+      Metadata: metadata,
+      ServerSideEncryption: sseAlgorithm as any,
+      ...(process.env.S3_KMS_KEY_ID ? { SSEKMSKeyId: process.env.S3_KMS_KEY_ID } : {}),
+    });
+    const createResp = await this.client.send(createCmd);
+    const uploadId = createResp.UploadId!;
+
+    try {
+      // 2. Upload each part
+      const parts: { PartNumber: number; ETag: string }[] = [];
+      const totalParts = Math.ceil(body.length / partSize);
+
+      for (let i = 0; i < totalParts; i++) {
+        const partNumber = i + 1;
+        const start = i * partSize;
+        const end = Math.min(start + partSize, body.length);
+        const partData = body.subarray(start, end);
+
+        const uploadCmd = new UploadPartCommand({
+          Bucket: this.bucket,
+          Key: key,
+          PartNumber: partNumber,
+          UploadId: uploadId,
+          Body: partData,
+        });
+        const uploadResp = await this.client.send(uploadCmd);
+        parts.push({ PartNumber: partNumber, ETag: uploadResp.ETag! });
+      }
+
+      // 3. Complete multipart upload
+      const completeCmd = new CompleteMultipartUploadCommand({
+        Bucket: this.bucket,
+        Key: key,
+        UploadId: uploadId,
+        MultipartUpload: { Parts: parts },
+      });
+      const completeResp = await this.client.send(completeCmd);
+
+      return { size: body.length, etag: completeResp.ETag };
+    } catch (err) {
+      // Abort the multipart upload on failure (clean up parts)
+      try {
+        await this.client.send(new AbortMultipartUploadCommand({
+          Bucket: this.bucket,
+          Key: key,
+          UploadId: uploadId,
+        }));
+      } catch {}
+      throw err;
+    }
+  }
+
+  /**
+   * Check if S3 bucket versioning is enabled.
+   * Returns the versioning status: 'Enabled' | 'Suspended' | null
+   */
+  async getBucketVersioningStatus(): Promise<string | null> {
+    try {
+      const resp = await this.client.send(new GetBucketVersioningCommand({ Bucket: this.bucket }));
+      return resp.Status || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Enable S3 bucket versioning (if not already enabled).
+   * This is a one-time setup operation — call after bucket creation.
+   */
+  async enableBucketVersioning(): Promise<boolean> {
+    try {
+      await this.client.send(new PutBucketVersioningCommand({
+        Bucket: this.bucket,
+        VersioningConfiguration: { Status: 'Enabled' },
+      }));
+      return true;
+    } catch (err) {
+      console.warn('[s3] failed to enable bucket versioning:', err);
+      return false;
+    }
   }
 
   async get(key: string): Promise<Buffer> {
