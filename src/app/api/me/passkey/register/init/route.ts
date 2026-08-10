@@ -9,15 +9,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler } from '@/lib/api/handler';
 import { generatePasskeyRegistrationOptions } from '@/lib/auth/webauthn';
+import { createChallengeStore } from '@/lib/auth/challenge-store';
 
-const challengeStore = new Map<string, { challenge: string; expiresAt: number }>();
+/**
+ * SECURITY FIX (M-AUTH-17 / L-AUTH-4): Replace the in-memory `Map` with a
+ * Redis-backed challenge store (with in-memory fallback for dev). Passkey
+ * registration now works in multi-instance deploys.
+ */
+const challengeStore = createChallengeStore<{ challenge: string }>('passkey-register');
+const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 
 export const POST = createApiHandler(
   {
     // SECURITY FIX (M-AUTH-15): Rate-limit passkey registration init.
-    // Without a cap, a hijacked session can spam this endpoint to grow the
-    // `challengeStore` Map indefinitely (entries expire after 5 min but the
-    // sweep is best-effort) — cheap memory-exhaustion DoS.
     rateLimit: { max: 5, windowMs: 60_000 },
   },
   async (req: NextRequest, ctx) => {
@@ -34,11 +38,8 @@ export const POST = createApiHandler(
 
     const options = await generatePasskeyRegistrationOptions(user.id, user.email, existingCreds);
 
-    // Store challenge for verification (5 min TTL)
-    challengeStore.set(user.id, {
-      challenge: options.challenge,
-      expiresAt: Date.now() + 5 * 60 * 1000,
-    });
+    // Store challenge (TTL managed by the store)
+    await challengeStore.set(user.id, { challenge: options.challenge }, CHALLENGE_TTL_MS);
 
     return NextResponse.json(options);
   },

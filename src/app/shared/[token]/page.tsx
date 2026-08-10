@@ -54,8 +54,11 @@ export default function SharedDocumentPage() {
   async function handleView() {
     setViewing(true);
     try {
+      // SECURITY FIX (L-UI-2): The POST endpoint is at `/api/shares/:token`
+      // (no `/view` suffix) — the previous `/view` path returned 404 and
+      // external recipients could not view shared documents.
       const res = await api.post<{ url: string; watermark: boolean; watermarkText: string | null; mode: string }>(
-        `/api/shares/${params.token}/view`,
+        `/api/shares/${params.token}`,
         { password: password || undefined },
       );
       setViewUrl(res.url);

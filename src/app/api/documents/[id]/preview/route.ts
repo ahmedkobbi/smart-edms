@@ -94,7 +94,8 @@ export const GET = createApiHandler(
     if (!version) throw ApiError.notFound('no_version', 'No version available');
 
     const storage = getFileStorage();
-    const url = await storage.getSignedDownloadUrl(version.storageKey, 60);
+    // SECURITY FIX (M-DOC-7): Bind the signed URL to ctx.userId.
+    const url = await storage.getSignedDownloadUrl(version.storageKey, 60, undefined, ctx.userId);
 
     await recordAuditEvent({
       tenantId: ctx.tenantId,

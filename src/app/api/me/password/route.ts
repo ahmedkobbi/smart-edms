@@ -9,6 +9,9 @@ import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { hashPassword, verifyPassword } from '@/lib/auth/crypto';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { authRateLimiter } from '@/lib/security/rate-limit';
+import { getUserLocale } from '@/i18n/server-translator';
+import { sendPasswordChangedAlert } from '@/lib/notifications/email';
+import { notify } from '@/lib/notifications/notify';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -45,6 +48,20 @@ export const POST = createApiHandler(
     // in again with their new password.
     const { revokeAllUserSessions } = await import('@/lib/auth/session-revocation');
     await revokeAllUserSessions(user.id, 'password_change');
+
+    // SECURITY FIX (L-AUTH-10): Notify the user (in-app + email) so they can
+    // react if an attacker who briefly obtained their session changed the
+    // password. Without this, the legitimate user only finds out when they
+    // next try to log in and find their old password doesn't work.
+    const locale = await getUserLocale(user.id).catch(() => 'en' as const);
+    await notify({
+      tenantId: ctx.tenantId,
+      userId: user.id,
+      type: 'security.password_changed',
+      severity: 'warning',
+      metadata: { ip: ctx.ip },
+    }).catch(() => {});
+    sendPasswordChangedAlert({ to: user.email, ip: ctx.ip, locale }).catch(() => {});
 
     await recordAuditEvent({
       tenantId: ctx.tenantId,

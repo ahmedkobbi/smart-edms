@@ -15,6 +15,7 @@ import { notify, fireWebhook } from '@/lib/notifications/notify';
 import { sendShareNotificationEmail } from '@/lib/notifications/email';
 import { getUserLocale } from '@/i18n/server-translator';
 import { z } from 'zod';
+import { logger } from '@/lib/config/logger';
 
 const createSchema = z.object({
   recipientEmail: z.string().email().optional(),
@@ -298,7 +299,7 @@ export const POST = createApiHandler(
           expiresAt: share.expiresAt ?? undefined,
           locale: recipientLocale,
         }).catch((err) => {
-          console.warn('[share] failed to send email to recipient:', err);
+          logger.warn('share_failed_to_send_email_to_recipient', { message: '[share] failed to send email to recipient:', error: err });
         });
       }
     } else if (body.recipientEmail) {
@@ -314,7 +315,7 @@ export const POST = createApiHandler(
         expiresAt: share.expiresAt ?? undefined,
         locale: externalLocale,
       }).catch((err) => {
-        console.warn('[share] failed to send email to external recipient:', err);
+        logger.warn('share_failed_to_send_email_to_external_recipient', { message: '[share] failed to send email to external recipient:', error: err });
       });
     }
 

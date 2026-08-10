@@ -9,6 +9,7 @@
  */
 
 import { db } from '@/lib/db';
+import { logger } from '@/lib/config/logger';
 
 export interface ClassifyInput {
   tenantId: string;
@@ -83,7 +84,7 @@ export async function suggestClassification(input: ClassifyInput): Promise<Class
       const result = await llmClassify(input);
       if (result) return result;
     } catch (err) {
-      console.warn('[ai:llm] fallback to heuristic:', err);
+      logger.warn('ai', { message: '[ai:llm] fallback to heuristic:', error: err });
     }
   }
   return heuristicClassify(input);
@@ -213,7 +214,7 @@ Do not include any other text.`;
       source: 'llm',
     };
   } catch (err) {
-    console.warn('[ai:llm:error]', err);
+    logger.warn('ai', { message: '[ai:llm:error]', error: err });
     return null;
   }
 }

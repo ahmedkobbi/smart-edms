@@ -13,6 +13,7 @@ import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { notify, fireWebhook } from '@/lib/notifications/notify';
 import { sendWorkflowAssignedEmail } from '@/lib/notifications/email';
 import { z } from 'zod';
+import { logger } from '@/lib/config/logger';
 
 export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.WORKFLOW_APPROVE },
@@ -179,7 +180,7 @@ export const POST = createApiHandler(
           workflowUrl: wfUrl,
           locale,
         }).catch((err) => {
-          console.warn('[workflow] failed to send email to approver:', err);
+          logger.warn('workflow_failed_to_send_email_to_approver', { message: '[workflow] failed to send email to approver:', error: err });
         });
       }
     }

@@ -33,7 +33,14 @@ const createSchema = z.object({
 });
 
 export const POST = createApiHandler(
-  { requiredPermission: PERMISSIONS.DOCUMENT_READ },
+  {
+    requiredPermission: PERMISSIONS.DOCUMENT_READ,
+    // SECURITY FIX (L-DOC-4): Rate-limit comment creation. Each POST creates
+    // a DocumentComment row AND fires a notify() to the document owner — a
+    // stolen session could spam thousands of comments/min, flooding the DB
+    // and the owner's notification queue.
+    rateLimit: { max: 30, windowMs: 60_000 },
+  },
   async (req: NextRequest, ctx, params) => {
     const body = createSchema.parse(await req.json());
     const doc = await db.document.findFirst({ where: { id: params!.id, tenantId: ctx.tenantId, deletedAt: null } });

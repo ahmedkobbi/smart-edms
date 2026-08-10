@@ -11,6 +11,7 @@
 import { db } from '@/lib/db';
 import { getFileStorage } from '@/lib/storage/file-storage';
 import { isAiEnabledForTenant, maskPiiForAi } from '@/lib/ai/tenant-guard';
+import { logger } from '@/lib/config/logger';
 
 export interface PiiFinding {
   type: string; // email, phone, ssn, credit_card, passport, iban, ip
@@ -175,7 +176,7 @@ export async function summarizeDocument(tenantId: string, documentId: string): P
         source: 'llm',
       };
     } catch (err) {
-      console.warn('[ai:summarize] LLM failed, falling back to heuristic:', err);
+      logger.warn('ai', { message: '[ai:summarize] LLM failed, falling back to heuristic:', error: err });
     }
   }
 

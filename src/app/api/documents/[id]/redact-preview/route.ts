@@ -20,6 +20,7 @@ import { PERMISSIONS } from '@/lib/auth/permissions';
 import { getFileStorage } from '@/lib/storage/file-storage';
 import { getDocumentDek } from '@/lib/storage/envelope-encryption';
 import { z } from 'zod';
+import { logger } from '@/lib/config/logger';
 
 const regionSchema = z.object({
   page: z.number().int().min(1).default(1),
@@ -76,7 +77,7 @@ export const POST = createApiHandler(
         buf = decryptWithDek(dek, encryptedBuf.toString('base64'), contentIv);
       } catch (err) {
         if (err instanceof ApiError) throw err;
-        console.warn('[redact-preview] decryption failed:', err);
+        logger.warn('redactpreview_decryption_failed', { message: '[redact-preview] decryption failed:', error: err });
         throw ApiError.badRequest(
           'decryption_failed',
           'Failed to decrypt the source version for preview. The document may be corrupted.',

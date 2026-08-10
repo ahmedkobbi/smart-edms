@@ -4,6 +4,11 @@ const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: false,
   poweredByHeader: false,
+  // SECURITY FIX (L-INFRA-1): Defensively pin productionBrowserSourceMaps
+  // to false so a future Next.js default change or operator override cannot
+  // accidentally expose original TS source / component logic / embedded
+  // string constants via /_next/static/maps/*.map.
+  productionBrowserSourceMaps: false,
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -30,6 +35,8 @@ const nextConfig: NextConfig = {
     //     (which injects styles at runtime via <style> tags).
     //   - connect-src: 'self' + ws://localhost:3003 for dev-mode WebSocket
     //     notifications. In production, the WS URL is same-origin.
+    //   - SECURITY FIX (L-INFRA-4): report-uri + report-to directives so
+    //     CSP violations in production browsers are visible to security.
     const isDev = process.env.NODE_ENV === 'development';
     const scriptSrc = isDev
       ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
@@ -50,6 +57,15 @@ const nextConfig: NextConfig = {
         key: 'Strict-Transport-Security',
         value: 'max-age=63072000; includeSubDomains; preload',
       },
+      // SECURITY FIX (L-INFRA-2): Cross-Origin-Opener-Policy +
+      // Cross-Origin-Resource-Policy isolate the browsing context group
+      // (mitigates Spectre side-channels via window.opener) and prevent
+      // cross-origin resources from being loaded into the rendering process.
+      // COEP `require-corp` is intentionally NOT set — it breaks cross-origin
+      // images/iframes without explicit CORP headers, which would break the
+      // shared-document preview path.
+      { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+      { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
       {
         key: 'Content-Security-Policy',
         value: [
@@ -64,7 +80,19 @@ const nextConfig: NextConfig = {
           "form-action 'self'",
           "object-src 'none'",
           "upgrade-insecure-requests",
+          // SECURITY FIX (L-INFRA-4): CSP violation reporting.
+          "report-uri /api/csp-report",
+          "report-to csp-endpoint",
         ].join('; '),
+      },
+      // Report-To endpoint registration (RFC 8031) for CSP + other reports
+      {
+        key: 'Report-To',
+        value: JSON.stringify({
+          group: 'csp-endpoint',
+          max_age: 6 * 3600,
+          endpoints: [{ url: '/api/csp-report' }],
+        }),
       },
     ];
 
@@ -80,6 +108,9 @@ const nextConfig: NextConfig = {
       { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PATCH, PUT, DELETE, OPTIONS' },
       { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization, X-Correlation-Id, X-Step-Up-Token, X-Break-Glass-Token, X-Requested-With, Accept-Language' },
       { key: 'Access-Control-Max-Age', value: '86400' },
+      // SECURITY FIX (L-INFRA-3): Prevent search engines from indexing API
+      // responses (which may leak document titles in error messages).
+      { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
     ];
     if (corsOrigin) {
       apiHeaders.unshift({ key: 'Access-Control-Allow-Origin', value: corsOrigin });
@@ -95,6 +126,27 @@ const nextConfig: NextConfig = {
       {
         source: '/api/(.*)',
         headers: apiHeaders,
+      },
+      // SECURITY FIX (L-INFRA-3): noindex on shared-document HTML pages so
+      // accidentally-published share links don't leak the document title +
+      // classification to public search results.
+      {
+        source: '/shared/(.*)',
+        headers: [
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+          // SECURITY FIX (L-INFRA-5): no-store on auth/sensitive HTML pages
+          // so browser back-navigation doesn't replay a previously-rendered
+          // state to a later user of the same browser.
+          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate' },
+        ],
+      },
+      // SECURITY FIX (L-INFRA-5): no-store on auth pages (login, reset,
+      // accept-invite) — same rationale as /shared/*.
+      {
+        source: '/(login|reset-password|accept-invite|login-error)(.*)',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate' },
+        ],
       },
     ];
   },

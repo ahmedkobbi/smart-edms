@@ -10,8 +10,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
-import { getFileStorage, buildStorageKey } from '@/lib/storage/file-storage';
+import { getFileStorage, buildStorageKey, sanitizeFileName } from '@/lib/storage/file-storage';
 import { sha256, sha1 } from '@/lib/auth/crypto';
+import { getDocumentDek, encryptWithDek, decryptWithDek } from '@/lib/storage/envelope-encryption';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 
 export const POST = createApiHandler(
@@ -42,7 +43,23 @@ export const POST = createApiHandler(
     if (!sourceVersion) throw ApiError.notFound('version_not_found', 'Source version not found');
 
     const storage = getFileStorage();
-    const buf = await storage.get(sourceVersion.storageKey);
+    const encryptedBuf = await storage.get(sourceVersion.storageKey);
+
+    // SECURITY FIX (L-DOC-3): Re-encrypt with a FRESH IV instead of reusing
+    // the source's IV. AES-GCM with the same (DEK, IV) pair is forbidden —
+    // it lets an attacker who sees two ciphertexts compute XOR of plaintexts.
+    // Restore reads the source ciphertext, decrypts with the source DEK +
+    // source IV, then re-encrypts with the SAME DEK but a fresh IV. The
+    // plaintext is identical, but the IV is new — no collision.
+    const dek = await getDocumentDek(ctx.tenantId, doc.id);
+    let plaintextBuf = encryptedBuf;
+    if (dek) {
+      const sourceMeta = JSON.parse(sourceVersion.metadata || '{}');
+      const sourceIv: string | undefined = sourceMeta._encIv;
+      if (sourceIv) {
+        plaintextBuf = decryptWithDek(dek, encryptedBuf.toString('base64'), sourceIv);
+      }
+    }
 
     const result = await db.$transaction(async (tx) => {
       const latest = await tx.documentVersion.findFirst({
@@ -51,9 +68,18 @@ export const POST = createApiHandler(
       });
       const newVersionNumber = (latest?.versionNumber ?? 0) + 1;
       const versionId = `${doc.id}_v${newVersionNumber}`;
-      const storageKey = buildStorageKey(ctx.tenantId, doc.id, versionId, sourceVersion.fileName);
+      const safeName = sanitizeFileName(sourceVersion.fileName);
+      const storageKey = buildStorageKey(ctx.tenantId, doc.id, versionId, safeName);
 
-      await storage.put(storageKey, buf, sourceVersion.mimeType, {
+      // Re-encrypt with a FRESH IV
+      let storeBuf = plaintextBuf;
+      let encIv: string | undefined;
+      if (dek) {
+        const encrypted = encryptWithDek(dek, plaintextBuf);
+        storeBuf = Buffer.from(encrypted.ciphertext, 'base64');
+        encIv = encrypted.iv;
+      }
+      await storage.put(storageKey, storeBuf, sourceVersion.mimeType, {
         tenantId: ctx.tenantId,
         documentId: doc.id,
         version: String(newVersionNumber),
@@ -67,14 +93,14 @@ export const POST = createApiHandler(
           documentId: doc.id,
           versionNumber: newVersionNumber,
           storageKey,
-          fileName: sourceVersion.fileName,
+          fileName: safeName,
           mimeType: sourceVersion.mimeType,
           sizeBytes: sourceVersion.sizeBytes,
-          checksumSha256: sha256(buf),
-          checksumSha1: sha1(buf),
+          checksumSha256: sha256(plaintextBuf),
+          checksumSha1: sha1(plaintextBuf),
           uploadedById: ctx.userId,
           changeReason: `Restored from v${sourceVersion.versionNumber}`,
-          metadata: sourceVersion.metadata,
+          metadata: JSON.stringify({ ...(JSON.parse(sourceVersion.metadata || '{}')), _encIv: encIv }),
         },
       });
 

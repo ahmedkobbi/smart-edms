@@ -98,11 +98,15 @@ export const GET = createApiHandler(
     if (!version) throw ApiError.notFound('no_version', 'No version available');
 
     // Generate signed URL with short expiry (60 seconds)
+    // SECURITY FIX (M-DOC-7): Bind the URL to ctx.userId so a leaked URL
+    // (browser history, proxy log) cannot be reused by a different user
+    // within its TTL. The resolve endpoint verifies the session user.
     const storage = getFileStorage();
     const signedUrl = await storage.getSignedDownloadUrl(
       version.storageKey,
       60,
       version.fileName,
+      ctx.userId,
     );
 
     // Audit the download attempt (always — even if the signed URL is never used)

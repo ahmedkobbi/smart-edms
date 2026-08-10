@@ -9,8 +9,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { generatePasskeyAuthOptions } from '@/lib/auth/webauthn';
 import { authRateLimiter } from '@/lib/security/rate-limit';
+import { createChallengeStore } from '@/lib/auth/challenge-store';
 
-const authChallengeStore = new Map<string, { challenge: string; userId: string; expiresAt: number }>();
+/**
+ * SECURITY FIX (M-AUTH-17 / L-AUTH-4): Replace the in-memory `Map` with a
+ * Redis-backed challenge store (with in-memory fallback for dev). Passkey
+ * login now works in multi-instance deploys.
+ */
+const authChallengeStore = createChallengeStore<{ challenge: string; userId: string }>('passkey-login');
+const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
@@ -52,12 +59,11 @@ export async function POST(req: NextRequest) {
 
   const options = await generatePasskeyAuthOptions(credentials);
 
-  // Store challenge with user mapping
-  authChallengeStore.set(options.challenge, {
+  // Store challenge with user mapping (TTL managed by the store)
+  await authChallengeStore.set(options.challenge, {
     challenge: options.challenge,
     userId: user.id,
-    expiresAt: Date.now() + 5 * 60 * 1000,
-  });
+  }, CHALLENGE_TTL_MS);
 
   return NextResponse.json(options);
 }

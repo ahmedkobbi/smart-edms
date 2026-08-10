@@ -18,7 +18,15 @@ export default function LoginPage() {
   const search = useSearchParams();
   const { toast } = useToast();
   const { t } = useI18n();
-  const callbackUrl = search.get('callbackUrl') || '/dashboard';
+  // SECURITY FIX (L-AUTH-5): Validate callbackUrl is same-origin (relative
+  // path) before redirecting. An attacker can craft a phishing link like
+  // /login?callbackUrl=https://evil.com — after the victim logs in, they
+  // would be redirected to the attacker's site. Reject anything that is
+  // not a relative path (no protocol, no //, no backslashes).
+  const rawCallback = search.get('callbackUrl') || '/dashboard';
+  const callbackUrl = (rawCallback.startsWith('/') && !rawCallback.startsWith('//') && !rawCallback.startsWith('/\\'))
+    ? rawCallback
+    : '/dashboard';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -370,7 +378,19 @@ function SsoButtons() {
   const [providers, setProviders] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/admin/sso-providers/public')
+    // SECURITY FIX (L-UI-1): The public SSO providers endpoint requires a
+    // `?tenant=<slug>` query param (M5 fix). Without it the endpoint returns
+    // `{ items: [] }` and SSO buttons never render — SSO users could not
+    // log in. Resolve the tenant slug from NEXT_PUBLIC_TENANT_SLUG (single-
+    // tenant deploy) or from the URL query string (multi-tenant).
+    const tenantSlug =
+      (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tenant')) ||
+      process.env.NEXT_PUBLIC_TENANT_SLUG ||
+      '';
+    const url = tenantSlug
+      ? `/api/admin/sso-providers/public?tenant=${encodeURIComponent(tenantSlug)}`
+      : '/api/admin/sso-providers/public';
+    fetch(url)
       .then((r) => r.ok ? r.json() : { items: [] })
       .then((data) => setProviders(data.items || []))
       .catch(() => {});

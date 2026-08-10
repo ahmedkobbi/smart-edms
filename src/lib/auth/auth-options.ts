@@ -18,8 +18,10 @@ import { SYSTEM_ROLE_PERMISSIONS, SYSTEM_ROLES } from './permissions';
 import { authRateLimiter } from '@/lib/security/rate-limit';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { notify } from '@/lib/notifications/notify';
-import { sendFailedLoginAlert, sendAccountLockedAlert } from '@/lib/notifications/email';
+import { sendFailedLoginAlert, sendAccountLockedAlert, sendNewDeviceAlert } from '@/lib/notifications/email';
 import { getUserLocale } from '@/i18n/server-translator';
+import { logger } from '@/lib/config/logger';
+import { createChallengeStore } from './challenge-store';
 
 // MFA pending token is short-lived (5 minutes)
 const MFA_PENDING_TTL_MS = 5 * 60 * 1000;
@@ -250,7 +252,16 @@ export const authOptions: NextAuthOptions = {
             }
           } else {
             // Unknown email — log to console only (can't audit without a valid tenant)
-            console.warn(`[auth] failed login for unknown email: ${credentials.email} from ${ip}`);
+            // SECURITY FIX (L-AUTH-6): Use the structured logger (which
+            // redacts PII) instead of console.warn (which doesn't). Drop
+            // the user-supplied email entirely — if forensics need it, the
+            // truncated prefix `email.slice(0,2) + '***'` is enough to
+            // correlate with audit events without leaking the full address
+            // to SIEM ingesting container stdout.
+            logger.info('auth.failed_login_unknown_email', {
+              ip,
+              emailPrefix: credentials.email.slice(0, 2) + '***',
+            });
           }
           return null;
         }
@@ -275,10 +286,10 @@ export const authOptions: NextAuthOptions = {
         if (user.mfaEnabled && user.mfaSecretEnc) {
           // Two paths: pending token (already passed password) or full token
           if (credentials.mfaPendingToken) {
-            // Verify pending token issued earlier
-            const pending = mfaPendingStore.get(credentials.mfaPendingToken);
-            if (!pending || pending.userId !== user.id || pending.expiresAt < Date.now()) {
-              mfaPendingStore.delete(credentials.mfaPendingToken);
+            // SECURITY FIX (M-AUTH-17): mfaPendingStore is now async (Redis-backed).
+            const pending = await mfaPendingStore.get(credentials.mfaPendingToken);
+            if (!pending || pending.userId !== user.id) {
+              await mfaPendingStore.delete(credentials.mfaPendingToken).catch(() => {});
               throw new Error('MFA session expired. Please restart login.');
             }
             if (!credentials.mfaToken || !/^\d{6}$/.test(credentials.mfaToken)) {
@@ -292,14 +303,13 @@ export const authOptions: NextAuthOptions = {
             }
             // Persist the new timestep to prevent replay
             await db.user.update({ where: { id: user.id }, data: { mfaLastTimestep: newTimestep } });
-            mfaPendingStore.delete(credentials.mfaPendingToken);
+            await mfaPendingStore.delete(credentials.mfaPendingToken).catch(() => {});
           } else if (!credentials.mfaToken) {
             // Issue a pending token; client must resubmit with MFA
             const pendingToken = randomPendingToken();
-            mfaPendingStore.set(pendingToken, {
+            await mfaPendingStore.set(pendingToken, {
               userId: user.id,
-              expiresAt: Date.now() + MFA_PENDING_TTL_MS,
-            });
+            }, MFA_PENDING_TTL_MS);
             throw new Error(`MFA_REQUIRED:${pendingToken}`);
           } else {
             const secret = await decryptTotpSecret(user.mfaSecretEnc);
@@ -330,6 +340,11 @@ export const authOptions: NextAuthOptions = {
         try {
           const userAgent = (req.headers?.['user-agent'] as string) || 'unknown';
           const deviceHash = sha256(`${user.id}|${userAgent}`).slice(0, 32);
+          // SECURITY FIX (L-AUTH-9): Capture whether this is a NEW device so
+          // we can notify the user. Previously the upsert result was discarded
+          // and the user had no way to learn about unfamiliar-device access
+          // until they manually reviewed the device list.
+          const existingDevice = await db.device.findUnique({ where: { deviceHash }, select: { id: true } });
           await db.device.upsert({
             where: { deviceHash },
             update: {
@@ -348,9 +363,28 @@ export const authOptions: NextAuthOptions = {
               lastIp: ip,
             },
           });
+
+          // If this is a new device, notify the user (in-app + email)
+          if (!existingDevice) {
+            const deviceName = extractDeviceName(userAgent);
+            const userLocale = await getUserLocale(user.id).catch(() => 'en' as const);
+            await notify({
+              tenantId: user.tenantId,
+              userId: user.id,
+              type: 'security.new_device',
+              severity: 'info',
+              metadata: { device: deviceName, ip },
+            }).catch(() => {});
+            sendNewDeviceAlert({
+              to: user.email,
+              deviceName,
+              ip,
+              locale: userLocale,
+            }).catch(() => {});
+          }
         } catch (err) {
           // Device recording is best-effort — don't block login on it
-          console.warn('[auth] failed to record device:', err);
+          logger.warn('auth.device_record_failed', { error: (err as Error).message });
         }
 
         // Concurrent session limit: track recent logins, alert if too many
@@ -506,28 +540,21 @@ export const authOptions: NextAuthOptions = {
 };
 
 // ---------------------------------------------------------------------------
-//  In-memory MFA pending tokens (dev). In production use Redis or DB.
+//  MFA pending tokens
 // ---------------------------------------------------------------------------
+// SECURITY FIX (M-AUTH-17 / L-AUTH-1): Replaced the in-memory `Map` with a
+// Redis-backed challenge store (with in-memory fallback for dev). MFA login
+// now works in multi-instance deploys. TTL is managed by the store, so the
+// periodic sweep is no longer needed.
 
 interface MfaPending {
   userId: string;
-  expiresAt: number;
 }
-const mfaPendingStore = new Map<string, MfaPending>();
+const mfaPendingStore = createChallengeStore<MfaPending>('mfa-pending');
 
 // SECURITY FIX (H8): Use CSPRNG instead of Math.random()
 function randomPendingToken(): string {
   return randomBase64Url(32);
-}
-
-// Periodically clean expired entries (best-effort)
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [k, v] of mfaPendingStore.entries()) {
-      if (v.expiresAt < now) mfaPendingStore.delete(k);
-    }
-  }, 60_000).unref?.();
 }
 
 export async function getServerSession(): Promise<SmartEdmsSession | null> {

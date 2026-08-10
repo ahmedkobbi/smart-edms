@@ -82,14 +82,19 @@ export async function sendEmail(params: EmailParams): Promise<{ ok: boolean; mes
   const transporter = await getTransporter();
   const from = params.from || process.env.SMTP_FROM || 'Smart EDMS <noreply@smartedms.local>';
 
-  // Dev mode — log to console
+  // Dev mode — log to structured logger (NOT console.log)
   if (!transporter) {
-    console.log('\n📧 EMAIL (dev mode — configure SMTP_HOST for delivery)');
-    console.log(`   From: ${from}`);
-    console.log(`   To: ${params.to}`);
-    console.log(`   Subject: ${params.subject}`);
-    console.log(`   Text: ${params.text.slice(0, 240)}${params.text.length > 240 ? '…' : ''}`);
-    console.log('');
+    // SECURITY FIX (L-INFRA-9): Use the structured logger instead of
+    // console.log so PII (recipient, subject, body) goes through the
+    // logger's redaction pipeline. The recipient email is truncated to a
+    // 2-char prefix so dev output remains useful for debugging without
+    // leaking full addresses to SIEM ingesting container stdout.
+    logger.info('email.dev_mode', {
+      from,
+      to: params.to.slice(0, 2) + '***',
+      subject: params.subject,
+      preview: params.text.slice(0, 80),
+    });
     return { ok: true, message: 'Email logged (dev mode — no SMTP configured)' };
   }
 
@@ -491,6 +496,72 @@ export async function sendAccountLockedAlert(opts: SendAccountLockedAlertOpts): 
   });
 
   const text = t('emails.accountLocked.text', { email: opts.email, ip: opts.ip }) + '\n\n' + advice;
+  await sendEmail({ to: opts.to, subject, html, text });
+}
+
+/**
+ * SECURITY FIX (L-AUTH-9): New-device login alert.
+ *
+ * Sent when a user signs in from a device (user-agent) the system has not
+ * seen before for that user. Lets the user react quickly if the login was
+ * not them — they can revoke sessions / change password.
+ */
+export interface SendNewDeviceAlertOpts {
+  to: string;
+  deviceName: string;
+  ip: string;
+  locale: string;
+}
+
+export async function sendNewDeviceAlert(opts: SendNewDeviceAlertOpts): Promise<void> {
+  const t = await getTranslator(opts.locale);
+  const subject = t('emails.newDevice.subject', { device: opts.deviceName });
+  const body = t.raw('emails.newDevice.body', { device: opts.deviceName, ip: opts.ip });
+
+  const html = renderEmailTemplate({
+    locale: t.locale,
+    title: t('emails.newDevice.title'),
+    preheader: t('emails.newDevice.text', { device: opts.deviceName, ip: opts.ip }),
+    bodyHtml: `<p style="margin:0;">${body}</p>`,
+    alert: { severity: 'warning', html: body },
+    metaRows: [
+      { label: t('emails.newDevice.deviceLabel'), value: opts.deviceName },
+      { label: t('emails.newDevice.ipLabel'), value: opts.ip },
+    ],
+  });
+
+  const text = t('emails.newDevice.text', { device: opts.deviceName, ip: opts.ip });
+  await sendEmail({ to: opts.to, subject, html, text });
+}
+
+/**
+ * SECURITY FIX (L-AUTH-10): Password-changed notification.
+ *
+ * Sent when the user (or an attacker who obtained their session) changes
+ * the account password. Lets the legitimate user react if they did not
+ * perform the change.
+ */
+export interface SendPasswordChangedAlertOpts {
+  to: string;
+  ip: string;
+  locale: string;
+}
+
+export async function sendPasswordChangedAlert(opts: SendPasswordChangedAlertOpts): Promise<void> {
+  const t = await getTranslator(opts.locale);
+  const subject = t('emails.passwordChanged.subject');
+  const body = t.raw('emails.passwordChanged.body', { ip: opts.ip });
+
+  const html = renderEmailTemplate({
+    locale: t.locale,
+    title: t('emails.passwordChanged.title'),
+    preheader: t('emails.passwordChanged.text', { ip: opts.ip }),
+    bodyHtml: `<p style="margin:0;">${body}</p>`,
+    alert: { severity: 'warning', html: body },
+    metaRows: [{ label: t('emails.passwordChanged.ipLabel'), value: opts.ip }],
+  });
+
+  const text = t('emails.passwordChanged.text', { ip: opts.ip });
   await sendEmail({ to: opts.to, subject, html, text });
 }
 

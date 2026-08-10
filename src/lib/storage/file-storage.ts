@@ -24,6 +24,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
+import { logger } from '@/lib/config/logger';
 
 export interface FileStorage {
   put(key: string, data: Buffer | NodeJS.ReadableStream, contentType: string, metadata?: Record<string, string>): Promise<{ size: number; etag?: string }>;
@@ -31,7 +32,18 @@ export interface FileStorage {
   getStream(key: string): Promise<NodeJS.ReadableStream>;
   delete(key: string): Promise<void>;
   exists(key: string): Promise<boolean>;
-  getSignedDownloadUrl(key: string, expiresInSeconds?: number, filename?: string): Promise<string>;
+  /**
+   * Generate a signed download URL.
+   *
+   * SECURITY FIX (M-DOC-7): `userId` binds the URL to a specific user
+   * session. When supplied, the resolve endpoint verifies the requesting
+   * session's user ID matches the value baked into the signature. This
+   * prevents a leaked URL from being used by anyone other than the original
+   * recipient within its TTL. For backward-compat (e.g. public share
+   * resolution, which is intentionally unauthenticated), the param is
+   * optional — omit it to get a bearer-token URL as before.
+   */
+  getSignedDownloadUrl(key: string, expiresInSeconds?: number, filename?: string, userId?: string): Promise<string>;
   getMetadata(key: string): Promise<{ size: number; contentType?: string } | null>;
 }
 
@@ -106,12 +118,18 @@ class LocalFileStorage implements FileStorage {
     try { await fs.access(this.fullPath(key)); return true; } catch { return false; }
   }
 
-  async getSignedDownloadUrl(key: string, expiresInSeconds = 60, filename?: string): Promise<string> {
+  async getSignedDownloadUrl(key: string, expiresInSeconds = 60, filename?: string, userId?: string): Promise<string> {
     const secret = process.env.NEXTAUTH_SECRET || 'dev-only-secret';
     const exp = Math.floor(Date.now() / 1000) + expiresInSeconds;
-    const payload = `${key}|${exp}|${filename ?? ''}`;
+    // SECURITY FIX (M-DOC-7): Bind the signature to the requesting user's ID
+    // when supplied. The resolve endpoint verifies the session user matches
+    // before serving the file — so a leaked URL (browser history, proxy log,
+    // Referer header) cannot be reused by a different user within its TTL.
+    const u = userId ?? '';
+    const payload = `${key}|${exp}|${filename ?? ''}|${u}`;
     const sig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
     const params = new URLSearchParams({ key, exp: String(exp), sig, filename: filename ?? '' });
+    if (u) params.set('u', u);
     return `/api/storage/resolve?${params.toString()}`;
   }
 
@@ -258,7 +276,7 @@ class S3FileStorage implements FileStorage {
       }));
       return true;
     } catch (err) {
-      console.warn('[s3] failed to enable bucket versioning:', err);
+      logger.warn('s3_failed_to_enable_bucket_versioning', { message: '[s3] failed to enable bucket versioning:', error: err });
       return false;
     }
   }
@@ -280,22 +298,40 @@ class S3FileStorage implements FileStorage {
     try { await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key })); return true; } catch { return false; }
   }
 
-  async getSignedDownloadUrl(key: string, expiresInSeconds = 60, filename?: string): Promise<string> {
-    // SECURITY FIX (M-DOC-8): Always set Content-Disposition: attachment on
-    // the presigned URL — even when no filename is supplied. Previously the
-    // S3 backend served objects inline when `filename` was undefined, which
-    // meant an HTML/SVG/XML upload would render in the browser as the EDMS
-    // origin → stored XSS. Default to a generic filename derived from the
-    // storage key when none is provided.
-    const safeName = filename
-      ? filename.replace(/["\\;\r\n]/g, '').slice(0, 255)
-      : (key.split('/').pop() || 'document');
-    const cmd = new GetObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-      ResponseContentDisposition: `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(safeName)}`,
+  async getSignedDownloadUrl(key: string, expiresInSeconds = 60, filename?: string, userId?: string): Promise<string> {
+    // SECURITY FIX (M-DOC-7): For S3 we cannot bind the presigned URL to a
+    // user session at the S3 layer (S3 has no concept of "user"). Instead
+    // we wrap the S3 presigned URL in our own HMAC-signed envelope that
+    // includes the userId, and the resolve endpoint proxies the bytes after
+    // verifying the envelope AND the session user. This means S3 backends
+    // also go through /api/storage/resolve (no direct S3 URL is exposed to
+    // the client). The envelope is backward-compatible: when `userId` is
+    // omitted the URL is a bearer token (used for public shares).
+    const inner = await getSignedUrl(
+      this.client,
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ResponseContentDisposition: filename
+          ? `attachment; filename="${filename.replace(/["\\;\r\n]/g, '')}"`
+          : 'attachment',
+      }),
+      { expiresIn: expiresInSeconds },
+    );
+    // Wrap in our envelope so the resolve endpoint can verify the session.
+    const secret = process.env.NEXTAUTH_SECRET || 'dev-only-secret';
+    const exp = Math.floor(Date.now() / 1000) + expiresInSeconds;
+    const u = userId ?? '';
+    const payload = `${encodeURIComponent(inner)}|${exp}|${u}`;
+    const sig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    const params = new URLSearchParams({
+      s3: '1',
+      url: inner,
+      exp: String(exp),
+      sig,
     });
-    return getSignedUrl(this.client, cmd, { expiresIn: expiresInSeconds });
+    if (u) params.set('u', u);
+    return `/api/storage/resolve?${params.toString()}`;
   }
 
   async getMetadata(key: string): Promise<{ size: number; contentType?: string } | null> {

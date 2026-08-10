@@ -14,6 +14,7 @@ import { notify, notifyMany } from '@/lib/notifications/notify';
 import { sendDispositionApprovalEmail } from '@/lib/notifications/email';
 import { getUserLocale } from '@/i18n/server-translator';
 import { z } from 'zod';
+import { logger } from '@/lib/config/logger';
 
 export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.RETENTION_MANAGE },
@@ -128,7 +129,7 @@ export const POST = createApiHandler(
           url: dispositionUrl,
           locale: officerLocale,
         }).catch((err) => {
-          console.warn('[disposition] failed to send email to officer:', err);
+          logger.warn('disposition_failed_to_send_email_to_officer', { message: '[disposition] failed to send email to officer:', error: err });
         });
       }
     }

@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler, ApiError, ApiContext } from '@/lib/api/handler';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
-import { getFileStorage, buildStorageKey } from '@/lib/storage/file-storage';
+import { getFileStorage, buildStorageKey, sanitizeFileName } from '@/lib/storage/file-storage';
 import { validateUploadedFile } from '@/lib/storage/file-validation';
 import { sha256, sha1 } from '@/lib/auth/crypto';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
@@ -35,7 +35,13 @@ const listQuerySchema = z.object({
 });
 
 export const GET = createApiHandler(
-  { requiredPermission: PERMISSIONS.SEARCH_USE },
+  {
+    requiredPermission: PERMISSIONS.SEARCH_USE,
+    // SECURITY FIX (L-DOC-6): Rate-limit document listing. Each request
+    // joins classification + owner + _count across up to 100 documents —
+    // an attacker can enumerate at high speed without a cap.
+    rateLimit: { max: 60, windowMs: 60_000 },
+  },
   async (req: NextRequest, ctx: ApiContext) => {
     const params = listQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
 
@@ -119,6 +125,12 @@ export const POST = createApiHandler(
     const metadataStr = (formData.get('metadata') as string) || '{}';
     const retentionScheduleId = (formData.get('retentionScheduleId') as string) || null;
     const changeReason = (formData.get('changeReason') as string) || 'Initial upload';
+    // SECURITY FIX (M-DOC-13): Optional client-supplied SHA-256. If present,
+    // the server compares it (constant-time) against the SHA-256 of the
+    // received bytes — rejects if mismatched. This catches network
+    // truncation, partial writes, and malicious insiders who might truncate
+    // uploads while preserving audit integrity. Format: 64 lowercase hex.
+    const clientChecksumSha256 = (formData.get('clientChecksumSha256') as string | null)?.trim().toLowerCase() || '';
 
     if (!file) throw ApiError.badRequest('missing_file', 'File is required');
     if (file.size > MAX_UPLOAD_SIZE)
@@ -171,6 +183,27 @@ export const POST = createApiHandler(
     const checksumSha256 = sha256(buf);
     const checksumSha1 = sha1(buf);
 
+    // SECURITY FIX (M-DOC-13): Verify client-supplied checksum if present.
+    // Catches network truncation, partial writes, and malicious insiders
+    // who might truncate uploads while preserving audit integrity.
+    if (clientChecksumSha256) {
+      if (!/^[0-9a-f]{64}$/.test(clientChecksumSha256)) {
+        throw ApiError.badRequest('invalid_checksum', 'clientChecksumSha256 must be 64 lowercase hex chars');
+      }
+      const { timingSafeEqualStr } = await import('@/lib/auth/crypto');
+      if (!timingSafeEqualStr(clientChecksumSha256, checksumSha256)) {
+        // The received bytes do not match what the client intended to upload.
+        // Refuse to persist — the dedup logic would otherwise mis-classify
+        // future uploads as duplicates of the truncated blob, and any audit
+        // trail would record a valid checksum for corrupt content.
+        throw ApiError.badRequest(
+          'checksum_mismatch',
+          'The uploaded file does not match the client-supplied SHA-256. The upload may have been truncated in transit.',
+          { clientChecksum: clientChecksumSha256, serverChecksum: checksumSha256 },
+        );
+      }
+    }
+
     // Validate required metadata against tenant schemas
     const metadataValidation = await validateMetadata(ctx.tenantId, documentType, metadata);
     if (!metadataValidation.ok) {
@@ -181,7 +214,13 @@ export const POST = createApiHandler(
 
     // Malware scan (synchronous — fast heuristic; ClamAV would be async via queue)
     const mimeType = validation.detectedMime || file.type;
-    const scanResult = await scanFile(ctx.tenantId, 'pending', buf, file.name, mimeType);
+    // SECURITY FIX (L-DOC-1): Sanitize the filename once and use the
+    // sanitized form for the storage key, DB row, audit log, and malware
+    // scanner. Previously this path stored the raw user-supplied filename
+    // (which could contain Unicode bidi overrides flipping the apparent
+    // extension in the UI — see M-DOC-10). The TUS path was already fixed.
+    const safeFileName = sanitizeFileName(file.name);
+    const scanResult = await scanFile(ctx.tenantId, 'pending', buf, safeFileName, mimeType);
     if (scanResult.status === 'infected') {
       await recordAuditEvent({
         tenantId: ctx.tenantId,
@@ -196,7 +235,7 @@ export const POST = createApiHandler(
         result: 'deny',
         reason: `Malware detected: ${scanResult.threatName}`,
         metadata: {
-          fileName: file.name,
+          fileName: safeFileName,
           scanner: scanResult.scanner,
           threat: scanResult.threatName,
         },
@@ -248,7 +287,7 @@ export const POST = createApiHandler(
       const encrypted = encryptWithDek(dek, buf);
 
       const versionId = `${doc.id}_v1`;
-      const storageKey = buildStorageKey(ctx.tenantId, doc.id, versionId, file.name);
+      const storageKey = buildStorageKey(ctx.tenantId, doc.id, versionId, safeFileName);
       // Store the encrypted buffer; the IV is recorded in the version row
       const encryptedBuf = Buffer.from(encrypted.ciphertext, 'base64');
       await storage.put(storageKey, encryptedBuf, mimeType, {
@@ -266,7 +305,7 @@ export const POST = createApiHandler(
           documentId: doc.id,
           versionNumber: 1,
           storageKey,
-          fileName: file.name,
+          fileName: safeFileName,
           mimeType,
           sizeBytes: file.size,
           checksumSha256,
@@ -317,7 +356,7 @@ export const POST = createApiHandler(
       result: 'allow',
       metadata: {
         versionId: result.version.id,
-        fileName: file.name,
+        fileName: safeFileName,
         sizeBytes: file.size,
         mimeType: result.version.mimeType,
         checksumSha256,

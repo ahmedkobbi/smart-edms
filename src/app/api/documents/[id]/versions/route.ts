@@ -63,6 +63,8 @@ export const POST = createApiHandler(
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const changeReason = (formData.get('changeReason') as string) || 'New version';
+    // SECURITY FIX (M-DOC-13): Optional client-supplied SHA-256.
+    const clientChecksumSha256 = (formData.get('clientChecksumSha256') as string | null)?.trim().toLowerCase() || '';
     if (!file) throw ApiError.badRequest('missing_file', 'File is required');
     if (file.size > MAX_UPLOAD_SIZE) throw ApiError.badRequest('file_too_large', 'File too large');
 
@@ -78,6 +80,20 @@ export const POST = createApiHandler(
 
     const checksumSha256 = sha256(buf);
     const checksumSha1 = sha1(buf);
+
+    // SECURITY FIX (M-DOC-13): Verify client-supplied checksum if present.
+    if (clientChecksumSha256) {
+      if (!/^[0-9a-f]{64}$/.test(clientChecksumSha256)) {
+        throw ApiError.badRequest('invalid_checksum', 'clientChecksumSha256 must be 64 lowercase hex chars');
+      }
+      const { timingSafeEqualStr } = await import('@/lib/auth/crypto');
+      if (!timingSafeEqualStr(clientChecksumSha256, checksumSha256)) {
+        throw ApiError.badRequest(
+          'checksum_mismatch',
+          'The uploaded file does not match the client-supplied SHA-256. The upload may have been truncated in transit.',
+        );
+      }
+    }
 
     const storage = getFileStorage();
     const result = await db.$transaction(async (tx) => {

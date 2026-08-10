@@ -48,6 +48,8 @@ const completeSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).default({}),
   retentionScheduleId: z.string().nullable().optional(),
   changeReason: z.string().max(500).default('Initial upload'),
+  // SECURITY FIX (M-DOC-13): Optional client-supplied SHA-256.
+  clientChecksumSha256: z.string().regex(/^[0-9a-fA-F]{64}$/).optional(),
 });
 
 export const POST = createApiHandler(
@@ -105,6 +107,18 @@ export const POST = createApiHandler(
     // --- 3. Compute checksums ---
     const checksumSha256 = sha256(buf as any);
     const checksumSha1 = sha1(buf as any);
+
+    // SECURITY FIX (M-DOC-13): Verify client-supplied checksum if present.
+    if (body.clientChecksumSha256) {
+      const clientChecksum = body.clientChecksumSha256.toLowerCase();
+      const { timingSafeEqualStr } = await import('@/lib/auth/crypto');
+      if (!timingSafeEqualStr(clientChecksum, checksumSha256)) {
+        throw ApiError.badRequest(
+          'checksum_mismatch',
+          'The uploaded file does not match the client-supplied SHA-256. The upload may have been truncated in transit.',
+        );
+      }
+    }
 
     // --- 4. Validate classification + folder ---
     if (body.classificationId) {

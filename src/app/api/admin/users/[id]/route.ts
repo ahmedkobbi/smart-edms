@@ -105,6 +105,14 @@ export const PATCH = createApiHandler(
       // Same fix for the suspend path inside PATCH (status change).
       await revokeAllUserSessions(user.id, 'admin_suspend');
     }
+    if (body.roleNames !== undefined) {
+      // SECURITY FIX (L-AUTH-2): Rotate session on role change. The JWT
+      // refreshes roles + permissions every 5 min, so without this a
+      // demoted admin retains elevated permissions for up to 5 min and a
+      // promoted user gains them only after the refresh. Force re-login so
+      // the new role set takes effect immediately.
+      await revokeAllUserSessions(user.id, 'admin_role_change');
+    }
 
     await recordAuditEvent({
       tenantId: ctx.tenantId,

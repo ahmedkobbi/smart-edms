@@ -22,6 +22,7 @@ import { notify } from '@/lib/notifications/notify';
 import { sendBreakGlassAlert } from '@/lib/notifications/email';
 import { randomToken, sha256, timingSafeEqualStr } from '@/lib/auth/crypto';
 import { z } from 'zod';
+import { logger } from '@/lib/config/logger';
 
 const BREAK_GLASS_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -148,7 +149,7 @@ export const POST = createApiHandler(
           locale,
           reviewUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/security`,
         }).catch((err) => {
-          console.warn('[break-glass] failed to send email to admin:', err);
+          logger.warn('breakglass_failed_to_send_email_to_admin', { message: '[break-glass] failed to send email to admin:', error: err });
         });
       }
     }

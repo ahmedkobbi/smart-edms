@@ -71,6 +71,70 @@ function getMimeType(filename: string): string {
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
+
+  // SECURITY FIX (M-DOC-7): Support two envelope modes:
+  //   (a) Local-storage envelope: ?key=&exp=&sig=&filename=&u=
+  //   (b) S3 wrapped envelope: ?s3=1&url=&exp=&sig=&u=
+  const isS3 = url.searchParams.get('s3') === '1';
+  const signedUserId = url.searchParams.get('u') || '';
+
+  // If the URL was issued with a user binding (u=...), verify the requesting
+  // session matches. Public shares omit `u` and remain bearer tokens.
+  if (signedUserId) {
+    const { getServerSession } = await import('@/lib/auth/auth-options');
+    const session = await getServerSession();
+    if (!session?.user || session.user.id !== signedUserId) {
+      return NextResponse.json(
+        { error: { code: 'forbidden', message: 'This download link is bound to another user session.' } },
+        { status: 403 },
+      );
+    }
+  }
+
+  if (isS3) {
+    // S3 wrapped envelope — proxy the bytes through this endpoint so the
+    // S3 presigned URL is never exposed to the client.
+    const innerUrl = url.searchParams.get('url') || '';
+    const expStr = url.searchParams.get('exp') || '';
+    const sig = url.searchParams.get('sig') || '';
+    if (!innerUrl || !expStr || !sig) {
+      return NextResponse.json({ error: { code: 'invalid_request' } }, { status: 400 });
+    }
+    const exp = parseInt(expStr, 10);
+    if (isNaN(exp) || Math.floor(Date.now() / 1000) > exp) {
+      return NextResponse.json({ error: { code: 'link_expired' } }, { status: 410 });
+    }
+    const secret = process.env.NEXTAUTH_SECRET || 'dev-only-secret';
+    const expectedSig = crypto.createHmac('sha256', secret)
+      .update(`${encodeURIComponent(innerUrl)}|${exp}|${signedUserId}`)
+      .digest('hex');
+    try {
+      if (sig.length !== expectedSig.length || !crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expectedSig, 'hex'))) {
+        return NextResponse.json({ error: { code: 'invalid_signature' } }, { status: 403 });
+      }
+    } catch {
+      return NextResponse.json({ error: { code: 'invalid_signature' } }, { status: 403 });
+    }
+    // Fetch from S3 and stream back to the client
+    const upstream = await fetch(innerUrl, { signal: AbortSignal.timeout(60_000) });
+    if (!upstream.ok || !upstream.body) {
+      return NextResponse.json({ error: { code: 'upstream_failed' } }, { status: 502 });
+    }
+    const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+    const contentDisp = upstream.headers.get('content-disposition') || 'attachment';
+    return new NextResponse(upstream.body as any, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        'Content-Disposition': contentDisp,
+        'Cache-Control': 'private, no-store, no-cache, must-revalidate',
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+      },
+    });
+  }
+
+  // Local-storage envelope
   const key = url.searchParams.get('key');
   const expStr = url.searchParams.get('exp');
   const sig = url.searchParams.get('sig');
@@ -102,8 +166,16 @@ export async function GET(req: NextRequest) {
   }
 
   // Verify HMAC signature (constant-time compare)
+  // SECURITY FIX (M-DOC-7): Two payload formats are accepted:
+  //   - Legacy (no `u` param): `${key}|${exp}|${filename}` — backward compat
+  //     for URLs issued before M-DOC-7 and for public shares that are
+  //     intentionally bearer tokens.
+  //   - Bound (`u` param present): `${key}|${exp}|${filename}|${u}` — the
+  //     session user must match `u`. New signed URLs use this format.
   const secret = process.env.NEXTAUTH_SECRET || 'dev-only-secret';
-  const payload = `${key}|${exp}|${filename}`;
+  const payload = signedUserId
+    ? `${key}|${exp}|${filename}|${signedUserId}`
+    : `${key}|${exp}|${filename}`;
   const expectedSig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
 
   if (sig.length !== expectedSig.length) {

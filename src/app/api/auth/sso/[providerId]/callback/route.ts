@@ -53,12 +53,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
     return NextResponse.redirect(loginUrl);
   }
 
-  const stored = stateStore.get(state);
-  if (!stored || stored.expiresAt < Date.now() || stored.providerId !== providerId) {
+  // SECURITY FIX (M-AUTH-17): stateStore is now async (Redis-backed with
+  // in-memory fallback). The TTL is managed by the store itself, so we no
+  // longer check `stored.expiresAt` — an expired entry is simply not
+  // returned by `get`.
+  const stored = await stateStore.get(state);
+  if (!stored || stored.providerId !== providerId) {
     loginUrl.searchParams.set('error', 'sso_state_expired');
     return NextResponse.redirect(loginUrl);
   }
-  stateStore.delete(state);
+  await stateStore.delete(state);
 
   const provider = await db.ssoProvider.findFirst({
     where: { id: providerId, enabled: true },

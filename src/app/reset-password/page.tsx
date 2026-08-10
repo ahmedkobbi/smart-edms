@@ -87,6 +87,10 @@ export default function ResetPasswordPage() {
                       id="password"
                       type={showPassword ? 'text' : 'password'}
                       required
+                      // SECURITY FIX (L-AUTH-7): Tell password managers this
+                      // is a NEW password (not the current one) so they
+                      // offer to generate a strong password.
+                      autoComplete="new-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="ps-9 pe-10 glass-input border-0 h-11"

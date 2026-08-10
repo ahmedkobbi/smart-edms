@@ -31,7 +31,12 @@ const createSchema = z.object({
 });
 
 export const POST = createApiHandler(
-  { requiredPermission: PERMISSIONS.SEARCH_USE },
+  {
+    requiredPermission: PERMISSIONS.SEARCH_USE,
+    // SECURITY FIX (L-DOC-7): Rate-limit saved-search creation. Without a
+    // cap, a user can spam unique names to fill the SavedSearch table.
+    rateLimit: { max: 20, windowMs: 60_000 },
+  },
   async (req: NextRequest, ctx) => {
     const body = createSchema.parse(await req.json());
     const existing = await db.savedSearch.findFirst({

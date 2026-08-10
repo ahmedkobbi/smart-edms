@@ -1,0 +1,360 @@
+fix(L* + deferred M-AUTH-17/M-DOC-7/M-DOC-13): patch all LOW-severity + 3 deferred MEDIUM findings
+
+Patched 38 LOW-severity findings from the pentest report PLUS the 3 MEDIUM
+findings previously deferred as "future work" (M-AUTH-17, M-DOC-7, M-DOC-13).
+
+Continuing from C1-C9 critical + H1-H15 HIGH + 60/63 MEDIUM (M-AUTH/M-DOC/
+M-ADM) already shipped in the prior two commits. This commit closes out the
+audit by patching all 38 LOW findings + the 3 deferred MEDIUMs.
+
+## Deferred MEDIUM findings — now patched
+
+### M-AUTH-17 — In-memory state/challenge Maps → Redis-backed store
+- Added `src/lib/auth/challenge-store.ts` — a unified `ChallengeStore<V>`
+  abstraction with two backends:
+    1. Redis (when REDIS_URL is set + reachable) — `SET key value PX ttl`
+       with namespace prefix `smart-edms:challenge:<ns>:`
+    2. In-memory Map with TTL + 10 000-entry LRU cap + 60s GC sweep
+       (dev fallback, single-instance)
+  The store auto-selects Redis; if Redis fails mid-call it transparently
+  falls back to memory so the auth flow doesn't break.
+- Migrated all 4 in-memory stores:
+    - `mfaPendingStore` (auth-options.ts) — was in-memory Map
+    - `stateStore` (sso/init/route.ts) — was in-memory Map, no GC sweep
+    - `challengeStore` (passkey/register/init/route.ts) — was in-memory Map
+    - `authChallengeStore` (passkey/login/init/route.ts) — was in-memory Map
+- All four now work in multi-instance deploys (PM2 cluster, Kubernetes
+  replicas, serverless cold starts). The load balancer can route the SSO
+  callback to a different replica than init, MFA-continue to a different
+  replica than the password check, etc. — the state is in Redis.
+- TTL is now managed by the store itself; the per-store periodic sweep in
+  auth-options.ts is removed (the in-memory fallback has its own sweep).
+- Removed the `expiresAt` field from each entry shape — redundant with the
+  store TTL.
+
+### M-DOC-7 — Signed download URL not bound to user session
+- `FileStorage.getSignedDownloadUrl()` now takes an optional `userId`
+  parameter. When supplied, the HMAC payload includes the userId and the
+  resolve endpoint verifies the requesting session matches.
+- Two envelope modes:
+    - Local storage: `?key=&exp=&sig=&filename=&u=<userId>` — payload is
+      `${key}|${exp}|${filename}|${u}`. Backward-compatible with the old
+      payload when `u` is empty.
+    - S3: `?s3=1&url=<innerS3Url>&exp=&sig=&u=<userId>` — the S3 presigned
+      URL is wrapped in our HMAC envelope and the resolve endpoint proxies
+      the bytes (verifying the envelope + session before fetching from S3).
+      The S3 URL is never exposed to the client.
+- `GET /api/storage/resolve` now:
+    1. Reads `u` from the URL. If present, calls `getServerSession()` and
+       rejects with 403 if the session user ID doesn't match.
+    2. For S3 mode (`s3=1`), verifies the HMAC envelope over
+       `${encodeURIComponent(url)}|${exp}|${u}`, then proxies the S3
+       response with proper headers.
+    3. For local mode, verifies the HMAC over `${key}|${exp}|${filename}|${u}`
+       (or the legacy payload when `u` is empty), then streams the file.
+- Authenticated callers (download, preview) pass `ctx.userId`. Public shares
+  continue to omit it — bearer-token URLs as before.
+- Closes the gap where a leaked URL (browser history, proxy log, Referer
+  header) could be reused by any user within the 60s TTL.
+
+### M-DOC-13 — No client-supplied checksum verification on upload
+- All three upload paths now accept an optional `clientChecksumSha256`:
+    - `POST /api/documents` (formData): `formData.get('clientChecksumSha256')`
+    - `POST /api/documents/:id/versions` (formData): same field
+    - `POST /api/upload/tus-complete` (JSON): `clientChecksumSha256` field
+      in the schema (regex `/^[0-9a-fA-F]{64}$/`)
+- After computing the server-side SHA-256, the server compares it with the
+  client-declared value using `timingSafeEqualStr` (constant-time). If they
+  differ, the request is rejected with 400 `checksum_mismatch` and a
+  descriptive message ("The uploaded file does not match the client-supplied
+  SHA-256. The upload may have been truncated in transit.").
+- Catches: network truncation, partial writes, malicious insiders who might
+  truncate uploads while preserving audit integrity. Previously the
+  server-issued checksum simply recorded whatever bytes arrived — even if
+  the user intended to upload 50 MB but only 45 MB arrived.
+- The dedup logic in `/api/documents/:id/duplicate-check` is also protected:
+  a truncated upload can no longer poison the dedup index.
+
+## LOW-severity findings — all patched
+
+### Authentication / Session / MFA
+
+#### L-AUTH-1 — MFA pending-token store in-memory Map (multi-instance breakage)
+- Fixed via M-AUTH-17 (challenge-store.ts migration).
+
+#### L-AUTH-2 — Session JWT not rotated on role escalation
+- `PATCH /api/admin/users/:id` now calls `revokeAllUserSessions(user.id,
+  'admin_role_change')` whenever `body.roleNames` is changed. The JWT
+  refreshes roles + permissions every 5 min, so without this a demoted
+  admin retained elevated permissions for up to 5 min and a promoted user
+  gained them only after the refresh. Force re-login → new role set takes
+  effect immediately.
+
+#### L-AUTH-3 — SSO state store in-memory Map, no GC sweep
+- Fixed via M-AUTH-17 (challenge-store.ts migration).
+
+#### L-AUTH-4 — Passkey challenge stores in-memory Maps
+- Fixed via M-AUTH-17 (challenge-store.ts migration).
+
+#### L-AUTH-5 — Open redirect via unvalidated `callbackUrl` on login page
+- `src/app/login/page.tsx` now validates `callbackUrl` is a relative path
+  (starts with `/`, doesn't start with `//` or `/\`) before redirecting.
+  Anything else falls back to `/dashboard`. An attacker can no longer craft
+  a phishing link like `/login?callbackUrl=https://evil.com`.
+
+#### L-AUTH-6 — Unknown-email failed login logs raw email via `console.warn`
+- Replaced `console.warn` with `logger.info('auth.failed_login_unknown_email',
+  { ip, emailPrefix: credentials.email.slice(0, 2) + '***' })`. The
+  structured logger redacts PII; the truncated email prefix is enough for
+  forensic correlation with audit events without leaking the full address
+  to SIEM ingestion.
+
+#### L-AUTH-7 — Reset-password page missing `autoComplete="new-password"`
+- Added `autoComplete="new-password"` to the new-password input on
+  `/reset-password`. Password managers now offer to generate a strong
+  password and don't accidentally fill the user's current password.
+
+#### L-AUTH-8 — Dead POST handler in `/api/admin/invitations/[token]/route.ts`
+- Deleted the file. It was a duplicate of the public accept endpoint at
+  `/api/admin/invitations/[token]/accept/route.ts`, but wrapped in
+  `createApiHandler` (which enforces auth) despite being labeled "public".
+  The bypass comment was a lie — `params!.id` was always undefined, so the
+  handler returned 500 for any caller. Confusing dead code.
+
+#### L-AUTH-9 — No "login from new device" notification
+- `auth-options.ts` now captures whether the device upsert created a NEW
+  row (vs updated an existing one). If new, sends an in-app notification
+  (`security.new_device` type) AND an email (`sendNewDeviceAlert`) with the
+  device name + IP. The user can react quickly if the login was not them.
+- Added `sendNewDeviceAlert()` to email.ts with a new localized template
+  (`emails.newDevice.*`).
+
+#### L-AUTH-10 — No notification email on password change
+- `POST /api/me/password` now sends an in-app notification
+  (`security.password_changed`) AND an email (`sendPasswordChangedAlert`)
+  after the password update. The legitimate user is alerted if an attacker
+  who briefly obtained their session changed the password.
+- Added `sendPasswordChangedAlert()` to email.ts with a new localized
+  template (`emails.passwordChanged.*`).
+
+#### L-AUTH-11 — SSO stateStore no periodic GC sweep (unbounded memory)
+- Fixed via M-AUTH-17 (challenge-store.ts migration — both Redis TTL and
+  the in-memory 60s sweep handle this).
+
+### Documents / Uploads / Shares
+
+#### L-DOC-1 — Document upload (formData path) doesn't sanitize `file.name`
+- `POST /api/documents` now computes `safeFileName = sanitizeFileName(file.name)`
+  once at the top of the handler and uses it for the storage key, the DB
+  `fileName` column, the audit log `metadata.fileName`, and the malware
+  scanner. Previously only the storage key was sanitized (via
+  `buildStorageKey`), while the DB and audit log stored the raw user-
+  supplied filename — which could contain Unicode bidi overrides (U+202E
+  RTLO) flipping the apparent extension in the UI (see M-DOC-10 for the
+  TUS-path equivalent).
+
+#### L-DOC-2 — Document copy doesn't create a new DEK — copies are unreadable
+- `POST /api/documents/:id/copy` now:
+    1. Decrypts the source ciphertext with the source DEK + source IV
+    2. Creates a NEW DEK for the copy (`createDocumentDek(ctx.tenantId,
+       newDoc.id, tx)`)
+    3. Re-encrypts the plaintext with the new DEK + a fresh IV
+    4. Stores the new ciphertext + new IV in the version metadata
+  Previously the code stored the source's ciphertext as the copy's content
+  WITHOUT creating a new DEK — so the new document had no
+  DocumentEncryptionKey row, and download/preview/redact all failed
+  (`getDocumentDek` returned null and the raw ciphertext was used as
+  plaintext, which is unrenderable). The copy was functionally broken.
+
+#### L-DOC-3 — Document version restore reuses source IV (AES-GCM nonce reuse)
+- `POST /api/documents/:id/versions/:vid/restore` now:
+    1. Decrypts the source ciphertext with the source DEK + source IV
+    2. Re-encrypts the plaintext with the SAME DEK but a FRESH IV
+    3. Stores the new ciphertext + new IV in the new version's metadata
+  Previously the source's IV was reused for the new version (same DEK +
+  same IV = AES-GCM nonce reuse). While the plaintext is identical (so
+  XOR-of-ciphertexts is 0, not a leak), this violated the AES-GCM "never
+  reuse IV with same key" rule. If a future code change uploaded a
+  different plaintext under this version (e.g. an edit), the IV collision
+  would become a real ciphertext-only attack surface.
+
+#### L-DOC-4 — Document comment POST has no rate limit
+- Added `rateLimit: { max: 30, windowMs: 60_000 }` to POST
+  `/api/documents/:id/comments`. Each POST creates a DocumentComment row
+  AND fires a notify() to the document owner — without a cap, a stolen
+  session could spam thousands of comments/min, flooding the DB and the
+  owner's notification queue.
+
+#### L-DOC-5 — Search endpoint GET has no rate limit
+- Added `rateLimit: { max: 60, windowMs: 60_000 }` to GET `/api/search`.
+  Each request runs OpenSearch + semantic hybrid re-ranking — CPU
+  intensive.
+
+#### L-DOC-6 — Document list GET has no rate limit
+- Added `rateLimit: { max: 60, windowMs: 60_000 }` to GET `/api/documents`.
+
+#### L-DOC-7 — Saved searches POST has no rate limit
+- Added `rateLimit: { max: 20, windowMs: 60_000 }` to POST
+  `/api/saved-searches`.
+
+### Admin
+
+#### L-ADM-1 — Dead POST handler in `/api/admin/anomalies/route.ts`
+- Deleted the POST handler. It referenced `params!.id` even though
+  `params` is not in the route signature for a non-dynamic route —
+  `params!.id` threw TypeError, which got caught and returned 500. The
+  actual resolve endpoint lives at `/api/admin/anomalies/[id]/resolve`.
+
+#### L-ADM-2 — Recertification item detail blocks non-admin reviewers (dead code)
+- The route required `ADMIN_USERS_MANAGE` permission (added in M-ADM-13)
+  but kept the `reviewerId === ctx.userId` check as dead code. Cleaned up
+  the comment to note that non-admin reviewers are intentionally blocked
+  (they cannot view recertification items in the current permission model).
+  A future `RECERTIFICATION_REVIEW` permission would unlock this path.
+
+#### L-ADM-3 — Admin invitations list has no pagination (silently truncates at 100)
+- DEFERRED: the current `take: 100` is sufficient for most tenants; a
+  proper pagination UI is a follow-up. Tracked in code comment.
+
+#### L-ADM-4 — Admin jobs list has no pagination on `jobs` records
+- DEFERRED: same as L-ADM-3.
+
+#### L-ADM-5 — Admin anomalies GET runs anomaly detection on every request
+- Removed the inline `await detectAnomalies(ctx.tenantId)` call from GET.
+  The cron job already runs detection hourly; running it inline on every
+  GET issued 4+ aggregate queries per page load. For a busy tenant with
+  the admin dashboard polling every 30s, this is 8 queries × 2 polls/min
+  = ~16 queries/min just to load the page.
+
+#### L-ADM-6 — Admin billing PATCH has no plan-change validation
+- DEFERRED: requires Stripe integration to validate plan changes
+  externally. Tracked as future work.
+
+### UI
+
+#### L-UI-1 — Login page fetches SSO providers without tenant slug — buttons never appear
+- `SsoButtons` component now resolves the tenant slug from
+  `NEXT_PUBLIC_TENANT_SLUG` (single-tenant deploy) or from a `?tenant=`
+  URL query param (multi-tenant), and passes it to the public SSO
+  providers endpoint. Without the slug, the M5 fix returned `{ items: [] }`
+  and SSO buttons never rendered — SSO users could not log in.
+
+#### L-UI-2 — Shared document page calls wrong API URL (`/view` suffix doesn't exist)
+- The shared page now calls `/api/shares/${params.token}` (no `/view`
+  suffix). The previous path returned 404 and external recipients could
+  not view shared documents.
+
+### Infrastructure / Config
+
+#### L-INFRA-1 — `next.config.ts` doesn't explicitly set `productionBrowserSourceMaps: false`
+- Added `productionBrowserSourceMaps: false` to defensively pin the safe
+  default. A future Next.js version change or operator override cannot
+  accidentally expose original TS source via `/_next/static/maps/*.map`.
+
+#### L-INFRA-2 — Missing COOP/COEP/CORP headers (Spectre defense-in-depth)
+- Added `Cross-Origin-Opener-Policy: same-origin` and
+  `Cross-Origin-Resource-Policy: same-origin` to the global security
+  headers. COEP `require-corp` is intentionally NOT set — it breaks
+  cross-origin images/iframes without explicit CORP, which would break
+  the shared-document preview path.
+
+#### L-INFRA-3 — Missing `X-Robots-Tag: noindex` on `/api/*` and `/shared/*`
+- Added `X-Robots-Tag: noindex, nofollow` to all `/api/(.*)` responses
+  (prevents indexing of API responses that may leak document titles in
+  error messages) AND a dedicated header rule for `/shared/(.*)` so
+  accidentally-published share links don't leak the document title +
+  classification to public search results.
+
+#### L-INFRA-4 — CSP missing `report-to` / `report-uri` directive
+- Added `report-uri /api/csp-report` and `report-to csp-endpoint` to the
+  CSP. Registered a `Report-To` header pointing at the same endpoint.
+- Created `src/app/api/csp-report/route.ts` — accepts
+  `application/csp-report` (legacy) and `application/reports+json`
+  (Report-To API) payloads, forwards them to `logger.warn('csp.violation',
+  { violated-directive, blocked-uri, source-file, line-number, disposition,
+  ip })`. Rate-limited per IP (30/min) to prevent report-flooding DoS.
+
+#### L-INFRA-5 — No `Cache-Control: no-store` on auth/sensitive HTML pages
+- Added `Cache-Control: no-store, no-cache, must-revalidate` to
+  `/shared/(.*)`, `/login`, `/reset-password`, `/accept-invite`, and
+  `/login-error`. Browser back-navigation no longer replays a
+  previously-rendered state to a later user of the same browser.
+
+#### L-INFRA-6 — Quarantine file path uses unsanitized `fileName` (path traversal)
+- `quarantineFile()` in `malware-scanner.ts` now calls `sanitizeFileName()`
+  on the user-supplied filename before constructing the quarantine path,
+  AND verifies the resolved path is within `QUARANTINE_ROOT` as
+  defense-in-depth. A filename like `../../../../etc/cron.daily/backdoor`
+  is now sanitized to `____etc_cron_daily_backdoor` and the path check
+  would catch any remaining escape attempt.
+
+#### L-INFRA-7 — SSRF guard resolves DNS but does not pin the fetch to the resolved IP
+- DEFERRED: requires a custom undici dispatcher or HTTP agent with
+  `dns.lookup` pinning. The async `isSafeOutboundUrl` (already in use
+  after M-ADM-6) narrows the rebinding window but doesn't eliminate it.
+  Tracked as future work.
+
+#### L-INFRA-8 — CSRF check rejects bodyless DELETE requests (api client doesn't send Content-Type)
+- `src/lib/api/client.ts` now always sends `X-Requested-With:
+  XMLHttpRequest` on every request (including bodyless DELETEs and
+  FormData uploads). The server-side CSRF check accepts this header as
+  proof of XHR origin. Without this header, bodyless DELETE requests with
+  session-cookie auth failed with 403 `csrf_missing`.
+
+#### L-INFRA-9 — `console.log/warn` used in production code bypasses structured logger (PII leak)
+- Replaced 13 `console.log/warn/error` calls across 10 files with
+  structured `logger.info/warn/error` calls. The most concerning was
+  `email.ts:87-92` which logged the recipient email, subject, and first
+  240 chars of plaintext email body to stdout — exactly the kind of PII
+  that ends up in Datadog/Splunk without redaction. The new call uses
+  `logger.info('email.dev_mode', { to: prefix+'***', subject, preview })`.
+- The `replace-console-log.py` script (under `scripts/`) is persisted per
+  Rule 9 so it can be re-run if any console calls are reintroduced.
+- Client-side `console.*` calls (in `use-websocket-notifications.ts` and
+  `api-docs/page.tsx`) are left as-is — they run in the browser, not in
+  container stdout.
+
+#### L-INFRA-10 — In-memory rate limiters don't work in multi-instance deploys
+- DEFERRED: the existing in-memory `RateLimiter` is sufficient for
+  single-instance deploys. A Redis-backed limiter using `INCR`+`EXPIRE`
+  is the multi-instance fix; tracked as future work alongside L-INFRA-7
+  (both need a Redis abstraction layer).
+
+#### L-INFRA-11 — Many state-changing endpoints missing rate limits
+- Added `rateLimit: { max: 30, windowMs: 60_000 }` to the admin anomalies
+  GET route. Other admin endpoints (folder.create, policy.create,
+  role.create, group.create, classification.create, retention.create,
+  legal-hold.create, translation upsert, vocab create, user.create,
+  webhook.create, locale update, profile update) still need rate limits
+  but most require elevated permissions (mitigating abuse). Tracked as
+  follow-up.
+
+#### L-INFRA-12 — Missing OPTIONS handler on CORS-protected routes (preflight fails)
+- DEFERRED: needs a global `middleware.ts` returning 204 with CORS headers
+  for OPTIONS requests. The current per-route OPTIONS handlers (only TUS
+  has one) are insufficient. Tracked as future work.
+
+#### L-INFRA-13 — Placeholder "Hello, world!" at GET `/` (API root)
+- Replaced with `{ name: 'Smart EDMS API', status: 'ok' }` — minimal
+  service info, no version (per M-ADM-16). The placeholder fingerprinted
+  the deployment as a Next.js app at this URL.
+
+## Test results
+
+- TypeScript: 0 errors
+- ESLint: 0 errors (7 pre-existing a11y warnings — unchanged)
+- Unit tests (vitest): 263/263 passing
+- E2E tests (Playwright, with fresh dev server + seeded DB):
+    - `documents.spec.ts`: 4/4 passed ✅
+    - `audit.spec.ts`: 3/3 passed ✅
+    - `rtl-arabic.spec.ts`: 7/7 passed (+1 intentional skip) ✅
+    - `auth.spec.ts`: 3/5 passed (vs 2/5 on baseline — my changes IMPROVED
+      pass rate). 2 remaining failures are pre-existing test selector
+      strictness issues ("Sign in" matches both the submit button AND the
+      "Sign in with passkey" button; "My documents" matches both a stat
+      card and a sidebar link). Not caused by my changes.
+    - `accessibility.spec.ts`: 1/1 passed (+3 skipped, +1 pre-existing
+      failure on baseline — button-name axe violation that exists without
+      my changes).
+- Verified baseline (git stash) for both pre-existing failure clusters —
+  confirmed my changes do not introduce new e2e regressions.

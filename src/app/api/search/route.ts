@@ -60,7 +60,14 @@ function parseMetadataParam(raw: string | string[] | undefined): Record<string, 
 }
 
 export const GET = createApiHandler(
-  { requiredPermission: PERMISSIONS.SEARCH_USE },
+  {
+    requiredPermission: PERMISSIONS.SEARCH_USE,
+    // SECURITY FIX (L-DOC-5): Rate-limit search. Each request runs OpenSearch
+    // + semantic hybrid re-ranking (cosine similarity over embeddings) — CPU
+    // intensive. Without a cap, a user can issue hundreds of requests/min and
+    // exhaust OpenSearch and the embeddings cache.
+    rateLimit: { max: 60, windowMs: 60_000 },
+  },
   async (req: NextRequest, ctx) => {
     const q = querySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
     const canReadAll = hasPermission(ctx.session.user.permissions, PERMISSIONS.DOCUMENT_READ);

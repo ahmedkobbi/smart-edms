@@ -21,6 +21,7 @@ import { sha256, sha1 } from '@/lib/auth/crypto';
 import { getDocumentDek, encryptWithDek } from '@/lib/storage/envelope-encryption';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { z } from 'zod';
+import { logger } from '@/lib/config/logger';
 
 const regionSchema = z.object({
   page: z.number().int().min(1).default(1),
@@ -92,7 +93,7 @@ export const POST = createApiHandler(
         // Re-throw ApiError so the client sees the right status code
         if (err instanceof ApiError) throw err;
         // Decryption failed for an unexpected reason — refuse to redact
-        console.warn('[redact] decryption failed:', err);
+        logger.warn('redact_decryption_failed', { message: '[redact] decryption failed:', error: err });
         throw ApiError.badRequest(
           'decryption_failed',
           'Failed to decrypt the source version for redaction. The document may be corrupted.',
@@ -345,7 +346,7 @@ async function redactPdf(buf: Buffer, regions: any[]): Promise<Buffer> {
       // If we can't strip the text stream, log but continue — the black
       // rectangles still provide visual redaction. This is a degraded
       // mode that should be monitored.
-      console.warn('[redact] could not strip text stream from page', pageIndex, err);
+      logger.warn('redact_could_not_strip_text_stream_from_page', { message: '[redact] could not strip text stream from page', error: pageIndex, err });
     }
 
     // --- Draw opaque black rectangles over redacted regions ---

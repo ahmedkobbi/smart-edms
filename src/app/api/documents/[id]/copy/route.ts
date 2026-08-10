@@ -11,8 +11,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
-import { getFileStorage, buildStorageKey } from '@/lib/storage/file-storage';
+import { getFileStorage, buildStorageKey, sanitizeFileName } from '@/lib/storage/file-storage';
 import { sha256, sha1 } from '@/lib/auth/crypto';
+import { createDocumentDek, getDocumentDek, encryptWithDek, decryptWithDek } from '@/lib/storage/envelope-encryption';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { z } from 'zod';
 
@@ -24,6 +25,8 @@ const copySchema = z.object({
 export const POST = createApiHandler(
   {
     requiredPermission: PERMISSIONS.DOCUMENT_CREATE,
+    // SECURITY FIX (L-INFRA-11): Rate-limit document copy.
+    rateLimit: { max: 20, windowMs: 60_000 },
     audit: { eventType: 'document.copy', action: 'create', resourceType: 'document', alwaysAudit: true },
   },
   async (req: NextRequest, ctx, params) => {
@@ -57,7 +60,24 @@ export const POST = createApiHandler(
     }
 
     const storage = getFileStorage();
-    const buf = await storage.get(sourceVersion.storageKey);
+    const encryptedBuf = await storage.get(sourceVersion.storageKey);
+
+    // SECURITY FIX (L-DOC-2): Decrypt the source with the source DEK + source
+    // content IV, then re-encrypt with a NEW DEK + fresh IV for the copy.
+    // Previously the code stored the source's ciphertext as the copy's
+    // content WITHOUT creating a new DEK — so the new document had no
+    // DocumentEncryptionKey row, and download/preview/redact all failed
+    // (getDocumentDek returned null and the raw ciphertext was used as
+    // plaintext, which is unrenderable). The copy was functionally broken.
+    const sourceDek = await getDocumentDek(ctx.tenantId, source.id);
+    let plaintextBuf = encryptedBuf;
+    if (sourceDek) {
+      const sourceMeta = JSON.parse(sourceVersion.metadata || '{}');
+      const sourceIv: string | undefined = sourceMeta._encIv;
+      if (sourceIv) {
+        plaintextBuf = decryptWithDek(sourceDek, encryptedBuf.toString('base64'), sourceIv);
+      }
+    }
 
     const result = await db.$transaction(async (tx) => {
       const newDoc = await tx.document.create({
@@ -80,9 +100,15 @@ export const POST = createApiHandler(
         },
       });
 
+      // Create a NEW DEK for the copy and re-encrypt with a fresh IV.
+      const { dek } = await createDocumentDek(ctx.tenantId, newDoc.id, tx);
+      const encrypted = encryptWithDek(dek, plaintextBuf);
+      const ciphertextBuf = Buffer.from(encrypted.ciphertext, 'base64');
+
+      const safeName = sanitizeFileName(sourceVersion.fileName);
       const versionId = `${newDoc.id}_v1`;
-      const storageKey = buildStorageKey(ctx.tenantId, newDoc.id, versionId, sourceVersion.fileName);
-      await storage.put(storageKey, buf, sourceVersion.mimeType, {
+      const storageKey = buildStorageKey(ctx.tenantId, newDoc.id, versionId, safeName);
+      await storage.put(storageKey, ciphertextBuf, sourceVersion.mimeType, {
         tenantId: ctx.tenantId,
         documentId: newDoc.id,
         version: '1',
@@ -96,14 +122,14 @@ export const POST = createApiHandler(
           documentId: newDoc.id,
           versionNumber: 1,
           storageKey,
-          fileName: sourceVersion.fileName,
+          fileName: safeName,
           mimeType: sourceVersion.mimeType,
           sizeBytes: sourceVersion.sizeBytes,
-          checksumSha256: sha256(buf),
-          checksumSha1: sha1(buf),
+          checksumSha256: sha256(plaintextBuf),
+          checksumSha1: sha1(plaintextBuf),
           uploadedById: ctx.userId,
           changeReason: `Copied from ${source.title}`,
-          metadata: sourceVersion.metadata,
+          metadata: JSON.stringify({ ...(JSON.parse(sourceVersion.metadata || '{}')), _encIv: encrypted.iv }),
         },
       });
 

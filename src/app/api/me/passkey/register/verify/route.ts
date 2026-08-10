@@ -23,8 +23,9 @@ export const POST = createApiHandler(
     const credential = body.credential;
     if (!credential) throw ApiError.badRequest('missing_credential', 'Credential is required');
 
-    const stored = challengeStore.get(ctx.userId);
-    if (!stored || stored.expiresAt < Date.now()) {
+    // SECURITY FIX (M-AUTH-17): challengeStore is now async (Redis-backed).
+    const stored = await challengeStore.get(ctx.userId);
+    if (!stored) {
       throw ApiError.badRequest('challenge_expired', 'Challenge expired. Try again.');
     }
 
@@ -95,7 +96,7 @@ export const POST = createApiHandler(
       data: { passkeyCredentials: JSON.stringify(existing) },
     });
 
-    challengeStore.delete(ctx.userId);
+    challengeStore.delete(ctx.userId).catch(() => {});
 
     return NextResponse.json({ verified: true, credentialId: newCredential.id });
   },

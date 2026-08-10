@@ -44,8 +44,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: { code: 'invalid_client_data' } }, { status: 400 });
   }
 
-  const stored = challengeKey ? authChallengeStore.get(challengeKey) : null;
-  if (!stored || stored.expiresAt < Date.now()) {
+  // SECURITY FIX (M-AUTH-17): authChallengeStore is now async. TTL is
+  // managed by the store — an expired entry is simply not returned.
+  const stored = challengeKey ? await authChallengeStore.get(challengeKey) : null;
+  if (!stored) {
     return NextResponse.json({ error: { code: 'challenge_expired', message: 'Challenge expired' } }, { status: 400 });
   }
 
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (!user || user.status !== 'active') {
-    authChallengeStore.delete(stored.challenge);
+    await authChallengeStore.delete(stored.challenge);
     return NextResponse.json({ error: { code: 'invalid_user' } }, { status: 403 });
   }
 
@@ -64,7 +66,7 @@ export async function POST(req: NextRequest) {
   // The credentials flow already checks `lockedUntil` but passkey login did not —
   // an attacker who locked the password path could still sign in via passkey.
   if (user.lockedUntil && user.lockedUntil > new Date()) {
-    authChallengeStore.delete(stored.challenge);
+    await authChallengeStore.delete(stored.challenge);
     return NextResponse.json({ error: { code: 'account_locked', message: 'Account temporarily locked' } }, { status: 403 });
   }
 
@@ -77,7 +79,7 @@ export async function POST(req: NextRequest) {
   const credId = assertion.id;
   const credential = credentials.find((c) => c.id === credId);
   if (!credential) {
-    authChallengeStore.delete(stored.challenge);
+    await authChallengeStore.delete(stored.challenge);
     return NextResponse.json({ error: { code: 'credential_not_found' } }, { status: 403 });
   }
 
@@ -90,7 +92,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!verification.verified) {
-      authChallengeStore.delete(stored.challenge);
+      await authChallengeStore.delete(stored.challenge);
       return NextResponse.json({ error: { code: 'verification_failed' } }, { status: 403 });
     }
 
@@ -101,7 +103,7 @@ export async function POST(req: NextRequest) {
       data: { passkeyCredentials: JSON.stringify(credentials) },
     });
 
-    authChallengeStore.delete(stored.challenge);
+    authChallengeStore.delete(stored.challenge).catch(() => {});
 
     // Update login info
     await db.user.update({
@@ -195,7 +197,7 @@ export async function POST(req: NextRequest) {
       redirect: '/dashboard',
     });
   } catch (err: any) {
-    authChallengeStore.delete(stored.challenge);
+    await authChallengeStore.delete(stored.challenge);
     logger.warn('passkey.verify_failed', { error: err.message });
     return NextResponse.json({ error: { code: 'verification_failed', message: err.message } }, { status: 403 });
   }
