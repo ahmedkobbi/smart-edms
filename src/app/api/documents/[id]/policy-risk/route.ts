@@ -54,7 +54,8 @@ export const POST = createApiHandler(
 
     // Risk 2: PII detected in document
     if (piiResult.totalMatches > 0) {
-      const highRiskPii = (piiResult.byType.ssn || 0) + (piiResult.byType.credit_card || 0) + (piiResult.byType.iban || 0);
+      const byType = piiResult.byType as Record<string, number>;
+      const highRiskPii = (byType.ssn || 0) + (byType.credit_card || 0) + (byType.iban || 0);
       risks.push({
         severity: highRiskPii > 0 ? 'critical' : 'high',
         category: 'pii_detected',
@@ -67,7 +68,8 @@ export const POST = createApiHandler(
 
     // Risk 3: Document classified lower than content suggests
     if (doc.classification?.level !== undefined && doc.classification.level < 3) {
-      if (piiResult.byType.ssn || piiResult.byType.credit_card || piiResult.byType.passport) {
+      const byType = piiResult.byType as Record<string, number>;
+      if (byType.ssn || byType.credit_card || byType.passport) {
         risks.push({
           severity: 'high',
           category: 'under_classified',

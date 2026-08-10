@@ -15,7 +15,7 @@ const patchSchema = z.object({
   effect: z.enum(['allow', 'deny']).optional(),
   action: z.string().optional(),
   resource: z.string().optional(),
-  conditions: z.record(z.unknown()).optional(),
+  conditions: z.record(z.string(), z.unknown()).optional(),
   priority: z.number().int().min(0).max(1000).optional(),
   enabled: z.boolean().optional(),
 });

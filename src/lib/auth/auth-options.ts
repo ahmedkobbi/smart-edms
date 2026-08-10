@@ -343,7 +343,11 @@ export const authOptions: NextAuthOptions = {
           },
         });
         if (recentLogins > 10) {
-          // Anomaly: too many concurrent sessions
+          // Anomaly: too many concurrent sessions.
+          // For >20 logins/hour, BLOCK the login (potential credential
+          // stuffing or session-sharing attack). For 11-20, warn only.
+          const shouldBlock = recentLogins > 20;
+
           await recordAuditEvent({
             tenantId: user.tenantId,
             actorId: user.id,
@@ -356,10 +360,19 @@ export const authOptions: NextAuthOptions = {
             resourceType: 'user',
             resourceId: user.id,
             resourceName: user.email,
-            result: 'allow',
-            reason: `${recentLogins} logins in the last hour`,
-            metadata: { count: recentLogins },
+            result: shouldBlock ? 'deny' : 'allow',
+            reason: shouldBlock
+              ? `Blocked: ${recentLogins} logins in the last hour (concurrent session limit exceeded)`
+              : `${recentLogins} logins in the last hour`,
+            metadata: { count: recentLogins, blocked: shouldBlock },
           }).catch(() => {});
+
+          if (shouldBlock) {
+            // Revoke all existing sessions to break the attack pattern
+            const { revokeAllUserSessions } = await import('@/lib/auth/session-revocation');
+            await revokeAllUserSessions(user.id, 'concurrent_session_limit');
+            throw new Error('Too many concurrent sessions. All sessions have been revoked for security. Please sign in again.');
+          }
         }
 
         return {

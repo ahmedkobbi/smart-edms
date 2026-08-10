@@ -34,13 +34,14 @@ export const POST = createApiHandler(
     }
 
     const { registrationInfo } = verification;
+    const cred = (registrationInfo as any)?.credential || registrationInfo;
     const newCredential: StoredCredential = {
-      id: registrationInfo.credentialID,
-      publicKey: registrationInfo.credentialPublicKey,
-      counter: registrationInfo.counter,
-      transports: registrationInfo.credentialDeviceType,
-      deviceType: registrationInfo.credentialDeviceType,
-      backedUp: registrationInfo.credentialBackedUp,
+      id: cred.id || (registrationInfo as any)?.credentialID,
+      publicKey: Buffer.from(cred.publicKey || (registrationInfo as any)?.credentialPublicKey || new Uint8Array()).toString('base64url'),
+      counter: cred.counter || (registrationInfo as any)?.counter || 0,
+      transports: (registrationInfo as any)?.credentialDeviceType,
+      deviceType: (registrationInfo as any)?.credentialDeviceType,
+      backedUp: (registrationInfo as any)?.credentialBackedUp,
     };
 
     // Append to user's credentials

@@ -16,7 +16,7 @@ const patchSchema = z.object({
   description: z.string().max(500).optional(),
   level: z.number().int().min(0).max(99).optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
-  defaultPolicy: z.record(z.unknown()).optional(),
+  defaultPolicy: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const PATCH = createApiHandler(

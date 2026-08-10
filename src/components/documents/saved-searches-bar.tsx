@@ -45,7 +45,7 @@ export function SavedSearchesBar({ onApply }: { onApply: (query: Record<string, 
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      {data?.items?.length > 0 && (
+      {data?.items && data.items.length > 0 && (
         <>
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             <Bookmark className="h-3 w-3" /> Saved:

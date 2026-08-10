@@ -185,7 +185,19 @@ export function TopBar() {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => signOut({ callbackUrl: '/login' })}
+                  onClick={async () => {
+                    // Call the custom logout endpoint to:
+                    //   1. Revoke the JWT (add jti to RevokedSession denylist)
+                    //   2. Record the auth.logout audit event
+                    //   3. Clear the session cookie
+                    // Then redirect to /login (signOut clears the NextAuth cookie state)
+                    try {
+                      await fetch('/api/auth/logout', { method: 'POST' });
+                    } catch {
+                      // Best-effort — even if the API call fails, clear the cookie client-side
+                    }
+                    signOut({ callbackUrl: '/login', redirect: true });
+                  }}
                   className="text-red-600 dark:text-red-400"
                 >
                   <LogOut className="ms-2 h-4 w-4" />

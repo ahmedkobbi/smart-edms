@@ -62,7 +62,7 @@ describe('Environment Validation', () => {
 
   it('warns about local storage in production', () => {
     const saved = { ...process.env };
-    process.env.NODE_ENV = 'production';
+    (process.env as any).NODE_ENV = 'production';
     process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db';
     process.env.NEXTAUTH_SECRET = 'a-very-long-secret-key-min-16-chars';
     process.env.NEXTAUTH_URL = 'https://app.example.com';

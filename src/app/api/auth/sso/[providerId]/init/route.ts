@@ -11,8 +11,8 @@ import { randomToken } from '@/lib/auth/crypto';
 
 const stateStore = new Map<string, { providerId: string; expiresAt: number }>();
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ providerId: string }> }) {
-  const { providerId } = await params;
+export async function GET(req: NextRequest, { params: routeParams }: { params: Promise<{ providerId: string }> }) {
+  const { providerId } = await routeParams;
 
   const provider = await db.ssoProvider.findFirst({
     where: { id: providerId, enabled: true },

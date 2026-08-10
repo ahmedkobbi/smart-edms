@@ -152,7 +152,7 @@ async function ensureIndex(client: Client): Promise<void> {
               ],
             },
             arabic_normalization: {
-              type: 'arabic_normalization',
+              type: 'arabic_normalization' as any,
             },
             arabic_stemmer: {
               type: 'stemmer',
@@ -458,7 +458,7 @@ export async function searchDocuments(params: {
   try {
     const result = await client.search({
       index: INDEX_NAME,
-      body: searchBody,
+      body: searchBody as any,
     });
 
     const hits = result.body.hits;
@@ -503,30 +503,30 @@ export async function searchDocuments(params: {
 
     return {
       items: mergedItems,
-      total: hits.total?.value || 0,
+      total: (hits.total as any)?.value || 0,
       facets: {
-        classifications: (aggregations?.classifications?.buckets || []).map((b: any) => ({
+        classifications: ((aggregations as any)?.classifications?.buckets || []).map((b: any) => ({
           id: b.key,
           count: b.doc_count,
         })),
-        states: (aggregations?.states?.buckets || []).map((b: any) => ({
+        states: ((aggregations as any)?.states?.buckets || []).map((b: any) => ({
           state: b.key,
           count: b.doc_count,
         })),
-        tags: (aggregations?.tags?.buckets || []).map((b: any) => ({
+        tags: ((aggregations as any)?.tags?.buckets || []).map((b: any) => ({
           name: b.key,
           count: b.doc_count,
         })),
         // Metadata facets — flatten the 3 aggregation buckets into a
         // single list of { field, value, count } entries.
         metadata: [
-          ...(aggregations?.metadataDepartments?.buckets || [])
+          ...((aggregations as any)?.metadataDepartments?.buckets || [])
             .filter((b: any) => b.key !== '__none__')
             .map((b: any) => ({ field: 'department', value: b.key, count: b.doc_count })),
-          ...(aggregations?.metadataDocumentTypes?.buckets || [])
+          ...((aggregations as any)?.metadataDocumentTypes?.buckets || [])
             .filter((b: any) => b.key !== '__none__')
             .map((b: any) => ({ field: 'documentType', value: b.key, count: b.doc_count })),
-          ...(aggregations?.metadataJurisdictions?.buckets || [])
+          ...((aggregations as any)?.metadataJurisdictions?.buckets || [])
             .filter((b: any) => b.key !== '__none__')
             .map((b: any) => ({ field: 'jurisdiction', value: b.key, count: b.doc_count })),
         ],

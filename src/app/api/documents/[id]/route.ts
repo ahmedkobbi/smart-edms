@@ -88,7 +88,7 @@ const patchSchema = z.object({
   classificationId: z.string().nullable().optional(),
   folderId: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   shareAllowed: z.boolean().optional(),
   downloadAllowed: z.boolean().optional(),
   previewAllowed: z.boolean().optional(),

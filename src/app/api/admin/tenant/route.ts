@@ -26,7 +26,7 @@ export const GET = createApiHandler(
 
 const patchSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  settings: z.record(z.unknown()).optional(),
+  settings: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const PATCH = createApiHandler(

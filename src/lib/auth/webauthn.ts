@@ -43,7 +43,7 @@ export function generatePasskeyRegistrationOptions(
   return generateRegistrationOptions({
     rpName: RP_NAME,
     rpID: rpId,
-    userID: userId,
+    userID: userId as any,
     userName: userEmail,
     attestationType: 'none',
     excludeCredentials: existingCredentials.map((cred) => ({

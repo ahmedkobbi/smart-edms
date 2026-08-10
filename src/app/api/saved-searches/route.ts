@@ -26,7 +26,7 @@ export const GET = createApiHandler(
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
-  query: z.record(z.unknown()),
+  query: z.record(z.string(), z.unknown()),
   isShared: z.boolean().default(false),
 });
 

@@ -38,7 +38,7 @@ export const POST = createApiHandler(
 
     const updated = await db.securityAnomaly.update({
       where: { id: anomaly.id },
-      data: { resolved: true, resolvedBy: ctx.userId, resolvedAt: new Date(), reviewNotes: body.notes ?? null },
+      data: { resolved: true, resolvedBy: ctx.userId, resolvedAt: new Date() },
     });
 
     await recordAuditEvent({

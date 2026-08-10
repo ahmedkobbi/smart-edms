@@ -24,6 +24,8 @@ const createSchema = z.object({
   expiresAt: z.string().datetime().optional(),
   maxViews: z.number().int().min(1).max(1000).optional(),
   watermark: z.boolean().default(true),
+  /** Preferred locale for the external recipient (e.g. "ar", "fr"). Falls back to sharer's locale. */
+  recipientLocale: z.string().max(10).optional(),
 });
 
 export const GET = createApiHandler(
@@ -207,6 +209,7 @@ export const POST = createApiHandler(
         maxViews: body.maxViews ?? null,
         viewCount: 0,
         watermark: body.watermark,
+        recipientLocale: body.recipientLocale ?? null,
       },
     });
 
@@ -286,8 +289,9 @@ export const POST = createApiHandler(
         });
       }
     } else if (body.recipientEmail) {
-      // External recipient — no UserLocalePreference, fall back to sharer's locale
-      const sharerLocale = await getUserLocale(ctx.userId);
+      // External recipient — use the explicitly-provided recipientLocale
+      // if available, otherwise fall back to the sharer's locale.
+      const externalLocale = body.recipientLocale || await getUserLocale(ctx.userId);
       const shareUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/shared/${token}`;
       sendShareNotificationEmail({
         to: body.recipientEmail,
@@ -295,7 +299,7 @@ export const POST = createApiHandler(
         sharedBy: ctx.session.user.email,
         shareUrl,
         expiresAt: share.expiresAt ?? undefined,
-        locale: sharerLocale,
+        locale: externalLocale,
       }).catch((err) => {
         console.warn('[share] failed to send email to external recipient:', err);
       });

@@ -266,7 +266,7 @@ export default function DocumentDetailPage() {
           style={{ backgroundColor: doc.classification.color }}
         >
           <Shield className="h-4 w-4" />
-          Classification: {doc.classification.name} — {doc.classification.description ?? 'Sensitive document'}
+          Classification: {doc.classification.name} — {(doc.classification as any).description ?? 'Sensitive document'}
         </div>
       )}
 

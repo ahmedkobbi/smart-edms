@@ -134,6 +134,7 @@ model User {
   stepUpSessions         StepUpSession[]
   dualControlRequested   DualControlRequest[] @relation("DualControlRequester")
   dualControlApproved    DualControlRequest[] @relation("DualControlApprover")
+  recertificationItems   RecertificationItem[]
   localePreference       UserLocalePreference? @relation("UserLocalePreference")
 
   @@unique([tenantId, email])
@@ -411,6 +412,8 @@ model Document {
   encryptionKey   DocumentEncryptionKey?
   textIndex       DocumentTextIndex?
   embedding       DocumentEmbedding?
+  workflows       Workflow[]
+  dispositionRecords DispositionRecord[]
 
   @@index([tenantId, folderId])
   @@index([tenantId, state])
@@ -482,6 +485,7 @@ model Workflow {
   tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   definition  WorkflowDefinition? @relation(fields: [definitionId], references: [id], onDelete: SetNull)
   initiator   User?       @relation(fields: [initiatedById], references: [id], onDelete: SetNull)
+  document    Document?   @relation(fields: [documentId], references: [id], onDelete: SetNull)
   approvals   Approval[]
 
   @@index([tenantId, status])
@@ -608,6 +612,11 @@ model Share {
   maxViews        Int?
   viewCount       Int      @default(0)
   watermark       Boolean  @default(true)
+  // Preferred locale of the external recipient — used to localize the
+  // share notification email and the shared-document landing page.
+  // Set when the share is created; can be updated by the recipient
+  // from the shared page (future iteration).
+  recipientLocale String?
   revokedAt       DateTime?
   revokeReason    String?
   createdAt       DateTime @default(now())
@@ -931,7 +940,8 @@ model DispositionRecord {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, status])
   @@index([tenantId, documentId])
@@ -1098,6 +1108,7 @@ model RecertificationItem {
   createdAt   DateTime @default(now())
 
   campaign RecertificationCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user    User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, reviewerId, decision])
   @@unique([campaignId, userId])

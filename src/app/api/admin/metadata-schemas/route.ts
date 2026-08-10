@@ -27,7 +27,7 @@ const fieldSchema = z.object({
   type: z.enum(['text', 'number', 'date', 'boolean', 'select', 'multiselect']),
   required: z.boolean().default(false),
   options: z.array(z.string()).optional(),
-  validation: z.record(z.unknown()).optional(),
+  validation: z.record(z.string(), z.unknown()).optional(),
 });
 
 const createSchema = z.object({

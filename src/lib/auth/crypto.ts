@@ -69,15 +69,15 @@ export async function getKek(): Promise<Buffer> {
 //  Password hashing (Argon2id)
 // ---------------------------------------------------------------------------
 
-const ARGON2_OPTS: argon2.Options = {
+const ARGON2_OPTS = {
   type: argon2.argon2id,
   memoryCost: 19456, // 19 MiB
   timeCost: 2,
   parallelism: 1,
-};
+} as const;
 
 export async function hashPassword(plain: string): Promise<string> {
-  return argon2.hash(plain, ARGON2_OPTS);
+  return String(await argon2.hash(plain, ARGON2_OPTS));
 }
 
 export async function verifyPassword(plain: string, hash: string): Promise<boolean> {

@@ -6,7 +6,7 @@ import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import Placeholder from '@tiptap/extension-placeholder';
 import { HocuspocusProvider } from '@hocuspocus/provider';
-import { YDoc } from 'yjs';
+import { Doc as YDoc } from 'yjs';
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Users, Bold, Italic, List, Code, Radio, XCircle } from 'lucide-react';
@@ -55,7 +55,7 @@ export function CollaborativeEditor({
     extensions: [
       StarterKit.configure({
         // Disable collaboration-conflicting extensions
-        history: false,
+        ...( { history: false } as any),
       }),
       Placeholder.configure({
         placeholder: 'Start collaborating… Type here and others will see your changes in real-time.',
@@ -98,16 +98,16 @@ export function CollaborativeEditor({
         setError('Authentication failed. Please sign in again.');
         setConnected(false);
       },
-      onError: (err: any) => {
+      onError: ((err: any) => {
         setError(err?.message || 'Connection error');
         setConnected(false);
-      },
-    });
+      }) as any,
+    } as any);
     providerRef.current = provider;
 
     // Register collaboration extension
-    editor.registerExtension(Collaboration.configure({ document: ydoc }));
-    editor.registerExtension(
+    (editor as any).registerExtension(Collaboration.configure({ document: ydoc }));
+    (editor as any).registerExtension(
       CollaborationCursor.configure({
         provider,
         user: {

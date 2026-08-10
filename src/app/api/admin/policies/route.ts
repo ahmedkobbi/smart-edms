@@ -28,7 +28,7 @@ const createSchema = z.object({
   effect: z.enum(['allow', 'deny']),
   action: z.string().min(1),
   resource: z.string().min(1),
-  conditions: z.record(z.unknown()).default({}),
+  conditions: z.record(z.string(), z.unknown()).default({}),
   priority: z.number().int().min(0).max(1000).default(100),
   enabled: z.boolean().default(true),
 });
