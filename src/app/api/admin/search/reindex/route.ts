@@ -40,7 +40,30 @@ export const POST = createApiHandler(
 
     logger.info('search.reindex_started', { tenantId: ctx.tenantId, actorId: ctx.userId, scope });
 
-    const response: any = { ok: true, scope };
+    // Try to enqueue as a background job (production with Redis)
+    try {
+      const { enqueueReindexJob, isRedisAvailable } = await import('@/lib/queue/redis-queue');
+      const redisOk = await isRedisAvailable();
+      if (redisOk) {
+        const result = await enqueueReindexJob({
+          tenantId: ctx.tenantId,
+          scope: scope as 'keyword' | 'semantic' | 'all',
+          startedBy: ctx.userId,
+        });
+        return NextResponse.json({
+          ok: true,
+          scope,
+          queued: true,
+          jobId: result.jobId,
+          message: `Reindex queued as background job. Check Admin → Jobs for progress.`,
+        });
+      }
+    } catch {
+      // Redis not available — fall through to inline reindex
+    }
+
+    // --- Inline reindex (dev mode without Redis) ---
+    const response: any = { ok: true, scope, queued: false };
 
     if (scope === 'keyword' || scope === 'all') {
       const available = await isOpenSearchAvailable();

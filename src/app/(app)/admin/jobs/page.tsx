@@ -1,0 +1,276 @@
+'use client';
+
+/**
+ * Smart EDMS — Job monitoring dashboard
+ *
+ * Enterprise-grade admin UI for monitoring background job queues:
+ *   - Queue metrics (waiting, active, completed, failed, delayed, paused)
+ *   - Recent job history (from Prisma Job model)
+ *   - Failed jobs list with retry/cancel actions
+ *   - Queue pause/resume controls
+ *   - Real-time refresh (auto-refresh every 10s)
+ *
+ * When Redis is unavailable, shows a banner explaining that jobs run
+ * in-process (dev mode) and the queue dashboard is not available.
+ */
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api/client';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, RefreshCw, Play, Pause, RotateCcw, XCircle, AlertCircle, CheckCircle2, Clock, Activity } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from 'react';
+import { formatDistanceToNow } from 'date-fns';
+
+interface QueueMetrics {
+  name: string;
+  waiting: number;
+  active: number;
+  completed: number;
+  failed: number;
+  delayed: number;
+  paused: boolean;
+}
+
+interface JobRecord {
+  id: string;
+  type: string;
+  status: string;
+  progress: number;
+  result: any;
+  error: string | null;
+  startedBy: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+}
+
+const QUEUE_ICONS: Record<string, typeof Activity> = {
+  ocr: Activity,
+  webhook: RefreshCw,
+  evidence: CheckCircle2,
+  reindex: RotateCcw,
+  bulkImport: Clock,
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  pending: 'secondary',
+  running: 'default',
+  completed: 'default',
+  failed: 'destructive',
+  cancelled: 'outline',
+};
+
+export default function AdminJobsPage() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [autoRefresh, setAutoRefresh] = useState(true);
+
+  const { data, isLoading, refetch } = useQuery<{
+    queues: QueueMetrics[];
+    jobs: JobRecord[];
+    failedJobs: Record<string, any[]>;
+  }>({
+    queryKey: ['admin-jobs'],
+    queryFn: () => api.get('/api/admin/jobs'),
+    refetchInterval: autoRefresh ? 10_000 : false,
+  });
+
+  const jobAction = useMutation({
+    mutationFn: ({ jobId, action, queue }: { jobId: string; action: 'retry' | 'cancel'; queue: string }) =>
+      api.post(`/api/admin/jobs/${jobId}`, { action, queue }),
+    onSuccess: (_, vars) => {
+      toast({ title: `Job ${vars.action}ed` });
+      qc.invalidateQueries({ queryKey: ['admin-jobs'] });
+    },
+    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+  });
+
+  const redisAvailable = data?.queues && data.queues.length > 0;
+
+  return (
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
+            <Activity className="h-6 w-6" /> Background Jobs
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Monitor background job queues, retry failed jobs, and manage queue lifecycle.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAutoRefresh((v) => !v)}
+            title={autoRefresh ? 'Auto-refresh on (10s)' : 'Auto-refresh off'}
+          >
+            {autoRefresh ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            <span className="ms-1 text-xs">{autoRefresh ? 'Live' : 'Paused'}</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Redis status banner */}
+      {!isLoading && !redisAvailable && (
+        <Card className="border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+          <CardContent className="py-3 flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                Redis is not configured — background job queues are unavailable
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                Jobs run in-process (fire-and-forget) without retries or dead-letter queues.
+                Set <code className="font-mono">REDIS_URL</code> and start the worker process for production-grade job processing.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Queue metrics */}
+      {redisAvailable && data?.queues && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {data.queues.map((q) => {
+            const Icon = QUEUE_ICONS[q.name] || Activity;
+            return (
+              <Card key={q.name}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <Icon className="h-4 w-4" />
+                      <span className="capitalize">{q.name}</span>
+                    </span>
+                    {q.paused && <Badge variant="outline" className="text-xs">Paused</Badge>}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{q.waiting}</p>
+                      <p className="text-xs text-muted-foreground">Waiting</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{q.active}</p>
+                      <p className="text-xs text-muted-foreground">Active</p>
+                    </div>
+                    <div>
+                      <p className={`text-2xl font-bold ${q.failed > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                        {q.failed}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Failed</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground pt-1 border-t">
+                    <span>Completed: {q.completed}</span>
+                    <span>Delayed: {q.delayed}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Failed jobs */}
+      {redisAvailable && data?.failedJobs && Object.values(data.failedJobs).flat().length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-red-500" /> Failed Jobs
+            </CardTitle>
+            <CardDescription>Retry or cancel failed jobs. Jobs are auto-retried per queue policy before appearing here.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-slate-100 dark:divide-slate-900">
+              {Object.entries(data.failedJobs).map(([queue, jobs]) =>
+                jobs.map((job: any) => (
+                  <div key={`${queue}:${job.id}`} className="p-4 flex items-start gap-3">
+                    <Badge variant="destructive" className="mt-0.5 text-xs">{queue}</Badge>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium font-mono truncate">{job.id}</p>
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">{job.failedReason || 'Unknown error'}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Attempt {job.attemptsMade} · {job.finishedOn ? formatDistanceToNow(new Date(job.finishedOn), { addSuffix: true }) : 'N/A'}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => jobAction.mutate({ jobId: job.id, action: 'retry', queue })}
+                        disabled={jobAction.isPending}
+                      >
+                        <RotateCcw className="me-1 h-3 w-3" /> Retry
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-red-600"
+                        onClick={() => jobAction.mutate({ jobId: job.id, action: 'cancel', queue })}
+                        disabled={jobAction.isPending}
+                      >
+                        <XCircle className="me-1 h-3 w-3" /> Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )),
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recent job history (from Prisma) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Clock className="h-4 w-4" /> Job History
+          </CardTitle>
+          <CardDescription>Recent background jobs (OCR, webhooks, evidence, reindex)</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
+          ) : !data?.jobs?.length ? (
+            <p className="p-8 text-center text-sm text-muted-foreground">No jobs recorded yet.</p>
+          ) : (
+            <div className="divide-y divide-slate-100 dark:divide-slate-900">
+              {data.jobs.slice(0, 30).map((job) => (
+                <div key={job.id} className="p-4 flex items-start gap-3">
+                  <Badge variant={(STATUS_COLORS[job.status] as any) || 'secondary'} className="mt-0.5 text-xs capitalize">
+                    {job.status}
+                  </Badge>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">{job.type}</p>
+                      {job.progress > 0 && job.progress < 100 && (
+                        <span className="text-xs text-muted-foreground">{job.progress}%</span>
+                      )}
+                    </div>
+                    {job.error && (
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-0.5 truncate">{job.error}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
+                      {job.completedAt && ` · completed ${formatDistanceToNow(new Date(job.completedAt), { addSuffix: true })}`}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

@@ -233,7 +233,8 @@
     "sessions": "Sesiones",
     "locales": "Idiomas y traducciones",
     "localePrefs": "Idioma y configuración regional",
-    "notificationRouting": "Enrutamiento de notificaciones"
+    "notificationRouting": "Enrutamiento de notificaciones",
+    "jobs": "Tareas en segundo plano"
   },
   "settings": {
     "title": "Settings",

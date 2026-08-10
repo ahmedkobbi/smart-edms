@@ -268,10 +268,23 @@ export const POST = createApiHandler(
       return { doc, version };
     });
 
-    // Index text for full-text search + AI (best-effort, non-blocking)
-    indexDocumentText(ctx.tenantId, result.doc.id, result.version.id).catch((err) => {
-      console.warn('[text-index] failed:', err);
-    });
+    // Index text for full-text search + AI
+    // Enqueue as a background job if Redis is available (production),
+    // otherwise fall back to in-process fire-and-forget (dev).
+    try {
+      const { enqueueOcrJob } = await import('@/lib/queue/redis-queue');
+      await enqueueOcrJob({
+        tenantId: ctx.tenantId,
+        documentId: result.doc.id,
+        versionId: result.version.id,
+        mimeType: result.version.mimeType,
+        storageKey: result.version.storageKey,
+        startedBy: ctx.userId,
+      });
+    } catch {
+      // Fallback: in-process
+      indexDocumentText(ctx.tenantId, result.doc.id, result.version.id).catch(() => {});
+    }
 
     // Index in OpenSearch for production-grade FTS (best-effort, non-blocking)
     osIndexDocument(ctx.tenantId, result.doc.id).catch(() => {});

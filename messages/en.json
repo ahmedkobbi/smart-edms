@@ -219,7 +219,8 @@
     "sessions": "Sessions",
     "locales": "Locales & Translations",
     "localePrefs": "Language & Locale",
-    "notificationRouting": "Notification Routing"
+    "notificationRouting": "Notification Routing",
+    "jobs": "Background Jobs"
   },
   "settings": {
     "title": "Settings",

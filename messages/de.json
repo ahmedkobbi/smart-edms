@@ -233,7 +233,8 @@
     "sessions": "Sitzungen",
     "locales": "Sprachen & Übersetzungen",
     "localePrefs": "Sprache & Gebietsschema",
-    "notificationRouting": "Benachrichtigungsrouting"
+    "notificationRouting": "Benachrichtigungsrouting",
+    "jobs": "Hintergrundaufgaben"
   },
   "settings": {
     "title": "Settings",

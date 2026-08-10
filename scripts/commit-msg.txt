@@ -1,0 +1,90 @@
+feat: BullMQ + Redis background job queue system with admin monitoring UI
+
+The largest remaining architectural gap: OCR, webhook delivery, evidence
+generation, and search reindexing all ran fire-and-forget in the Next.js
+process with no retries, no DLQ, no isolation. Now they run as managed
+background jobs via BullMQ + Redis.
+
+## Architecture
+
+- **Redis** — backing store for all job queues (redis:7-alpine in Docker)
+- **BullMQ** — queue + worker library with retries, backoff, DLQ
+- **Separate worker process** — `src/worker/index.ts` runs outside Next.js
+  as a sidecar process (`npm run worker` or Docker `worker` service)
+- **Graceful fallback** — when REDIS_URL is not set, all enqueue calls
+  fall back to in-process fire-and-forget (dev mode without Redis)
+- **Job model sync** — BullMQ jobs in Redis are synced to the Prisma `Job`
+  model for admin visibility via the API + UI
+
+## Queues (5 types)
+
+| Queue | Retries | Timeout | Backoff | Concurrency | Purpose |
+|-------|---------|---------|---------|-------------|---------|
+| ocr | 3 | 5min | exponential 10s | 2 | OCR text extraction (CPU-heavy) |
+| webhook | 4 | 30s | exponential 1s | 5 | Webhook HTTP delivery |
+| evidence | 2 | 2min | exponential 5s | 5 | Evidence package generation |
+| reindex | 1 | 10min | fixed 5s | 5 | OpenSearch + embedding reindex |
+| bulkImport | 1 | 30min | fixed 10s | 5 | Bulk document import |
+
+## Wired into existing flows
+
+1. **OCR** — `POST /api/documents` (upload), `POST /api/documents/:id/versions`
+   (new version), `POST /api/documents/:id/versions/:vid/restore` (restore)
+   all enqueue OCR jobs via `enqueueOcrJob()` when Redis is available.
+   Falls back to in-process `indexDocumentText()` when Redis is absent.
+
+2. **Webhook delivery** — `fireWebhook()` in `notify.ts` enqueues per-webhook
+   delivery jobs via `enqueueWebhookJob()` when Redis is available. Falls back
+   to inline delivery (existing retry loop) when Redis is absent.
+
+3. **Search reindex** — `POST /api/admin/search/reindex` enqueues a reindex
+   job via `enqueueReindexJob()` when Redis is available. Falls back to
+   inline reindex when Redis is absent.
+
+## Worker process (`src/worker/index.ts`)
+
+- Connects to Redis (separate connection from the app)
+- Creates a BullMQ Worker for each queue with appropriate concurrency
+- Handles job failures with BullMQ's built-in retry + exponential backoff
+- Syncs job state to the Prisma `Job` model (pending → running → completed/failed)
+- Graceful shutdown on SIGTERM/SIGINT (waits up to 30s for in-progress jobs)
+- Logs all job lifecycle events via structured logger
+
+## Admin monitoring UI (`/admin/jobs`)
+
+Enterprise-grade dashboard with:
+- **Queue metrics cards** — waiting, active, failed, completed, delayed counts
+  per queue (auto-refreshes every 10s)
+- **Redis status banner** — shows when Redis is unavailable and explains
+  the dev-mode fallback
+- **Failed jobs list** — per-queue failed jobs with retry/cancel buttons
+- **Job history** — recent job records from the Prisma Job model with
+  status badges, progress %, error messages, timestamps
+- **Auto-refresh toggle** — live (10s) or paused
+- Added to sidebar navigation under Administration
+
+## Docker
+
+- **Redis service** — `redis:7-alpine` with AOF persistence, 256MB maxmemory,
+  noeviction policy, healthcheck
+- **Worker service** — same Docker image as the app, runs
+  `bun run src/worker/index.ts` as a sidecar; depends on Redis + PostgreSQL
+- Both `app` and `worker` depend on `redis` being healthy before starting
+- `REDIS_URL=redis://redis:6379` configured for both services
+- `redis_data` volume for persistence
+
+## npm script
+
+- `npm run worker` — starts the worker process locally
+- Added to `package.json` scripts
+
+## .env.example
+
+- Added `REDIS_URL=redis://localhost:6379` with documentation explaining
+  when it's required (production) vs optional (dev)
+
+## Test results
+- 263/263 tests passing
+- Lint: clean
+- TypeScript: 0 errors
+- Translations: 378/378 keys complete

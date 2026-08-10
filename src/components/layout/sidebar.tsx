@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, ShieldCheck, BookMarked, KeyRound, Webhook, Database,
   Bot, ShieldAlert, FileCheck, Smartphone, Mail, BookOpen, LogIn, RefreshCw,
   AlertTriangle, CreditCard, Building2, FolderOpen, Menu, X, Code2, Globe,
-  Bell,
+  Bell, Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSessionData } from '@/components/providers/use-session-data';
@@ -50,6 +50,7 @@ const NAV_GROUPS: { titleKey: string; items: NavItem[] }[] = [
       { href: '/admin/security', labelKey: 'nav.securityPosture', icon: ShieldAlert, permission: PERMISSIONS.ADMIN_VIEW },
       { href: '/admin/anomalies', labelKey: 'nav.anomalies', icon: AlertTriangle, permission: PERMISSIONS.ADMIN_VIEW },
       { href: '/admin/notification-routing', labelKey: 'admin.notificationRouting', icon: Bell, permission: PERMISSIONS.ADMIN_VIEW },
+      { href: '/admin/jobs', labelKey: 'admin.jobs', icon: Activity, permission: PERMISSIONS.ADMIN_VIEW },
       { href: '/admin/break-glass', labelKey: 'admin.breakGlass', icon: ShieldAlert, permission: PERMISSIONS.ADMIN_VIEW },
       { href: '/admin/dual-control', labelKey: 'admin.dualControl', icon: ShieldCheck, permission: PERMISSIONS.ADMIN_VIEW },
       { href: '/admin/users', labelKey: 'nav.users', icon: Users, permission: PERMISSIONS.ADMIN_USERS_MANAGE },

@@ -273,7 +273,8 @@
     "sessions": "Sessions",
     "locales": "Langues et traductions",
     "localePrefs": "Langue et locale",
-    "notificationRouting": "Routage des notifications"
+    "notificationRouting": "Routage des notifications",
+    "jobs": "Tâches en arrière-plan"
   },
   "emails": {
     "common": {

@@ -99,11 +99,21 @@ export const POST = createApiHandler(
 
     // Re-index text extraction + OCR for the restored version
     try {
+      const { enqueueOcrJob } = await import('@/lib/queue/redis-queue');
+      await enqueueOcrJob({
+        tenantId: ctx.tenantId,
+        documentId: doc.id,
+        versionId: result.id,
+        mimeType: result.mimeType,
+        storageKey: result.storageKey,
+        startedBy: ctx.userId,
+      });
+    } catch {
       const { indexDocumentText } = await import('@/lib/documents/text-extraction');
       indexDocumentText(ctx.tenantId, doc.id, result.id).catch(() => {});
-      const { indexDocument: osIndexDocument } = await import('@/lib/search/opensearch-service');
-      osIndexDocument(ctx.tenantId, doc.id).catch(() => {});
-    } catch {}
+    }
+    const { indexDocument: osIndexDocument } = await import('@/lib/search/opensearch-service');
+    osIndexDocument(ctx.tenantId, doc.id).catch(() => {});
 
     return NextResponse.json({ version: result });
   },

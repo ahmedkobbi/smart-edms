@@ -34,9 +34,14 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       # Database (PostgreSQL in production)
       DATABASE_URL: postgresql://smartedms:${POSTGRES_PASSWORD:-smartedms_dev_change_me}@postgres:5432/smartedms?schema=public
+
+      # Redis (for BullMQ job queues)
+      REDIS_URL: redis://redis:6379
 
       # NextAuth
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
@@ -69,6 +74,52 @@ services:
       - app_storage:/app/storage
     ports:
       - "3000:3000"
+    networks:
+      - smartedms
+
+  # Background worker process (OCR, webhooks, evidence, reindex)
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smartedms-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["bun", "run", "src/worker/index.ts"]
+    environment:
+      DATABASE_URL: postgresql://smartedms:${POSTGRES_PASSWORD:-smartedms_dev_change_me}@postgres:5432/smartedms?schema=public
+      REDIS_URL: redis://redis:6379
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+      SMART_EDMS_KEK: ${SMART_EDMS_KEK:?SMART_EDMS_KEK is required}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_ROOT: /app/storage
+      AI_API_KEY: ${AI_API_KEY:-}
+      NODE_ENV: production
+    volumes:
+      - app_storage:/app/storage
+    networks:
+      - smartedms
+
+  # Redis for BullMQ job queues
+  redis:
+    image: redis:7-alpine
+    container_name: smartedms-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy noeviction --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - smartedms
 
@@ -122,6 +173,7 @@ volumes:
   app_storage:
   minio_data:
   opensearch_data:
+  redis_data:
 
 networks:
   smartedms:

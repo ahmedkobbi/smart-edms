@@ -266,6 +266,38 @@ export async function fireWebhook(
     },
   });
 
+  // Try to enqueue webhook deliveries as background jobs (production with Redis).
+  // Falls back to inline delivery if Redis is unavailable (dev mode).
+  try {
+    const { enqueueWebhookJob, isRedisAvailable } = await import('@/lib/queue/redis-queue');
+    const redisOk = await isRedisAvailable();
+    if (redisOk) {
+      const matching = webhooks.filter((w) => {
+        try {
+          const events: string[] = JSON.parse(w.events || '[]');
+          return events.length === 0 || events.includes(event) || events.includes('*');
+        } catch {
+          return true;
+        }
+      });
+      await Promise.all(matching.map((w) =>
+        enqueueWebhookJob({
+          tenantId,
+          webhookId: w.id,
+          webhookUrl: w.url,
+          webhookSecretHash: w.secretHash || undefined,
+          event,
+          payload,
+        }),
+      ));
+      return; // All enqueued — don't do inline delivery
+    }
+  } catch {
+    // Redis not available — fall through to inline delivery
+  }
+
+  // --- Inline delivery (dev mode without Redis) ---
+
   const body = JSON.stringify({ event, payload, ts: Date.now() });
   const matching = webhooks.filter((w) => {
     try {

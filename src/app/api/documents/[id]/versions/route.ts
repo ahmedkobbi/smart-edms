@@ -146,16 +146,24 @@ export const POST = createApiHandler(
       },
     });
 
-    // Re-index text extraction + OCR for the new version (fire-and-forget)
+    // Re-index text extraction + OCR for the new version
+    // Enqueue as background job if Redis available, fallback to in-process
     try {
-      const { indexDocumentText } = await import('@/lib/documents/text-extraction');
-      indexDocumentText(ctx.tenantId, doc.id, result.version.id).catch((err) => {
-        console.warn(`[versions] text extraction failed for ${doc.id}:`, err);
+      const { enqueueOcrJob } = await import('@/lib/queue/redis-queue');
+      await enqueueOcrJob({
+        tenantId: ctx.tenantId,
+        documentId: doc.id,
+        versionId: result.version.id,
+        mimeType: result.version.mimeType,
+        storageKey: result.version.storageKey,
+        startedBy: ctx.userId,
       });
-      // Also re-index in OpenSearch
-      const { indexDocument: osIndexDocument } = await import('@/lib/search/opensearch-service');
-      osIndexDocument(ctx.tenantId, doc.id).catch(() => {});
-    } catch {}
+    } catch {
+      const { indexDocumentText } = await import('@/lib/documents/text-extraction');
+      indexDocumentText(ctx.tenantId, doc.id, result.version.id).catch(() => {});
+    }
+    const { indexDocument: osIndexDocument } = await import('@/lib/search/opensearch-service');
+    osIndexDocument(ctx.tenantId, doc.id).catch(() => {});
 
     return NextResponse.json({ version: result.version }, { status: 201 });
   },

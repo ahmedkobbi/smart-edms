@@ -219,7 +219,8 @@
     "sessions": "الجلسات",
     "locales": "اللغات والترجمات",
     "localePrefs": "اللغة والإعداد المحلي",
-    "notificationRouting": "توجيه الإشعارات"
+    "notificationRouting": "توجيه الإشعارات",
+    "jobs": "المهام في الخلفية"
   },
   "settings": {
     "title": "الإعدادات",
