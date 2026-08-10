@@ -14,66 +14,67 @@ import { useSessionData } from '@/components/providers/use-session-data';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions.client';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useI18n } from '@/i18n/use-i18n';
 
 interface NavItem {
   href: string;
-  label: string;
+  labelKey: string;
   icon: React.ComponentType<{ className?: string }>;
   permission?: string;
 }
 
-const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
+const NAV_GROUPS: { titleKey: string; items: NavItem[] }[] = [
   {
-    title: 'Workspace',
+    titleKey: 'nav.workspace',
     items: [
-      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { href: '/documents', label: 'Documents', icon: FileText, permission: PERMISSIONS.SEARCH_USE },
-      { href: '/folders', label: 'Folders', icon: FolderOpen, permission: PERMISSIONS.SEARCH_USE },
-      { href: '/search', label: 'Search', icon: Search, permission: PERMISSIONS.SEARCH_USE },
-      { href: '/workflows', label: 'Workflows', icon: GitBranch, permission: PERMISSIONS.WORKFLOW_APPROVE },
+      { href: '/dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+      { href: '/documents', labelKey: 'nav.documents', icon: FileText, permission: PERMISSIONS.SEARCH_USE },
+      { href: '/folders', labelKey: 'nav.folders', icon: FolderOpen, permission: PERMISSIONS.SEARCH_USE },
+      { href: '/search', labelKey: 'nav.search', icon: Search, permission: PERMISSIONS.SEARCH_USE },
+      { href: '/workflows', labelKey: 'nav.workflows', icon: GitBranch, permission: PERMISSIONS.WORKFLOW_APPROVE },
     ],
   },
   {
-    title: 'Governance',
+    titleKey: 'nav.governance',
     items: [
-      { href: '/audit', label: 'Audit Log', icon: ScrollText, permission: PERMISSIONS.AUDIT_READ },
-      { href: '/admin/legal-holds', label: 'Legal Holds', icon: FileLock, permission: PERMISSIONS.LEGAL_HOLD_MANAGE },
-      { href: '/admin/retention', label: 'Retention', icon: Clock, permission: PERMISSIONS.RETENTION_MANAGE },
-      { href: '/admin/dispositions', label: 'Dispositions', icon: FileCheck, permission: PERMISSIONS.RETENTION_MANAGE },
+      { href: '/audit', labelKey: 'nav.auditLog', icon: ScrollText, permission: PERMISSIONS.AUDIT_READ },
+      { href: '/admin/legal-holds', labelKey: 'nav.legalHolds', icon: FileLock, permission: PERMISSIONS.LEGAL_HOLD_MANAGE },
+      { href: '/admin/retention', labelKey: 'nav.retention', icon: Clock, permission: PERMISSIONS.RETENTION_MANAGE },
+      { href: '/admin/dispositions', labelKey: 'nav.dispositions', icon: FileCheck, permission: PERMISSIONS.RETENTION_MANAGE },
     ],
   },
   {
-    title: 'Administration',
+    titleKey: 'nav.administration',
     items: [
-      { href: '/admin/security', label: 'Security Posture', icon: ShieldAlert, permission: PERMISSIONS.ADMIN_VIEW },
-      { href: '/admin/anomalies', label: 'Anomalies', icon: AlertTriangle, permission: PERMISSIONS.ADMIN_VIEW },
-      { href: '/admin/break-glass', label: 'Break-glass', icon: ShieldAlert, permission: PERMISSIONS.ADMIN_VIEW },
-      { href: '/admin/dual-control', label: 'Dual Control', icon: ShieldCheck, permission: PERMISSIONS.ADMIN_VIEW },
-      { href: '/admin/users', label: 'Users', icon: Users, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
-      { href: '/admin/invitations', label: 'Invitations', icon: Mail, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
-      { href: '/admin/groups', label: 'Groups', icon: Users, permission: PERMISSIONS.ADMIN_GROUPS_MANAGE },
-      { href: '/admin/roles', label: 'Roles', icon: KeyRound, permission: PERMISSIONS.ADMIN_ROLES_MANAGE },
-      { href: '/admin/recertification', label: 'Recertification', icon: RefreshCw, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
-      { href: '/admin/developer', label: 'Developer', icon: Code2, permission: PERMISSIONS.ADMIN_VIEW },
-      { href: '/admin/classifications', label: 'Classifications', icon: BookMarked, permission: PERMISSIONS.ADMIN_CLASSIFICATIONS_MANAGE },
-      { href: '/admin/policies', label: 'Policies', icon: ShieldCheck, permission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
-      { href: '/admin/metadata-schemas', label: 'Metadata Schemas', icon: Database, permission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
-      { href: '/admin/vocabularies', label: 'Vocabularies', icon: BookOpen, permission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
-      { href: '/admin/api-keys', label: 'API Keys', icon: KeyRound, permission: PERMISSIONS.ADMIN_API_KEYS_MANAGE },
-      { href: '/admin/service-accounts', label: 'Service Accounts', icon: Bot, permission: PERMISSIONS.ADMIN_API_KEYS_MANAGE },
-      { href: '/admin/webhooks', label: 'Webhooks', icon: Webhook, permission: PERMISSIONS.ADMIN_WEBHOOKS_MANAGE },
-      { href: '/admin/sso-providers', label: 'SSO Providers', icon: LogIn, permission: PERMISSIONS.ADMIN_INTEGRATIONS_MANAGE },
-      { href: '/admin/devices', label: 'Devices', icon: Smartphone, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
-      { href: '/admin/tenants', label: 'Tenants', icon: Building2, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
-      { href: '/admin/tenant', label: 'Tenant Settings', icon: Settings, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
-      { href: '/admin/billing', label: 'Billing', icon: CreditCard, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
+      { href: '/admin/security', labelKey: 'nav.securityPosture', icon: ShieldAlert, permission: PERMISSIONS.ADMIN_VIEW },
+      { href: '/admin/anomalies', labelKey: 'nav.anomalies', icon: AlertTriangle, permission: PERMISSIONS.ADMIN_VIEW },
+      { href: '/admin/break-glass', labelKey: 'admin.breakGlass', icon: ShieldAlert, permission: PERMISSIONS.ADMIN_VIEW },
+      { href: '/admin/dual-control', labelKey: 'admin.dualControl', icon: ShieldCheck, permission: PERMISSIONS.ADMIN_VIEW },
+      { href: '/admin/users', labelKey: 'nav.users', icon: Users, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
+      { href: '/admin/invitations', labelKey: 'nav.invitations', icon: Mail, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
+      { href: '/admin/groups', labelKey: 'nav.groups', icon: Users, permission: PERMISSIONS.ADMIN_GROUPS_MANAGE },
+      { href: '/admin/roles', labelKey: 'nav.roles', icon: KeyRound, permission: PERMISSIONS.ADMIN_ROLES_MANAGE },
+      { href: '/admin/recertification', labelKey: 'nav.recertification', icon: RefreshCw, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
+      { href: '/admin/developer', labelKey: 'admin.developer', icon: Code2, permission: PERMISSIONS.ADMIN_VIEW },
+      { href: '/admin/classifications', labelKey: 'nav.classifications', icon: BookMarked, permission: PERMISSIONS.ADMIN_CLASSIFICATIONS_MANAGE },
+      { href: '/admin/policies', labelKey: 'nav.policies', icon: ShieldCheck, permission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
+      { href: '/admin/metadata-schemas', labelKey: 'nav.metadataSchemas', icon: Database, permission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
+      { href: '/admin/vocabularies', labelKey: 'nav.vocabularies', icon: BookOpen, permission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
+      { href: '/admin/api-keys', labelKey: 'nav.apiKeys', icon: KeyRound, permission: PERMISSIONS.ADMIN_API_KEYS_MANAGE },
+      { href: '/admin/service-accounts', labelKey: 'nav.serviceAccounts', icon: Bot, permission: PERMISSIONS.ADMIN_API_KEYS_MANAGE },
+      { href: '/admin/webhooks', labelKey: 'nav.webhooks', icon: Webhook, permission: PERMISSIONS.ADMIN_WEBHOOKS_MANAGE },
+      { href: '/admin/sso-providers', labelKey: 'nav.ssoProviders', icon: LogIn, permission: PERMISSIONS.ADMIN_INTEGRATIONS_MANAGE },
+      { href: '/admin/devices', labelKey: 'nav.devices', icon: Smartphone, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
+      { href: '/admin/tenants', labelKey: 'nav.tenants', icon: Building2, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
+      { href: '/admin/tenant', labelKey: 'nav.tenantSettings', icon: Settings, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
+      { href: '/admin/billing', labelKey: 'nav.billing', icon: CreditCard, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
     ],
   },
   {
-    title: 'Account',
+    titleKey: 'nav.account',
     items: [
-      { href: '/settings', label: 'Settings', icon: Settings },
-      { href: '/settings/sessions', label: 'Sessions', icon: Smartphone },
+      { href: '/settings', labelKey: 'nav.settings', icon: Settings },
+      { href: '/settings/sessions', labelKey: 'admin.sessions', icon: Smartphone },
     ],
   },
 ];
@@ -81,6 +82,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { session } = useSessionData();
+  const { t } = useI18n();
   const perms = session?.user?.permissions ?? [];
 
   return (
@@ -102,9 +104,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           const items = group.items.filter((i) => !i.permission || hasPermission(perms, i.permission));
           if (items.length === 0) return null;
           return (
-            <div key={group.title}>
+            <div key={group.titleKey}>
               <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                {group.title}
+                {t(group.titleKey)}
               </p>
               <div className="space-y-0.5">
                 {items.map((item) => {
@@ -122,7 +124,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                       )}
                     >
                       <item.icon className="h-4 w-4 flex-shrink-0" />
-                      <span className="truncate">{item.label}</span>
+                      <span className="truncate">{t(item.labelKey)}</span>
                     </Link>
                   );
                 })}

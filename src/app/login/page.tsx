@@ -10,12 +10,14 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Loader2, Lock, Mail, KeyRound, ArrowRight, Eye, EyeOff, Fingerprint, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useI18n } from '@/i18n/use-i18n';
 import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
   const search = useSearchParams();
   const { toast } = useToast();
+  const { t } = useI18n();
   const callbackUrl = search.get('callbackUrl') || '/dashboard';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -114,7 +116,7 @@ export default function LoginPage() {
             </div>
           </div>
           <h1 className="text-3xl font-bold tracking-tight gradient-text">Smart EDMS</h1>
-          <p className="text-sm text-muted-foreground mt-1">Secure Document Governance Platform</p>
+          <p className="text-sm text-muted-foreground mt-1">{t('common.tagline')}</p>
         </motion.div>
 
         {/* Glass card */}
@@ -133,8 +135,8 @@ export default function LoginPage() {
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
               >
-                <h2 className="text-xl font-semibold mb-1">Sign in</h2>
-                <p className="text-sm text-muted-foreground mb-6">Use your work credentials to access Smart EDMS.</p>
+                <h2 className="text-xl font-semibold mb-1">{t('auth.signIn')}</h2>
+                <p className="text-sm text-muted-foreground mb-6">{t('auth.welcomeBack')}</p>
               </motion.div>
             ) : (
               <motion.div
@@ -146,9 +148,9 @@ export default function LoginPage() {
               >
                 <h2 className="text-xl font-semibold mb-1 flex items-center gap-2">
                   <Fingerprint className="h-5 w-5 text-blue-500" />
-                  Multi-factor authentication
+                  {t('auth.mfaRequired')}
                 </h2>
-                <p className="text-sm text-muted-foreground mb-6">Enter the 6-digit code from your authenticator app.</p>
+                <p className="text-sm text-muted-foreground mb-6">{t('auth.enterMfaCode')}</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -161,7 +163,7 @@ export default function LoginPage() {
                 transition={{ delay: 0.3 }}
                 className="space-y-2"
               >
-                <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+                <Label htmlFor="email" className="text-sm font-medium">{t('auth.email')}</Label>
                 <div className="relative group">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
                   <Input
@@ -185,7 +187,7 @@ export default function LoginPage() {
                 transition={{ delay: 0.35 }}
                 className="space-y-2"
               >
-                <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+                <Label htmlFor="password" className="text-sm font-medium">{t('auth.password')}</Label>
                 <div className="relative group">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
                   <Input
@@ -216,7 +218,7 @@ export default function LoginPage() {
                 transition={{ delay: 0.3 }}
                 className="space-y-2"
               >
-                <Label htmlFor="mfaToken" className="text-sm font-medium">Authenticator code</Label>
+                <Label htmlFor="mfaToken" className="text-sm font-medium">{t('auth.mfaToken')}</Label>
                 <div className="relative group">
                   <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
                   <Input
@@ -266,7 +268,7 @@ export default function LoginPage() {
                 ) : (
                   <ArrowRight className="mr-2 h-4 w-4" />
                 )}
-                {needsMfa ? 'Verify & sign in' : 'Sign in'}
+                {needsMfa ? t('auth.verifyAndSignIn') : t('auth.signIn')}
               </Button>
             </motion.div>
 
@@ -288,7 +290,7 @@ export default function LoginPage() {
                     setError(null);
                   }}
                 >
-                  Back to password
+                  {t('auth.backToPassword')}
                 </Button>
               </motion.div>
             )}
@@ -301,7 +303,7 @@ export default function LoginPage() {
                 className="text-center"
               >
                 <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground hover:underline">
-                  Forgot password?
+                  {t('auth.forgotPassword')}
                 </Link>
               </motion.div>
             )}
@@ -339,7 +341,7 @@ export default function LoginPage() {
                   }}
                 >
                   <Fingerprint className="mr-2 h-4 w-4" />
-                  Sign in with passkey
+                  {t('auth.signInWithPasskey')}
                 </Button>
                 <SsoButtons />
               </motion.div>
@@ -353,9 +355,7 @@ export default function LoginPage() {
           transition={{ delay: 0.6 }}
           className="text-center text-xs text-muted-foreground mt-6 leading-relaxed"
         >
-          Smart EDMS — designed to support ISO 27001, SOC 2, GDPR and HIPAA-aligned controls.
-          <br />
-          Access is logged and tamper-evident. Unauthorized access is prohibited.
+          {t('common.tagline')}
         </motion.p>
       </motion.div>
     </div>

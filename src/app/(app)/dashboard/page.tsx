@@ -10,6 +10,7 @@ import { FileText, FileCheck, GitBranch, FileLock, TrendingUp, Activity, ArrowRi
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { AnimatedCounter, LoadingState, GlassCard, StaggerContainer, StaggerItem, GradientBadge } from '@/components/ui/premium';
+import { useI18n } from '@/i18n/use-i18n';
 
 interface DashboardData {
   stats: {
@@ -39,9 +40,10 @@ export default function DashboardPage() {
     queryFn: () => api.get('/api/dashboard'),
     refetchInterval: 60_000,
   });
+  const { t } = useI18n();
 
   if (isLoading || !data) {
-    return <LoadingState message="Loading dashboard…" />;
+    return <LoadingState message={t('common.loading')} />;
   }
 
   return (
@@ -53,21 +55,21 @@ export default function DashboardPage() {
         className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
       >
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('dashboard.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Document governance overview for your tenant.
+            {t('dashboard.subtitle')}
           </p>
         </div>
         <div className="flex gap-2">
           <Link href="/documents">
             <Button variant="outline" size="sm" className="glass-input border-0 hover-lift">
               <FileText className="mr-2 h-4 w-4" />
-              My documents
+              {t('dashboard.myDocuments')}
             </Button>
           </Link>
           <Link href="/documents?action=upload">
             <Button size="sm" className="btn-premium">
-              Upload
+              {t('dashboard.upload')}
             </Button>
           </Link>
         </div>
@@ -79,7 +81,7 @@ export default function DashboardPage() {
           <GlassCard className="relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl opacity-10 bg-blue-500" />
             <div className="flex items-center justify-between mb-2 relative">
-              <p className="text-xs font-medium text-muted-foreground">Total documents</p>
+              <p className="text-xs font-medium text-muted-foreground">{t('dashboard.totalDocuments')}</p>
               <span className="text-blue-500"><FileText className="h-4 w-4" /></span>
             </div>
             <AnimatedCounter value={data.stats.totalDocuments} className="text-2xl font-semibold tabular-nums" />
@@ -89,7 +91,7 @@ export default function DashboardPage() {
           <GlassCard className="relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl opacity-10 bg-emerald-500" />
             <div className="flex items-center justify-between mb-2 relative">
-              <p className="text-xs font-medium text-muted-foreground">My documents</p>
+              <p className="text-xs font-medium text-muted-foreground">{t('dashboard.myDocuments')}</p>
               <span className="text-emerald-500"><FileCheck className="h-4 w-4" /></span>
             </div>
             <AnimatedCounter value={data.stats.myDocuments} className="text-2xl font-semibold tabular-nums" />
@@ -99,7 +101,7 @@ export default function DashboardPage() {
           <GlassCard className="relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl opacity-10 bg-amber-500" />
             <div className="flex items-center justify-between mb-2 relative">
-              <p className="text-xs font-medium text-muted-foreground">Pending approvals</p>
+              <p className="text-xs font-medium text-muted-foreground">{t('dashboard.pendingApprovals')}</p>
               <span className="text-amber-500"><GitBranch className="h-4 w-4" /></span>
             </div>
             <Link href="/workflows?assignedToMe=true" className="hover:underline">
@@ -111,7 +113,7 @@ export default function DashboardPage() {
           <GlassCard className="relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl opacity-10 bg-red-500" />
             <div className="flex items-center justify-between mb-2 relative">
-              <p className="text-xs font-medium text-muted-foreground">Active legal holds</p>
+              <p className="text-xs font-medium text-muted-foreground">{t('dashboard.activeLegalHolds')}</p>
               <span className="text-red-500"><FileLock className="h-4 w-4" /></span>
             </div>
             <Link href="/admin/legal-holds" className="hover:underline">

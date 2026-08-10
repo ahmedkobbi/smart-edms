@@ -30,6 +30,7 @@ import { useWebSocketNotifications } from '@/hooks/use-websocket-notifications';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { formatDistanceToNow } from 'date-fns';
+import { useI18n } from '@/i18n/use-i18n';
 
 interface Notification {
   id: string;
@@ -48,6 +49,7 @@ export function TopBar() {
   const { session } = useSessionData();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const { connected: wsConnected } = useWebSocketNotifications();
+  const { t } = useI18n();
 
   // Keyboard shortcut: Cmd/Ctrl+K
   useEffect(() => {
@@ -86,7 +88,7 @@ export function TopBar() {
               className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-800 transition-colors"
             >
               <Search className="h-4 w-4" />
-              <span className="flex-1 text-left">Search documents, settings…</span>
+              <span className="flex-1 text-left">{t('common.search')}…</span>
               <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded">
                 <Command className="h-2.5 w-2.5" />K
               </kbd>

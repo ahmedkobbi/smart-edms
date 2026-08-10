@@ -67,7 +67,11 @@
     "tenants": "Tenants",
     "tenantSettings": "Paramètres du tenant",
     "billing": "Facturation",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "workspace": "Espace de travail",
+    "governance": "Gouvernance",
+    "administration": "Administration",
+    "account": "Compte"
   },
   "auth": {
     "signIn": "Se connecter",
@@ -224,6 +228,10 @@
       "suspend": "Suspend",
       "createUser": "Create user",
       "temporaryPassword": "Temporary password"
-    }
+    },
+    "breakGlass": "Accès d'urgence",
+    "dualControl": "Contrôle dual",
+    "developer": "Développeur",
+    "sessions": "Sessions"
   }
 }

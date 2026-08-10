@@ -17,6 +17,7 @@ import { FileText, Upload, Search, Filter, Loader2, Download, Eye, MoreVertical,
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { formatBytes } from '@/lib/utils/format';
+import { useI18n } from '@/i18n/use-i18n';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,6 +57,7 @@ export default function DocumentsPage() {
   const search = useSearchParams();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { t } = useI18n();
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState('');
   const [classificationId, setClassificationId] = useState<string>('all');
@@ -88,9 +90,9 @@ export default function DocumentsPage() {
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Documents</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('documents.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage, version, and govern your documents.
+            {t('documents.subtitle')}
           </p>
         </div>
         <UploadDialog
@@ -106,7 +108,7 @@ export default function DocumentsPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by title or description…"
+                placeholder={t('documents.title') + '…'}
                 value={query}
                 onChange={(e) => { setQuery(e.target.value); setPage(1); }}
                 className="pl-9"
@@ -148,7 +150,7 @@ export default function DocumentsPage() {
           ) : !data?.items?.length ? (
             <div className="p-12 text-center">
               <FileText className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
-              <p className="text-sm font-medium">No documents found</p>
+              <p className="text-sm font-medium">{t('documents.noDocuments')}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Try adjusting filters or upload a new document.
               </p>

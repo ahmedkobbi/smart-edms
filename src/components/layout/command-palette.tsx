@@ -5,6 +5,7 @@ import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, C
 import { FileText, Search, GitBranch, ScrollText, Settings, LayoutDashboard, Users, KeyRound, BookMarked, ShieldCheck, FileLock, Clock, Shield, Upload, Plus, Bell, FolderOpen } from 'lucide-react';
 import { useSessionData } from '@/components/providers/use-session-data';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions.client';
+import { useI18n } from '@/i18n/use-i18n';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -14,6 +15,7 @@ interface CommandPaletteProps {
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const router = useRouter();
   const { session } = useSessionData();
+  const { t } = useI18n();
   const perms = session?.user?.permissions ?? [];
 
   const go = (href: string) => {
@@ -23,50 +25,50 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <CommandInput placeholder="Type a command or search…" />
+      <CommandInput placeholder={t('common.search')} />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandEmpty>{t('common.noResults')}</CommandEmpty>
 
-        <CommandGroup heading="Quick actions">
+        <CommandGroup heading={t('nav.workspace')}>
           <CommandItem onSelect={() => go('/documents?action=upload')}>
             <Upload className="mr-2 h-4 w-4" />
-            Upload document
+            {t('documents.uploadDocument')}
           </CommandItem>
           <CommandItem onSelect={() => go('/search')}>
             <Search className="mr-2 h-4 w-4" />
-            Search documents
+            {t('nav.search')}
           </CommandItem>
         </CommandGroup>
 
         <CommandSeparator />
 
-        <CommandGroup heading="Navigate">
+        <CommandGroup heading={t('nav.governance')}>
           <CommandItem onSelect={() => go('/dashboard')}>
             <LayoutDashboard className="mr-2 h-4 w-4" />
-            Dashboard
+            {t('nav.dashboard')}
           </CommandItem>
           <CommandItem onSelect={() => go('/documents')}>
             <FileText className="mr-2 h-4 w-4" />
-            Documents
+            {t('nav.documents')}
           </CommandItem>
           <CommandItem onSelect={() => go('/folders')}>
             <FolderOpen className="mr-2 h-4 w-4" />
-            Folders
+            {t('nav.folders')}
           </CommandItem>
           <CommandItem onSelect={() => go('/search')}>
             <Search className="mr-2 h-4 w-4" />
-            Search
+            {t('nav.search')}
           </CommandItem>
           {hasPermission(perms, PERMISSIONS.WORKFLOW_APPROVE) && (
             <CommandItem onSelect={() => go('/workflows')}>
               <GitBranch className="mr-2 h-4 w-4" />
-              Workflows
+              {t('nav.workflows')}
             </CommandItem>
           )}
           {hasPermission(perms, PERMISSIONS.AUDIT_READ) && (
             <CommandItem onSelect={() => go('/audit')}>
               <ScrollText className="mr-2 h-4 w-4" />
-              Audit log
+              {t('nav.auditLog')}
             </CommandItem>
           )}
         </CommandGroup>
