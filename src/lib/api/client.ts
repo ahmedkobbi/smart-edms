@@ -56,11 +56,22 @@ async function request<T>(
 
   if (!res.ok) {
     const err = (json as ApiError)?.error;
-    throw new ApiRequestError(
+    const error = new ApiRequestError(
       res.status,
       err?.code || 'unknown',
       err?.message || `HTTP ${res.status}`,
     );
+    // Auto-redirect on auth errors — the user's session is invalid or
+    // they lack permission. Redirect to the premium /unauthorized page
+    // with the error code + message as query params.
+    if (res.status === 401 && typeof window !== 'undefined') {
+      const params = new URLSearchParams({
+        code: err?.code || '401',
+        message: err?.message || 'Your session has expired. Please sign in again.',
+      });
+      window.location.href = `/unauthorized?${params.toString()}`;
+    }
+    throw error;
   }
   return json as T;
 }

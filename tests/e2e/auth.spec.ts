@@ -17,8 +17,9 @@ test.describe('Authentication', () => {
     await expect(page.locator('h1')).toContainText('Smart EDMS');
     await expect(page.locator('input[type="email"]')).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
-    // Use exact match — "Sign in" also matches "Sign in with passkey" button
-    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
+    // Use exact match — "Sign in" also matches "Sign in with passkey" button.
+    // Wait up to 10s for translations to hydrate (useI18n loads client-side).
+    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({ timeout: 10_000 });
   });
 
   test('login with valid credentials redirects to dashboard', async ({ page }) => {
