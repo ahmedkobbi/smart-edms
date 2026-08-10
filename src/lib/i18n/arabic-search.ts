@@ -60,6 +60,94 @@ export function normalizeForSearch(text: string): string {
   return containsArabic(text) ? normalizeArabicText(text) : text.toLowerCase().trim();
 }
 
+/**
+ * Arabic synonym dictionary for search expansion.
+ *
+ * Maps normalized Arabic terms to their synonyms. When a search query
+ * contains a key term, the synonyms are appended to the query so that
+ * documents containing synonym variants are also matched.
+ *
+ * This is a curated list of common document-management synonyms.
+ * Tenants can extend this in a future iteration via a tenant-level
+ * synonym configuration.
+ */
+const ARABIC_SYNONYMS: Record<string, string[]> = {
+  // Document types
+  'مستند': ['وثيقه', 'ملف', 'ورقه'],
+  'وثيقه': ['مستند', 'ملف', 'ورقه'],
+  'ملف': ['مستند', 'وثيقه', 'دوسيه'],
+  'عقد': ['اتفاقيه', 'ميثاق'],
+  'اتفاقيه': ['عقد', 'ميثاق'],
+  'تقرير': ['دراسه', 'بحث'],
+  'دراسه': ['تقرير', 'بحث'],
+  'فاتوره': ['كشف حساب', 'اذن دفع'],
+  // Actions
+  'توقيع': ['امضاء', 'موافقه'],
+  'امضاء': ['توقيع', 'موافقه'],
+  'موافقه': ['توقيع', 'موافقه', 'اقرار'],
+  'رفض': ['اعتراض', 'ممانعه'],
+  'اعتماد': ['موافقه', 'تصديق'],
+  // Classification
+  'سري': ['محظور', 'مكتوم', 'خاص'],
+  'محظور': ['سري', 'مكتوم', 'ممنوع'],
+  'مكتوم': ['سري', 'محظور', 'خاص'],
+  'خاص': ['سري', 'مكتوم'],
+  'عام': ['منشور', 'معلن'],
+  'منشور': ['عام', 'معلن'],
+  // Legal
+  'قانوني': ['شرعي', 'نظامي'],
+  'محكمه': ['قضاء', 'عدليه'],
+  'قضاء': ['محكمه', 'عدليه'],
+  // Status
+  'مغلق': ['منتهي', 'مكتمل'],
+  'منتهي': ['مغلق', 'مكتمل'],
+  'نشط': ['فعال', 'ساري'],
+  'فعال': ['نشط', 'ساري'],
+  'مؤرشف': ['محفوظ', 'مخزن'],
+  // People
+  'مدير': ['مسؤول', 'رئيس'],
+  'مسؤول': ['مدير', 'رئيس', 'مشرف'],
+  'موظف': ['عامل', 'مستخدم'],
+  // Organizations
+  'شركه': ['مؤسسه', 'منظمه'],
+  'مؤسسه': ['شركه', 'منظمه'],
+  'دوائر': ['مصالح', 'اقسام'],
+  'قسم': ['دائره', 'مصلحه'],
+};
+
+/**
+ * Expand a search query with Arabic synonyms.
+ *
+ * For each token in the query that has synonyms, the synonyms are
+ * appended to the query string. This enables finding documents that
+ * use synonym variants of the search terms.
+ *
+ * Example:
+ *   "عقد قانوني" → "عقد قانوني وثيقه اتفاقيه ميثاق شرعي نظامي"
+ *
+ * @param text The original search query
+ * @returns The expanded query with synonyms appended
+ */
+export function expandArabicSynonyms(text: string): string {
+  if (!text || !containsArabic(text)) return text;
+
+  const normalized = normalizeArabicText(text);
+  const tokens = tokenizeForSearch(normalized, false);
+  const synonyms = new Set<string>();
+
+  for (const token of tokens) {
+    const syns = ARABIC_SYNONYMS[token];
+    if (syns) {
+      for (const s of syns) {
+        synonyms.add(s);
+      }
+    }
+  }
+
+  if (synonyms.size === 0) return text;
+  return `${text} ${Array.from(synonyms).join(' ')}`;
+}
+
 export function buildSearchIndex(text: string): string {
   if (!text) return '';
   return `${text.toLowerCase()} ${normalizeForSearch(text)}`;

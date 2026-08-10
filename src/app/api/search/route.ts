@@ -11,7 +11,7 @@ import { db } from '@/lib/db';
 import { createApiHandler } from '@/lib/api/handler';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
 import { searchTextIndex } from '@/lib/documents/text-extraction';
-import { normalizeForSearch } from '@/lib/i18n/arabic-search';
+import { normalizeForSearch, expandArabicSynonyms } from '@/lib/i18n/arabic-search';
 import { searchDocuments as osSearch, isOpenSearchAvailable, indexDocument } from '@/lib/search/opensearch-service';
 import { hybridSearch } from '@/lib/search/semantic-search';
 import { logger } from '@/lib/config/logger';
@@ -77,10 +77,13 @@ export const GET = createApiHandler(
     const metadataFilters = parseMetadataParam(rawMetadata.length > 0 ? rawMetadata : q.metadata as string | string[] | undefined);
 
     // ── Try OpenSearch first (production-grade FTS with Arabic analyzer) ──
+    // Expand Arabic synonyms before searching so documents containing
+    // synonym variants are also matched.
+    const expandedQuery = expandArabicSynonyms(q.q);
     if (await isOpenSearchAvailable()) {
       const osResult = await osSearch({
         tenantId: ctx.tenantId,
-        query: q.q,
+        query: expandedQuery,
         ownerId: ctx.userId,
         canReadAll,
         classifications: classificationCodes,

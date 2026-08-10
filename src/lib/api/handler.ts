@@ -508,6 +508,26 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
       }
     }
 
+    // --- Hardware-key enforcement (§9.1) ---
+    // When a tenant enables `settings.security.requireHardwareKeyForHighPrivilegeRoles`,
+    // users with high-privilege roles (tenant_admin, security_officer) must
+    // have a passkey registered to perform any authenticated action.
+    // This is a defense-in-depth measure against credential theft.
+    //
+    // We skip this check for API-key auth (service accounts are not
+    // interactive users and don't have passkeys).
+    if (!isApiKey) {
+      const { enforceHardwareKey } = await import('@/lib/auth/hardware-key-enforcement');
+      const hwKeyResult = await enforceHardwareKey({
+        tenantId: session.user.tenantId,
+        userId: session.user.id,
+        userRoles: session.user.roles,
+      });
+      if (!hwKeyResult.ok) {
+        return jsonError(403, 'hardware_key_required', hwKeyResult.reason || 'A passkey is required for high-privilege roles.');
+      }
+    }
+
     try {
       const result = await handler(req, ctx, params);
 

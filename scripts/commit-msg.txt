@@ -1,52 +1,51 @@
-feat: comprehensive audit event labels (128 types × 5 locales)
+feat: hardware-key enforcement + Arabic search synonyms
 
-Phase C part 2 — Audit event labels.
+Phase D — Hardware-key enforcement + Arabic synonyms.
 
-**Gap:** Only ~23 event types had labels, and only in en/ar. ~60+ event
-types fell through to the raw machine-readable code (e.g. "ai.pii.detected"
-displayed as-is in the audit timeline).
+## Hardware-key enforcement (§9.1)
+
+**Gap:** `webauthn.ts` captured `backedUp` on passkey registration but
+never enforced it. No code required tenant_admin / security_officer roles
+to have a hardware-backed passkey.
 
 **Implemented:**
-- New `src/components/audit/audit-event-labels.ts` — auto-generated from
-  `scripts/generate-audit-labels.py`. Covers 128 event types × 5 locales
-  (en, fr, ar, es, de) = 640 translated labels.
-- Categories covered:
-  - Authentication (login, logout, password reset, step-up, concurrent session)
-  - Authorization (deny, policy.deny, policy.violation)
-  - Document lifecycle (read, create, upload, update, delete, download,
-    preview, redact, lock, unlock, classify, crypto_shred, close, copy,
-    version.create, version.restore, record.declare)
-  - Sharing (create, view, revoke)
-  - Workflow (create, approve, delegate, escalation.run)
-  - Admin — Users (create, update, suspend)
-  - Admin — Roles & Groups (create, update, delete)
-  - Admin — Policies & Classifications (create, update, delete, localization)
-  - Admin — Retention & Legal Hold (create, update, delete, release)
-  - Admin — Dispositions (create, approve)
-  - Admin — Integrations (API keys, service accounts, webhooks, SSO)
-  - Admin — Tenant (create, update)
-  - Admin — Other (key rotation, search reindex, metadata schemas, vocab,
-    notification routing)
-  - Billing (update)
-  - Break-glass (request, granted)
-  - Dual control (request, decide)
-  - Recertification (create)
-  - Invitations (create, sent, accepted)
-  - AI (suggestion, PII detection, summarization, metadata, policy risk)
-  - Audit (export, verify, receipt generate)
-  - Evidence (generate)
-  - Folders (create, apply classification)
-  - Device (revoked, update)
-  - Session (revoke all)
-  - User self-service (password change, MFA, locale, profile)
-  - Passkey (register)
-  - Anomaly (resolved)
-  - Collaboration (join)
-  - Errors (api.error)
-- Updated `audit-timeline.tsx` to use the new comprehensive label file
-  instead of the hardcoded 23-event map.
-- The generator script is idempotent and can be re-run when new event
-  types are added to the codebase.
+- New `src/lib/auth/hardware-key-enforcement.ts` module:
+  - `hasPasskey(userId)` — checks if user has any passkey
+  - `hasHardwareBackedPasskey(userId, requireTrueHardwareKey)` — checks
+    for hardware-backed or device-bound credentials
+  - `requiresHardwareKey(tenantId, userId, roles)` — checks tenant
+    setting `security.requireHardwareKeyForHighPrivilegeRoles` + user
+    has a high-privilege role
+  - `enforceHardwareKey({ tenantId, userId, roles })` — combined check
+    that returns `{ ok: true }` or `{ ok: false, reason }`
+- Wired into `createApiHandler`: after RBAC + ABAC checks pass, the
+  handler calls `enforceHardwareKey()`. If the user is a high-privilege
+  role AND the tenant has enforcement enabled AND the user has no
+  passkey, the request is rejected with 403 `hardware_key_required`.
+- Two enforcement modes:
+  - Default: any passkey counts (platform-backed or device-bound)
+  - Strict (`settings.security.requireTrueHardwareKey`): only device-bound
+    credentials (`backedUp === false`) count — these cannot be synced
+    or phished
+
+## Arabic search synonyms (§9.10)
+
+**Gap:** Arabic search had normalization + stopwords but no synonym
+expansion. Searching for "عقد" (contract) wouldn't find documents
+containing "اتفاقيه" (agreement).
+
+**Implemented:**
+- New `expandArabicSynonyms(text)` function in `arabic-search.ts`:
+  - Tokenizes the query, looks up each token in the synonym dictionary
+  - Appends all synonyms to the query string
+  - 30+ synonym entries covering: document types (مستند/وثيقه/ملف),
+    actions (توقيع/امضاء/موافقه), classification (سري/محظور/مكتوم),
+    legal (قانوني/شرعي), status (مغلق/منتهي, نشط/فعال), people
+    (مدير/مسؤول), organizations (شركه/مؤسسه)
+  - Only expands Arabic queries (English passes through unchanged)
+- Wired into the search API: `expandArabicSynonyms(q.q)` is called
+  before passing the query to OpenSearch, so documents containing
+  synonym variants are also matched
 
 ## Test results
 - 263/263 tests passing
