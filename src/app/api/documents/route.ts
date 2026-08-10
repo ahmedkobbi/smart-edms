@@ -13,6 +13,7 @@ import { getFileStorage, buildStorageKey } from '@/lib/storage/file-storage';
 import { validateUploadedFile } from '@/lib/storage/file-validation';
 import { sha256, sha1 } from '@/lib/auth/crypto';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
+import { fireWebhook } from '@/lib/notifications/notify';
 import { scanFile } from '@/lib/security/malware-scanner';
 import { createDocumentDek, encryptWithDek } from '@/lib/storage/envelope-encryption';
 import { indexDocumentText } from '@/lib/documents/text-extraction';
@@ -295,6 +296,8 @@ export const POST = createApiHandler(
         documentType,
       },
     });
+
+    await fireWebhook(ctx.tenantId, 'document.created', { documentId: result.doc.id, title: result.doc.title, uploadedBy: ctx.userId });
 
     return NextResponse.json(
       {

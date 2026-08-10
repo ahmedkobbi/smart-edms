@@ -10,6 +10,7 @@ import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
+import { fireWebhook } from '@/lib/notifications/notify';
 import { z } from 'zod';
 
 export const GET = createApiHandler(
@@ -147,6 +148,8 @@ export const DELETE = createApiHandler(
       reason,
       metadata: { caseRef: hold.caseRef },
     });
+
+    await fireWebhook(ctx.tenantId, 'legalhold.released', { legalHoldId: hold.id, name: hold.name, reason });
 
     return NextResponse.json({ ok: true });
   },

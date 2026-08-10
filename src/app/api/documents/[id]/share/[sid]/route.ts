@@ -8,6 +8,7 @@ import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
+import { fireWebhook } from '@/lib/notifications/notify';
 
 export const DELETE = createApiHandler(
   {
@@ -44,6 +45,8 @@ export const DELETE = createApiHandler(
       reason,
       metadata: { documentId: share.documentId, recipientEmail: share.recipientEmail },
     });
+
+    await fireWebhook(ctx.tenantId, 'share.revoked', { shareId: share.id, documentId: share.documentId, reason });
 
     return NextResponse.json({ ok: true });
   },

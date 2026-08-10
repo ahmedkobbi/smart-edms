@@ -190,8 +190,15 @@ export const POST = createApiHandler(
     const packageJson = JSON.stringify(evidence, null, 2);
     const packageHash = sha256(packageJson);
 
-    // Store as JSON (in production, would store as ZIP in object storage)
+    // Persist to object storage
     const storageKey = `evidence/${ctx.tenantId}/${pkg.id}/evidence.json`;
+    const { getFileStorage } = await import('@/lib/storage/file-storage');
+    const storage = getFileStorage();
+    await storage.put(storageKey, Buffer.from(packageJson, 'utf-8'), 'application/json', {
+      tenantId: ctx.tenantId,
+      evidencePackageId: pkg.id,
+      generatedBy: ctx.userId,
+    });
 
     // Update the package record
     const updated = await db.evidencePackage.update({

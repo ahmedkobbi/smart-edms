@@ -11,6 +11,8 @@
  */
 
 import { db } from '@/lib/db';
+import { notify } from '@/lib/notifications/notify';
+import { logger } from '@/lib/config/logger';
 
 export async function detectAnomalies(tenantId: string): Promise<{ created: number }> {
   let created = 0;
@@ -49,7 +51,7 @@ export async function detectAnomalies(tenantId: string): Promise<{ created: numb
         },
       });
       if (!existing) {
-        await db.securityAnomaly.create({
+        const anomaly = await db.securityAnomaly.create({
           data: {
             tenantId,
             type: 'burst_failed_logins',
@@ -60,6 +62,7 @@ export async function detectAnomalies(tenantId: string): Promise<{ created: numb
             metadata: JSON.stringify({ count: info.count, window: '1h' }),
           },
         });
+        await notifyAnomaly(tenantId, anomaly);
         created++;
       }
     }
@@ -92,7 +95,7 @@ export async function detectAnomalies(tenantId: string): Promise<{ created: numb
         },
       });
       if (!existing) {
-        await db.securityAnomaly.create({
+        const anomaly = await db.securityAnomaly.create({
           data: {
             tenantId,
             type: 'mass_download',
@@ -102,6 +105,7 @@ export async function detectAnomalies(tenantId: string): Promise<{ created: numb
             metadata: JSON.stringify({ count: info.count, userId, window: '1h' }),
           },
         });
+        await notifyAnomaly(tenantId, anomaly);
         created++;
       }
     }
@@ -134,7 +138,7 @@ export async function detectAnomalies(tenantId: string): Promise<{ created: numb
         },
       });
       if (!existing) {
-        await db.securityAnomaly.create({
+        const anomaly = await db.securityAnomaly.create({
           data: {
             tenantId,
             type: 'mass_export',
@@ -144,10 +148,44 @@ export async function detectAnomalies(tenantId: string): Promise<{ created: numb
             metadata: JSON.stringify({ count: info.count, userId, window: '24h' }),
           },
         });
+        await notifyAnomaly(tenantId, anomaly);
         created++;
       }
     }
   }
 
   return { created };
+}
+
+/**
+ * Notify all security officers + tenant admins about a new anomaly.
+ */
+async function notifyAnomaly(tenantId: string, anomaly: any): Promise<void> {
+  const officers = await db.roleAssignment.findMany({
+    where: {
+      tenantId,
+      role: { name: { in: ['security_officer', 'tenant_admin'] } },
+    },
+    select: { userId: true },
+  });
+
+  for (const o of officers) {
+    await notify({
+      tenantId,
+      userId: o.userId,
+      type: 'security.anomaly_detected',
+      title: anomaly.severity === 'critical' ? '⚠️ Critical security anomaly' : 'Security anomaly detected',
+      body: anomaly.description,
+      severity: anomaly.severity as 'info' | 'success' | 'warning' | 'critical',
+      link: '/admin/anomalies',
+      metadata: { anomalyId: anomaly.id, type: anomaly.type },
+    }).catch(() => {});
+  }
+
+  logger.warn('anomaly.detected', {
+    tenantId,
+    type: anomaly.type,
+    severity: anomaly.severity,
+    description: anomaly.description,
+  });
 }

@@ -10,6 +10,7 @@ import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
+import { fireWebhook } from '@/lib/notifications/notify';
 import { z } from 'zod';
 
 export const GET = createApiHandler(
@@ -146,6 +147,8 @@ export const DELETE = createApiHandler(
       result: 'allow',
       metadata: {},
     });
+
+    await fireWebhook(ctx.tenantId, 'user.suspended', { userId: user.id, email: user.email });
 
     return NextResponse.json({ ok: true });
   },

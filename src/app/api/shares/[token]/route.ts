@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
+import { fireWebhook } from '@/lib/notifications/notify';
 import { getFileStorage } from '@/lib/storage/file-storage';
 import { ApiError } from '@/lib/api/handler';
 import argon2 from 'argon2';
@@ -119,6 +120,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     actorUserAgent: req.headers.get('user-agent') ?? 'unknown',
     metadata: { shareId: share.id, mode: share.mode, versionNumber: version.versionNumber },
   });
+
+  await fireWebhook(share.tenantId, 'share.viewed', { shareId: share.id, documentId: share.documentId, recipientEmail: share.recipientEmail });
 
   return NextResponse.json({
     url,

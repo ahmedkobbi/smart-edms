@@ -10,6 +10,7 @@ import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS, SYSTEM_ROLES } from '@/lib/auth/permissions';
 import { hashPassword, randomToken } from '@/lib/auth/crypto';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
+import { fireWebhook } from '@/lib/notifications/notify';
 import { z } from 'zod';
 
 const listQuery = z.object({
@@ -124,6 +125,8 @@ export const POST = createApiHandler(
       result: 'allow',
       metadata: { roleNames: body.roleNames, sendInvite: body.sendInvite },
     });
+
+    await fireWebhook(ctx.tenantId, 'user.created', { userId: user.id, email: user.email, roleNames: body.roleNames });
 
     return NextResponse.json({
       user: { ...user, passwordHash: undefined },

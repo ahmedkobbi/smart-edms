@@ -9,6 +9,7 @@ import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
+import { fireWebhook } from '@/lib/notifications/notify';
 import { z } from 'zod';
 
 export const GET = createApiHandler(
@@ -94,6 +95,8 @@ export const POST = createApiHandler(
       result: 'allow',
       metadata: { caseRef: body.caseRef, documentCount: body.documentIds.length },
     });
+
+    await fireWebhook(ctx.tenantId, 'legalhold.created', { legalHoldId: result.id, name: body.name, reason: body.reason, documentCount: body.documentIds.length });
 
     return NextResponse.json({ legalHold: hold }, { status: 201 });
   },

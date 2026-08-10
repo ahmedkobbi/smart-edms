@@ -8,6 +8,7 @@ import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
+import { fireWebhook } from '@/lib/notifications/notify';
 import { sha256 } from '@/lib/auth/crypto';
 import { z } from 'zod';
 
@@ -125,6 +126,8 @@ export const POST = createApiHandler(
         nextStep: result.nextStep,
       },
     });
+
+    await fireWebhook(ctx.tenantId, body.decision === 'approve' ? 'workflow.approved' : 'workflow.rejected', { workflowId: params!.id, decision: body.decision, comment: body.comment });
 
     return NextResponse.json(result);
   },

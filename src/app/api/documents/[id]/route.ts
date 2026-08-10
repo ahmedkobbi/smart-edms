@@ -11,6 +11,7 @@ import { db } from '@/lib/db';
 import { createApiHandler, ApiError, ApiContext } from '@/lib/api/handler';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
+import { fireWebhook } from '@/lib/notifications/notify';
 import { z } from 'zod';
 
 export const GET = createApiHandler(
@@ -186,6 +187,35 @@ export const PATCH = createApiHandler(
       },
     });
 
+    if (classificationChange) {
+      // Emit dedicated classification change audit event (§9.12)
+      await recordAuditEvent({
+        tenantId: ctx.tenantId,
+        actorId: ctx.userId,
+        actorEmail: ctx.session.user.email,
+        actorIp: ctx.ip,
+        actorUserAgent: ctx.userAgent,
+        correlationId: ctx.correlationId,
+        eventType: 'document.classify',
+        action: 'update',
+        resourceType: 'document',
+        resourceId: doc.id,
+        resourceName: doc.title,
+        result: 'allow',
+        reason: body.reason || 'Classification changed',
+        metadata: {
+          fromClassId: classificationChange.oldClass?.id ?? null,
+          fromClassName: classificationChange.oldClass?.name ?? null,
+          toClassId: classificationChange.newClass?.id ?? null,
+          toClassName: classificationChange.newClass?.name ?? null,
+          isDowngrade: classificationChange.isDowngrade,
+        },
+      });
+      await fireWebhook(ctx.tenantId, 'classification.changed', { documentId: doc.id, title: doc.title, fromClassId: doc.classificationId, toClassId: body.classificationId, isDowngrade: classificationChange?.isDowngrade });
+    }
+
+    await fireWebhook(ctx.tenantId, 'document.updated', { documentId: doc.id, title: doc.title, changes: Object.keys(body) });
+
     return NextResponse.json({ document: updated });
   },
 );
@@ -231,6 +261,8 @@ export const DELETE = createApiHandler(
       reason,
       metadata: {},
     });
+
+    await fireWebhook(ctx.tenantId, 'document.deleted', { documentId: doc.id, title: doc.title, reason });
 
     return NextResponse.json({ ok: true });
   },
