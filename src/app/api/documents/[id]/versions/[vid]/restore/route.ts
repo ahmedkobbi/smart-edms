@@ -97,6 +97,14 @@ export const POST = createApiHandler(
       metadata: { restoredFromVersion: sourceVersion.versionNumber, newVersion: result.versionNumber },
     });
 
+    // Re-index text extraction + OCR for the restored version
+    try {
+      const { indexDocumentText } = await import('@/lib/documents/text-extraction');
+      indexDocumentText(ctx.tenantId, doc.id, result.id).catch(() => {});
+      const { indexDocument: osIndexDocument } = await import('@/lib/search/opensearch-service');
+      osIndexDocument(ctx.tenantId, doc.id).catch(() => {});
+    } catch {}
+
     return NextResponse.json({ version: result });
   },
 );

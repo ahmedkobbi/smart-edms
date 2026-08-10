@@ -24,6 +24,10 @@ export default function AdminTenantPage() {
     aiEnabled: boolean;
     watermarkEnabled: boolean;
     ocrEnabled: boolean;
+    ocrLanguages: string[];
+    ocrDpi: string;
+    ocrMaxPages: string;
+    ocrMinConfidence: string;
     residency: string;
   } | null>(null);
 
@@ -40,6 +44,10 @@ export default function AdminTenantPage() {
     aiEnabled: data?.tenant?.settings?.features?.ai !== false,
     watermarkEnabled: data?.tenant?.settings?.features?.watermark !== false,
     ocrEnabled: data?.tenant?.settings?.features?.ocr !== false,
+    ocrLanguages: data?.tenant?.settings?.ocr?.languages || ['eng', 'ara'],
+    ocrDpi: String(data?.tenant?.settings?.ocr?.dpi || 300),
+    ocrMaxPages: String(data?.tenant?.settings?.ocr?.maxPages || 50),
+    ocrMinConfidence: String(data?.tenant?.settings?.ocr?.minConfidence || 70),
     residency: data?.tenant?.settings?.residency || 'default',
   };
 
@@ -53,6 +61,12 @@ export default function AdminTenantPage() {
       settings: {
         branding: { primary: form.brandingPrimary, accent: form.brandingAccent },
         features: { ai: form.aiEnabled, watermark: form.watermarkEnabled, ocr: form.ocrEnabled },
+        ocr: {
+          languages: form.ocrLanguages,
+          dpi: parseInt(form.ocrDpi, 10),
+          maxPages: parseInt(form.ocrMaxPages, 10),
+          minConfidence: parseInt(form.ocrMinConfidence, 10),
+        },
         residency: form.residency,
       },
     }),
@@ -157,10 +171,60 @@ export default function AdminTenantPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">OCR (text extraction)</p>
-              <p className="text-xs text-muted-foreground">Extract text from images and scanned PDFs for search</p>
+              <p className="text-xs text-muted-foreground">Extract text from images and scanned PDFs for search. Uses Tesseract with configurable languages and DPI.</p>
             </div>
             <Switch checked={form.ocrEnabled} onCheckedChange={(v) => update('ocrEnabled', v)} />
           </div>
+          {form.ocrEnabled && (
+            <div className="space-y-3 ps-4 border-s-2 border-slate-100 dark:border-slate-800">
+              <div className="space-y-1">
+                <Label className="text-xs">OCR Languages</Label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { code: 'eng', label: 'English' },
+                    { code: 'ara', label: 'Arabic' },
+                    { code: 'fra', label: 'French' },
+                    { code: 'spa', label: 'Spanish' },
+                    { code: 'deu', label: 'German' },
+                  ].map((lang) => (
+                    <Button
+                      key={lang.code}
+                      type="button"
+                      variant={form.ocrLanguages.includes(lang.code) ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        const langs = form.ocrLanguages.includes(lang.code)
+                          ? form.ocrLanguages.filter((l) => l !== lang.code)
+                          : [...form.ocrLanguages, lang.code];
+                        update('ocrLanguages', langs.length > 0 ? langs : ['eng']);
+                      }}
+                    >
+                      {lang.label}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">Selected: {form.ocrLanguages.join(', ')}</p>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Render DPI</Label>
+                  <Input type="number" min="72" max="600" value={form.ocrDpi} onChange={(e) => update('ocrDpi', e.target.value)} className="h-8 text-sm" />
+                  <p className="text-[10px] text-muted-foreground">Higher = better accuracy, slower</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Max pages</Label>
+                  <Input type="number" min="1" max="500" value={form.ocrMaxPages} onChange={(e) => update('ocrMaxPages', e.target.value)} className="h-8 text-sm" />
+                  <p className="text-[10px] text-muted-foreground">Cap OCR processing</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Min confidence %</Label>
+                  <Input type="number" min="0" max="100" value={form.ocrMinConfidence} onChange={(e) => update('ocrMinConfidence', e.target.value)} className="h-8 text-sm" />
+                  <p className="text-[10px] text-muted-foreground">Below this = low_confidence</p>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="space-y-1">
             <Label>Data residency</Label>
             <Input value={form.residency} onChange={(e) => update('residency', e.target.value)} placeholder="eu-west-1, us-east-1, etc." />

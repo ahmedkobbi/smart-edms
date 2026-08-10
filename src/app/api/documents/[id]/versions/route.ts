@@ -146,6 +146,17 @@ export const POST = createApiHandler(
       },
     });
 
+    // Re-index text extraction + OCR for the new version (fire-and-forget)
+    try {
+      const { indexDocumentText } = await import('@/lib/documents/text-extraction');
+      indexDocumentText(ctx.tenantId, doc.id, result.version.id).catch((err) => {
+        console.warn(`[versions] text extraction failed for ${doc.id}:`, err);
+      });
+      // Also re-index in OpenSearch
+      const { indexDocument: osIndexDocument } = await import('@/lib/search/opensearch-service');
+      osIndexDocument(ctx.tenantId, doc.id).catch(() => {});
+    } catch {}
+
     return NextResponse.json({ version: result.version }, { status: 201 });
   },
 );

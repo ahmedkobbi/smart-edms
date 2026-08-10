@@ -367,6 +367,8 @@ model Document {
   metadata        String   @default("{}") // JSON
   state           String   @default("draft") // draft | active | record | archived | disposed
   isRecord        Boolean  @default(false)
+  // OCR status: pending | processing | success | failed | low_confidence | skipped
+  ocrStatus       String   @default("pending")
   isLocked        Boolean  @default(false)
   lockedBy        String?
   lockedReason    String?
@@ -1261,7 +1263,22 @@ model DocumentTextIndex {
   documentId   String   @unique
   versionId    String
   extractedText String  @default("")
+  // Raw extracted/OCR text (original case, no normalization) — used for
+  // display snippets, AI/PII/summarization, and exports. The normalized
+  // `extractedText` is used only for search indexing.
+  rawText      String   @default("")
   ocrApplied   Boolean  @default(false)
+  // OCR mean confidence (0-100). Only set when ocrApplied=true.
+  // Documents with < 70% confidence should be flagged for human review.
+  ocrConfidence Float?
+  // Per-page confidence scores (JSON array of floats 0-100).
+  ocrPageConfidences String @default("[]")
+  // OCR engine used: 'tesseract_cli' | 'tesseract_js' | 'none'
+  ocrEngine    String   @default("none")
+  // Languages passed to the OCR engine (e.g. "eng+ara")
+  ocrLanguages String   @default("")
+  // OCR processing duration in milliseconds
+  ocrDurationMs Int?
   language     String   @default("en")
   pageCount    Int      @default(0)
   indexedAt    DateTime @default(now())
