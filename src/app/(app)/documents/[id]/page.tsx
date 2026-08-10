@@ -18,7 +18,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   ArrowLeft, Download, Lock, Unlock, FileLock, Shield, History, Share2, Sparkles,
   Loader2, Eye, FileText, CheckCircle2, XCircle, AlertTriangle, Clock,
-  ShieldAlert, Copy, MessageSquare, Send, Star, ShieldCheck, FolderOpen,
+  ShieldAlert, Copy, MessageSquare, Send, Star, ShieldCheck, FolderOpen, Square,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSessionData } from '@/components/providers/use-session-data';
@@ -26,6 +26,7 @@ import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions.client';
 import { formatDistanceToNow } from 'date-fns';
 import { formatBytes, truncateHash } from '@/lib/utils/format';
 import { VersionCompare } from '@/components/documents/version-compare';
+import { RedactionEditor } from '@/components/documents/redaction-editor';
 
 interface DocDetail {
   document: {
@@ -489,6 +490,9 @@ export default function DocumentDetailPage() {
         {/* Preview */}
         <TabsContent value="preview" className="space-y-4">
           <DocumentPreview docId={params.id} doc={doc} />
+          {hasPermission(perms, PERMISSIONS.DOCUMENT_REDACT) && !doc.legalHold && (
+            <RedactionEntry docId={params.id} doc={doc} />
+          )}
         </TabsContent>
 
         {/* Comments */}
@@ -1249,5 +1253,56 @@ function MoveCopyDialog({ docId }: { docId: string }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+//  Redaction Entry (triggers RedactionEditor)
+// ---------------------------------------------------------------------------
+
+function RedactionEntry({ docId, doc }: { docId: string; doc: any }) {
+  const [editing, setEditing] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  async function startRedaction() {
+    setLoading(true);
+    try {
+      const res = await api.get<{ url: string; mimeType: string }>(`/api/documents/${docId}/preview`);
+      setPreviewUrl(res.url);
+      setEditing(true);
+    } catch (err: any) {
+      toast({ title: 'Failed to load preview', description: err?.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (editing && previewUrl) {
+    const latestVersion = doc.versions?.[0];
+    return (
+      <RedactionEditor
+        docId={docId}
+        previewUrl={previewUrl}
+        mimeType={latestVersion?.mimeType || 'application/octet-stream'}
+        onClose={() => { setEditing(false); setPreviewUrl(null); }}
+      />
+    );
+  }
+
+  return (
+    <Card className="glass-card border-0">
+      <CardContent className="p-4 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium">Redact sensitive content</p>
+          <p className="text-xs text-muted-foreground">Select regions to black out. Creates a new derivative version.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={startRedaction} disabled={loading || !doc.previewAllowed}>
+          {loading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Square className="mr-2 h-3.5 w-3.5" />}
+          Start redaction
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

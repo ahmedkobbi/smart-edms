@@ -16,6 +16,7 @@ import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { scanFile } from '@/lib/security/malware-scanner';
 import { createDocumentDek, encryptWithDek } from '@/lib/storage/envelope-encryption';
 import { indexDocumentText } from '@/lib/documents/text-extraction';
+import { validateMetadata } from '@/lib/documents/metadata-validator';
 import { z } from 'zod';
 
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024; // 100 MB
@@ -155,6 +156,14 @@ export const POST = createApiHandler(
 
     const checksumSha256 = sha256(buf);
     const checksumSha1 = sha1(buf);
+
+    // Validate required metadata against tenant schemas
+    const metadataValidation = await validateMetadata(ctx.tenantId, documentType, metadata);
+    if (!metadataValidation.ok) {
+      throw ApiError.badRequest('invalid_metadata', 'Metadata validation failed', {
+        errors: metadataValidation.errors,
+      });
+    }
 
     // Malware scan (synchronous — fast heuristic; ClamAV would be async via queue)
     const mimeType = validation.detectedMime || file.type;

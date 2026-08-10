@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search as SearchIcon, Loader2, Filter } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { SavedSearchesBar } from '@/components/documents/saved-searches-bar';
 
 interface SearchResult {
   items: any[];
@@ -96,6 +97,12 @@ export default function SearchPage() {
           </div>
         </CardContent>
       </Card>
+
+      <SavedSearchesBar onApply={(query) => {
+        const params = new URLSearchParams();
+        Object.entries(query).forEach(([k, v]) => params.set(k, String(v)));
+        window.location.search = params.toString();
+      }} />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Facets */}
