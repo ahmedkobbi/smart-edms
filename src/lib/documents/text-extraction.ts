@@ -203,7 +203,7 @@ async function runOcr(buf: Buffer, format: string): Promise<string> {
     await new Promise<void>((resolve, reject) => {
       execFile(
         'tesseract',
-        [inputFile, outputFile, '-l', 'eng'],
+        [inputFile, outputFile, '-l', 'eng+ara'], // English + Arabic OCR
         { timeout: 30_000 },
         (err) => {
           if (err) reject(err);

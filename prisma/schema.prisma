@@ -67,6 +67,7 @@ model Tenant {
   documentTextIndexes    DocumentTextIndex[]
   securityAnomalies      SecurityAnomaly[]
   userLocalePreferences  UserLocalePreference[]
+  evidencePackages       EvidencePackage[]
 }
 
 // ============================================================================
@@ -1182,4 +1183,36 @@ model UserLocalePreference {
   user   User   @relation("UserLocalePreference", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+// ============================================================================
+//  EVIDENCE PACKAGES (§9.12 — exportable audit evidence)
+// ============================================================================
+
+model EvidencePackage {
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String
+  description     String?
+  createdBy       String
+  status          String   @default("generating") // generating | ready | failed
+  locale          String   @default("en") // locale for labels in the export
+  periodStart     DateTime
+  periodEnd       DateTime
+  eventCount      Int      @default(0)
+  documentCount   Int      @default(0)
+  // JSON manifest of what's included: { auditEvents: bool, documents: bool, classifications: bool, etc. }
+  manifest        String   @default("{}")
+  // SHA-256 hash of the final package for integrity verification
+  packageHash     String?
+  // Storage key for the generated ZIP/file
+  storageKey      String?
+  fileSize        Int?
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
 }

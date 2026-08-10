@@ -6,7 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { createApiHandler, ApiError } from '@/lib/api/handler';
+import { createApiHandler } from '@/lib/api/handler';
+import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { z } from 'zod';
 
 export const GET = createApiHandler(
@@ -71,6 +72,29 @@ export const PATCH = createApiHandler(
         dateFormat: body.dateFormat || 'yyyy-MM-dd',
         numberFormat: body.numberFormat || 'en-US',
         calendar: body.calendar || 'gregory',
+      },
+    });
+
+    // Audit locale change (§9.12 — "locale changes" must be audited)
+    await recordAuditEvent({
+      tenantId: ctx.tenantId,
+      actorId: ctx.userId,
+      actorEmail: ctx.session.user.email,
+      actorIp: ctx.ip,
+      actorUserAgent: ctx.userAgent,
+      correlationId: ctx.correlationId,
+      eventType: 'me.locale.changed',
+      action: 'update',
+      resourceType: 'user',
+      resourceId: ctx.userId,
+      resourceName: ctx.session.user.email,
+      result: 'allow',
+      metadata: {
+        changes: Object.keys(body),
+        locale: body.locale,
+        direction: direction,
+        timezone: body.timezone,
+        calendar: body.calendar,
       },
     });
 

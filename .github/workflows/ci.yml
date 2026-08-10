@@ -44,6 +44,9 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
+      - name: Check translation completeness
+        run: npm run check:translations
+
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
