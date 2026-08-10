@@ -43,10 +43,18 @@ export function buildStorageKey(tenantId: string, documentId: string, versionId:
 
 export function sanitizeFileName(name: string): string {
   const base = path.basename(name)
+    // SECURITY FIX (M-DOC-10): Strip control chars (C0 + C1) and path traversal
     .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
     .replace(/\0/g, '')
     .replace(/\.\./g, '_')
-    .replace(/^\.+/, '');
+    .replace(/^\.+/, '')
+    // SECURITY FIX (M-DOC-10): Strip Unicode bidi-override and invisible
+    // characters that flip the apparent extension in the UI (RTLO injection).
+    //   - U+202A–U+202E: LRE/RLE/PDF/LRO/RLO (bidi overrides)
+    //   - U+200E, U+200F: LRM, RLM
+    //   - U+2066–U+2069: LRI, RLI, FSI, PDI (isolate overrides)
+    //   - U+200B–U+200D, U+FEFF: zero-width spaces / BOM
+    .replace(/[\u202A-\u202E\u200E\u200F\u2066-\u2069\u200B-\u200D\uFEFF]/g, '');
   const truncated = [...base].slice(0, 255).join('');
   return truncated || 'file';
 }
@@ -273,7 +281,20 @@ class S3FileStorage implements FileStorage {
   }
 
   async getSignedDownloadUrl(key: string, expiresInSeconds = 60, filename?: string): Promise<string> {
-    const cmd = new GetObjectCommand({ Bucket: this.bucket, Key: key, ResponseContentDisposition: filename ? `attachment; filename="${filename.replace(/["\\]/g, '')}"` : undefined });
+    // SECURITY FIX (M-DOC-8): Always set Content-Disposition: attachment on
+    // the presigned URL — even when no filename is supplied. Previously the
+    // S3 backend served objects inline when `filename` was undefined, which
+    // meant an HTML/SVG/XML upload would render in the browser as the EDMS
+    // origin → stored XSS. Default to a generic filename derived from the
+    // storage key when none is provided.
+    const safeName = filename
+      ? filename.replace(/["\\;\r\n]/g, '').slice(0, 255)
+      : (key.split('/').pop() || 'document');
+    const cmd = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ResponseContentDisposition: `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(safeName)}`,
+    });
     return getSignedUrl(this.client, cmd, { expiresIn: expiresInSeconds });
   }
 

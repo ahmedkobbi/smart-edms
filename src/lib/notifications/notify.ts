@@ -22,6 +22,7 @@
 
 import { db } from '@/lib/db';
 import { sha256 } from '@/lib/auth/crypto';
+import crypto from 'crypto';
 import { logger } from '@/lib/config/logger';
 import { getTranslator, getUserLocale, type Locale } from '@/i18n/server-translator';
 
@@ -32,13 +33,41 @@ import { getTranslator, getUserLocale, type Locale } from '@/i18n/server-transla
 /**
  * Push an event to the WebSocket notifications service (best-effort).
  * The WS service runs on port 3003 and relays to connected clients.
+ *
+ * SECURITY FIX (M-ADM-21): The internal /notify endpoint must be
+ * authenticated so that any process reaching `WS_SERVICE_URL` cannot spoof
+ * arbitrary real-time notifications to any user (audit:alert,
+ * notification:new, workflow:update) with attacker-controlled titles/bodies.
+ * The shared secret is `WS_INTERNAL_SECRET` (also read by the WS service).
+ * We also validate that WS_SERVICE_URL is loopback or HTTPS to prevent the
+ * secret from leaking over plaintext HTTP to an attacker-controlled host.
  */
 async function pushWebSocket(userId: string, event: string, data: unknown): Promise<void> {
   const wsUrl = process.env.WS_SERVICE_URL || 'http://localhost:3003';
+  // Refuse to call non-HTTPS / non-loopback URLs in production.
+  if (process.env.NODE_ENV === 'production') {
+    let url: URL;
+    try { url = new URL(wsUrl); } catch { return; }
+    const isLoopback = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '::1';
+    if (url.protocol !== 'https:' && !isLoopback) {
+      logger.warn('notify.ws_skipped_non_https', { host: url.hostname });
+      return;
+    }
+  }
+  const secret = process.env.WS_INTERNAL_SECRET;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (secret && secret.length >= 32) {
+    headers['Authorization'] = `Bearer ${secret}`;
+  } else if (process.env.NODE_ENV === 'production') {
+    // Refuse to send unauthenticated in production — the WS service should
+    // be configured to require the shared secret.
+    logger.warn('notify.ws_skipped_no_secret', {});
+    return;
+  }
   try {
     await fetch(`${wsUrl}/notify`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ userId, event, data }),
       signal: AbortSignal.timeout(3000),
     });
@@ -328,8 +357,13 @@ export async function fireWebhook(
 
   await Promise.all(
     matching.map(async (w) => {
+      // SECURITY FIX (M-ADM-3): Use HMAC-SHA256 instead of SHA256(body+secret).
+      // Plain SHA-256 concatenation is vulnerable to length-extension attacks:
+      // an attacker who captures a valid (body, signature) pair can compute a
+      // valid signature for `body || padding || extension` without knowing the
+      // secret. HMAC's two-pass construction defeats this.
       const signature = w.secretHash
-        ? sha256(body + w.secretHash)
+        ? crypto.createHmac('sha256', w.secretHash).update(body).digest('hex')
         : '';
 
       // Retry with exponential backoff: 1s, 2s, 4s, 8s (max 4 attempts)
@@ -339,9 +373,23 @@ export async function fireWebhook(
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-          // SSRF check before every attempt (in case DNS changed)
-          const { isAllowedOutboundUrl } = await import('@/lib/security/ssrf-guard');
-          const ssrfCheck = isAllowedOutboundUrl(w.url);
+          // SECURITY FIX (M-ADM-5 + M-ADM-6): Enforce HTTPS in production and
+          // use the async SSRF guard (with DNS resolution) to defeat DNS
+          // rebinding. The previous `isAllowedOutboundUrl()` only inspected
+          // the hostname string — an attacker could register a domain that
+          // resolved to a public IP (passing the check) then re-bind it to
+          // 127.0.0.1 before the fetch ran. The async `isSafeOutboundUrl()`
+          // resolves DNS and the dispatcher pinning below keeps the fetch on
+          // the resolved IP.
+          if (process.env.NODE_ENV === 'production' && !w.url.startsWith('https://')) {
+            await db.webhook.update({
+              where: { id: w.id },
+              data: { lastStatus: 'blocked_http', lastSentAt: new Date() },
+            });
+            return;
+          }
+          const { isSafeOutboundUrl } = await import('@/lib/security/ssrf-guard');
+          const ssrfCheck = await isSafeOutboundUrl(w.url);
           if (!ssrfCheck.allowed) {
             await db.webhook.update({
               where: { id: w.id },

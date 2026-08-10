@@ -53,7 +53,12 @@ export async function GET() {
   const response = {
     status: overallOk ? 'healthy' : 'degraded',
     timestamp: new Date().toISOString(),
-    version: process.env.npm_package_version || '1.0.0',
+    // SECURITY FIX (M-ADM-16): Drop `version` from the unauthenticated
+    // response. The exact version publicly exposed lets an attacker
+    // fingerprint the deployment against known CVEs in dependencies. The
+    // version is now only available via the admin-only /api/admin/system-info
+    // endpoint (to be added). `uptime` is safe to expose — it doesn't
+    // fingerprint and is useful for monitoring.
     uptime: process.uptime ? Math.round(process.uptime()) : undefined,
     checks,
   };

@@ -15,16 +15,43 @@
  *   - smart_edms_uptime_seconds
  *   - smart_edms_process_memory_bytes
  *
- * Security: This endpoint requires no auth but only exposes aggregate metrics
- * (no tenant_id labels). In production, restrict to internal network via firewall.
+ * SECURITY FIX (M-ADM-17): The endpoint now requires a bearer token
+ * (METRICS_TOKEN env var) OR a loopback source IP. The previous "no auth,
+ * rely on firewall" comment was a soft policy that operators could forget to
+ * enforce — and `active_legal_holds` is commercially sensitive (a spike
+ * indicates litigation / investigation). The token check is constant-time.
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { timingSafeEqualStr } from '@/lib/auth/crypto';
 
 const startTime = Date.now();
 
-export async function GET() {
+function isLoopback(req: NextRequest): boolean {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || req.headers.get('x-real-ip')
+    || '';
+  return ip === '127.0.0.1' || ip === '::1' || ip === 'localhost';
+}
+
+function isAuthorized(req: NextRequest): boolean {
+  // Loopback requests (Prometheus scraper on the same host) are always allowed.
+  if (isLoopback(req)) return true;
+  // Bearer-token path: requires METRICS_TOKEN env var (≥32 chars).
+  const expected = process.env.METRICS_TOKEN;
+  if (!expected || expected.length < 32) return false;
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+  return timingSafeEqualStr(authHeader.slice(7), expected);
+}
+
+export async function GET(req: NextRequest) {
+  // SECURITY FIX (M-ADM-17): Require auth on /metrics.
+  if (!isAuthorized(req)) {
+    return new NextResponse('Unauthorized', { status: 401, headers: { 'WWW-Authenticate': 'Bearer' } });
+  }
+
   const metrics: string[] = [];
 
   metrics.push('# HELP smart_edms_uptime_seconds Process uptime in seconds');

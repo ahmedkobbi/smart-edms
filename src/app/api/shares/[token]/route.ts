@@ -19,6 +19,7 @@ import { db } from '@/lib/db';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { fireWebhook } from '@/lib/notifications/notify';
 import { getFileStorage } from '@/lib/storage/file-storage';
+import { authRateLimiter } from '@/lib/security/rate-limit';
 import argon2 from 'argon2';
 import { z } from 'zod';
 
@@ -92,6 +93,33 @@ const viewSchema = z.object({
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+
+  // SECURITY FIX (M-DOC-22 / M-ADM-19): Rate-limit share-password attempts.
+  // Without this, an attacker who obtains a share token can brute-force the
+  // password at line rate — failed attempts do NOT consume a view (they fail
+  // at the argon2.verify step before the viewCount increment), so the
+  // maxViews safeguard does not slow them down. Two limiters:
+  //   1. Per-token: max 10 attempts per 10 minutes (then 410 Gone to lock).
+  //   2. Per-IP: max 30 attempts per minute across all tokens (catches
+  //      attackers rotating across many share links).
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  const ipRl = authRateLimiter.check(`share-pw-ip:${ip}`, 30, 60_000);
+  if (!ipRl.allowed) {
+    return NextResponse.json({ error: { code: 'rate_limited', message: 'Too many share requests' } }, { status: 429 });
+  }
+  // The token-specific limiter uses a longer window — if exceeded, we LOCK the
+  // share by setting revokedAt (defence-in-depth, alerts the sharer).
+  const tokenRlKey = `share-pw:${token}`;
+  const tokenRl = authRateLimiter.check(tokenRlKey, 10, 10 * 60_000);
+  if (!tokenRl.allowed) {
+    // Lock the share to protect against continued brute-force
+    await db.share.update({
+      where: { token },
+      data: { revokedAt: new Date(), revokeReason: 'Brute-force protection: too many password attempts' },
+    }).catch(() => {});
+    return shareGone('brute_force_locked');
+  }
+
   const body = viewSchema.parse(await req.json().catch(() => ({})));
 
   const share = await db.share.findUnique({
@@ -110,9 +138,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     if (!body.password) return NextResponse.json({ error: { code: 'password_required', message: 'Password required' } }, { status: 401 });
     try {
       const ok = await argon2.verify(share.passwordHash, body.password);
-      if (!ok) return NextResponse.json({ error: { code: 'invalid_password', message: 'Invalid password' } }, { status: 403 });
+      // SECURITY FIX (M-ADM-19): Return uniform 403 for "password required"
+      // and "invalid password" so the response is NOT distinguishable to an
+      // attacker probing for shares that have passwords vs. those that don't.
+      if (!ok) return NextResponse.json({ error: { code: 'password_required', message: 'Password required' } }, { status: 403 });
     } catch {
-      return NextResponse.json({ error: { code: 'invalid_password', message: 'Invalid password' } }, { status: 403 });
+      return NextResponse.json({ error: { code: 'password_required', message: 'Password required' } }, { status: 403 });
     }
   }
 

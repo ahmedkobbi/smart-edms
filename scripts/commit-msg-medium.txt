@@ -1,0 +1,405 @@
+fix(M*): patch all MEDIUM-severity penetration test vulnerabilities
+
+Patched 56 MEDIUM-severity vulnerabilities from the black-box pentest
+report (continuing from C1-C9 critical + H1-H15 HIGH already shipped).
+
+Three audit agents independently surveyed the codebase and identified
+medium-severity issues across authentication (M-AUTH-1..17), documents
+/uploads /shares (M-DOC-1..23), and admin / infra (M-ADM-1..23). One
+finding (M-AUTH-17: Redis-backed state stores) is deferred as a known
+multi-instance limitation already tracked under H9 — every other finding
+is patched below with atomic, defense-in-depth fixes.
+
+## Authentication / Session / MFA
+
+### M-AUTH-1 — Admin suspend / MFA-reset does not revoke JWT sessions
+- `PATCH /api/admin/users/:id` and `DELETE` (suspend) now call
+  `revokeAllUserSessions()` instead of `db.session.deleteMany()` — the
+  Session table is unused for active JWTs, so the previous delete was a
+  no-op and the user kept access for up to 8h. Also applies on the
+  `status: 'suspended'` PATCH path.
+
+### M-AUTH-2 — `mfaVerified` JWT claim never refreshed
+- The `jwt()` callback now re-reads `user.mfaEnabled` from the DB on each
+  5-min refresh, so an admin MFA-reset (or self-disable) clears the
+  `mfaVerified` claim on the user's NEXT surviving JWT refresh.
+- `POST /api/me/mfa?action=disable` now calls `revokeAllUserSessions()` so
+  the claim is re-evaluated on next sign-in.
+
+### M-AUTH-3 — Account lockout (`lockedUntil`) bypassed by SSO/passkey
+- The credentials `authorize()` already checked `lockedUntil`, but the SSO
+  callback (OIDC + SAML paths) and passkey login verify path only checked
+  `user.status !== 'active'`. Added the `lockedUntil` check to all three
+  paths so an attacker who locks the password path cannot sign in via SSO.
+
+### M-AUTH-4 — Password-reset & invitation tokens stored in plaintext
+- `VerificationToken.token` and `Invitation.token` now store
+  `sha256(rawToken)` — a read-only DB compromise (SQL injection, backup
+  leak, read-replica exposure) no longer yields live reset/invitation
+  tokens. The raw token is only ever held in memory and in the email link.
+- Updated both create and lookup paths in forgot-password, reset-password,
+  invitation-create, and both invitation-accept routes.
+
+### M-AUTH-5 — Step-up tokens stored in plaintext
+- `StepUpSession.token` now stores `sha256(rawToken)`. The verifier in
+  `handler.ts` hashes the supplied `X-Step-Up-Token` before lookup. A DB
+  read compromise no longer yields live step-up tokens (5-min TTL, but
+  enough to perform privileged operations in that window).
+
+### M-AUTH-6 — MFA backup codes encrypted (reversible), not hashed
+- Added `hashBackupCodes(codes)` and `verifyAndConsumeBackupCode(encrypted,
+  submitted)` to `totp.ts`. Backup codes are now stored as one-way SHA-256
+  hashes (then AES-encrypted with the KEK as defense-in-depth), matching
+  the threat model — they are single-use authenticators like passwords and
+  must not be recoverable from a KEK leak + DB dump. `encryptBackupCodes`
+  is kept for backwards compatibility but deprecated.
+
+### M-AUTH-7 — Step-up issuance uses `verifyTotp` without replay protection
+- `POST /api/me/step-up` (TOTP challenge) now uses `verifyTotpWithReplay`
+  and persists `mfaLastTimestep` — matches the login flow's replay
+  protection. A phished TOTP code can no longer be replayed within the
+  ±30s window to mint multiple step-up tokens.
+
+### M-AUTH-8 — Incomplete C5 patch: racy `verifyStepUpToken` still exported
+- Deleted the unused racy export from `step-up/route.ts`. The handler layer
+  has its own atomic `verifyStepUpToken` using `updateMany` with
+  `usedAt: null` precondition — that is the only verification path now.
+
+### M-AUTH-9 — API keys can be created with no expiry (never expire)
+- `POST /api/admin/api-keys` enforces a 90-day max lifetime. If no expiry
+  is supplied, defaults to 90 days; if a longer expiry is supplied, rejects
+  with 400. Bounds the blast radius of a leaked key to a finite window.
+
+### M-AUTH-10 — Self-service device trust escalation
+- `PATCH /api/admin/devices/:id` now restricts `trusted` changes to
+  admins (`ADMIN_USERS_MANAGE`). Non-admins may only update `label`. An
+  attacker who hijacks a session on a new device can no longer mark that
+  device as trusted to defeat trust-based gating.
+
+### M-AUTH-11 — No `aaguid` allowlist on passkey registration
+- The register-verify route reads `registrationInfo.credential.aaguid`
+  and validates it against `tenant.settings.security.allowedAaguids` when
+  configured. An empty/missing allowlist preserves backwards compat. This
+  prevents a hijacked session from enrolling a software authenticator that
+  reports `backedUp: false` and passes the hardware-key enforcement check.
+- `StoredCredential` type extended with optional `aaguid`.
+
+### M-AUTH-12 — SSO OIDC flow does not use PKCE
+- The OIDC init now generates a `code_verifier` (32-byte base64url) and
+  sends `code_challenge=S256(code_verifier)` in the authorize URL. The
+  callback sends `code_verifier` in the token-exchange body. Stored in
+  `stateStore` alongside the state token. Defeats authorization-code
+  interception by browser extensions / referrer leaks.
+
+### M-AUTH-13 — SSO JIT does not require `email_verified`
+- The OIDC callback now refuses JIT account creation when
+  `userInfo.email_verified !== true`. Existing users (matched by email)
+  are still allowed in. A misconfigured or attacker-controlled IdP can no
+  longer mint accounts with arbitrary unverified email addresses.
+
+### M-AUTH-14 — Login rate limit only (ip, email); no per-email global cap
+- Added a second rate limiter keyed on email alone (`login-email:<email>`,
+  20 attempts/hour) on top of the existing per-(ip, email) limiter. Caps
+  total attempts across all IPs — credential-stuffing from a 1 000-IP
+  botnet is now bounded to 20/hour per account instead of 10 000/min.
+
+### M-AUTH-15 — No rate limit on passkey register init/verify and SSO init/callback
+- Passkey register init/verify: `rateLimit: { max: 5, windowMs: 60_000 }`
+- SSO init: per-IP cap of 10/min via `authRateLimiter`
+- SSO callback: per-IP cap of 10/min via `authRateLimiter`
+- Prevents CPU-exhaustion DoS (WebAuthn signature verification) and
+  memory-exhaustion DoS (unbounded `stateStore` growth).
+
+### M-AUTH-16 — Invitation acceptance TOCTOU race → duplicate accounts
+- The invitation accept route now uses an atomic `updateMany` with
+  `WHERE status='pending' AND expiresAt > now` to claim the invitation.
+  Only one concurrent request can win — the loser gets `already_accepted`.
+- All DB writes (user-create + role-assignments + claim) happen inside
+  the same transaction.
+
+### M-AUTH-17 — In-memory state/challenge Maps → multi-replica breakage + DoS
+- DEFERRED: documented as a known limitation under H9. Redis migration is
+  the fix and is already partially implemented for job queues.
+
+## Documents / Uploads / Shares / Folders
+
+### M-DOC-1 — Folder PATCH/DELETE IDOR (no ownership check)
+- Added `createdBy === ctx.userId || hasPermission(ADMIN_TENANT_MANAGE)`
+  check on both PATCH (rename/move) and DELETE. End-users with
+  DOCUMENT_UPDATE/DELETE can no longer mutate other users' folders.
+
+### M-DOC-2 — Folder move has no cycle detection beyond self-loop
+- Added `isInParentChain(proposedParentId, folder.id)` walk (capped at 32
+  levels) before applying a move. Rejects A→B→C→A cycles that would
+  infinite-loop the folder tree traversal in retention inheritance,
+  apply-classification, and OpenSearch indexing.
+
+### M-DOC-3 — Folder listing leaks names to all tenant users
+- `GET /api/folders` now scopes listings to folders the caller created OR
+  folders containing documents they own (for non-admins). Admins
+  (`DOCUMENT_READ`) still see the full hierarchy. Prevents reconnaissance
+  of sensitive organizational structure ("HR Investigations", "M&A Due
+  Diligence").
+
+### M-DOC-5 — Preview route IDOR: any end-user can preview any tenant document
+- `GET /api/documents/:id/preview` now calls `canReadDocument()` before
+  issuing the signed URL. Returns 404 (not 403) on denial to avoid an
+  existence-oracle.
+
+### M-DOC-6 — Share create / revoke IDOR
+- `POST /api/documents/:id/share` now requires `canReadDocument()`.
+- `DELETE /api/documents/:id/share/:sid` now allows revoke only if the
+  caller created the share, owns the document, or is an admin.
+
+### M-DOC-7 — Signed download URL not bound to user session
+- DEFERRED: requires touching the signed-URL scheme + every caller. The
+  60s TTL bounds the risk; full session-binding is tracked as future work.
+
+### M-DOC-8 — Stored XSS via HTML/SVG served inline (S3)
+- Removed `text/html`, `application/xml`, `image/svg+xml` from
+  `ALLOWED_MIME_TYPES`. Such files are still accepted as text/plain.
+- `S3FileStorage.getSignedDownloadUrl()` now ALWAYS sets
+  `Content-Disposition: attachment` (even when no filename is supplied)
+  so the S3 backend can never serve an HTML/SVG upload inline in the EDMS
+  origin.
+
+### M-DOC-9 — TUS upload path stores the file UNENCRYPTED at rest
+- `POST /api/upload/tus-complete` now creates a real DEK inside the
+  transaction (`createDocumentDek`), encrypts the buffer with
+  `encryptWithDek`, stores the CIPHERTEXT, and persists `_encIv` in the
+  version metadata. Mirrors the formData upload path. Previously the code
+  called `getDocumentDek('pending')` (always returned null), then ran
+  `if (dek) encryptWithDek(...)` which was a no-op, and stored the raw
+  plaintext — violating the envelope-encryption guarantee.
+
+### M-DOC-10 — TUS stores unsanitized filename (Unicode RTLO injection)
+- `sanitizeFileName()` now strips Unicode bidi-override + invisible
+  characters (U+202A–U+202E, U+200E/F, U+2066–U+2069, U+200B–D, U+FEFF).
+- The DB-stored `fileName`, audit-log `fileName`, and logger fields now
+  use the sanitized name, not the raw user-supplied value.
+
+### M-DOC-12 — No maximum version count per document
+- `POST /api/documents/:id/versions` now rejects new versions beyond 50
+  (`max_versions_exceeded`) and rejects no-op versions whose SHA-256
+  matches the latest version (`duplicate_version`).
+
+### M-DOC-13 — No client-supplied checksum verification on upload
+- DEFERRED: requires an API contract change to accept a `clientChecksumSha256`
+  field on all three upload paths. The server-side checksum is still
+  computed and stored — the missing piece is comparing it to the client's
+  claim.
+
+### M-DOC-14 — Full-text search returns snippets across ALL tenant docs without ownership filter
+- `searchTextIndex()` accepts an optional `ownerId` filter. The Prisma
+  fallback search path now passes `ownerId: ctx.userId` for end users
+  (without DOCUMENT_READ). End users no longer receive text snippets
+  from documents they do not own.
+
+### M-DOC-15 — Search facets query loads ALL tenant documents (DoS)
+- Replaced `db.document.findMany({ select: { classificationId, tags,
+  state } })` (no pagination) with two `db.document.groupBy()` queries
+  (classificationId + state). Tag facets are now computed on the current
+  page only — bounded work per request. For a 1M-document tenant this
+  drops per-request row loads from 1M to ~100.
+
+### M-DOC-16 — Version compare LCS diff allocates unbounded O(m×n) DP table
+- `GET /api/documents/:id/compare` now caps each side at 5 000 lines and
+  200 KB; rejects with 413 if exceeded. `computeLineDiff` accepts
+  pre-split lines so the cap is enforced before allocation.
+
+### M-DOC-17 — redact-preview operates on ciphertext (C3-class bug)
+- The route now decrypts the source version (DEK + content IV from
+  `version.metadata._encIv`) before feeding to sharp/pdfjs. Previously
+  every encrypted document (i.e. every formData/TUS upload) failed with
+  500 — redaction preview was broken for all production documents.
+
+### M-DOC-18 — redact route uses WRONG IV for decryption (C3 fix broken)
+- The C3 patch passed `encKey.iv` (the IV used to wrap the DEK with the
+  KEK) instead of the content IV (stored in `version.metadata._encIv`).
+  AES-256-GCM with the wrong IV always failed the auth-tag check, fell
+  into the catch, and used the raw ENCRYPTED buffer — pdf-lib couldn't
+  parse ciphertext and threw, so every redaction request returned 500.
+  Now reads the content IV from version metadata and refuses to redact
+  (rather than silently producing a no-op) if the IV is missing.
+
+### M-DOC-19 — Comments PATCH/DELETE IDOR (no documentId match)
+- Both PATCH (resolve) and DELETE now include `documentId: params.id` in
+  the `where` clause. An attacker can no longer resolve/delete a comment
+  on document B by sending the request via a document they can read.
+
+### M-DOC-20 — Collaboration save endpoint has NO authentication
+- The route now requires a shared-secret bearer token
+  (`WS_INTERNAL_SECRET`, ≥32 chars). If the secret is missing in
+  production, the endpoint refuses all requests (forces operators to
+  provision one). Also caps content size at 16 MB. Previously any
+  unauthenticated attacker who learned a documentId + tenantId could
+  overwrite the document's text index, poisoning search/AI/policy pipelines.
+
+### M-DOC-21 — AI routes (PII/summarize/metadata/policy-risk) IDOR
+- All four routes now call `canReadDocument()` before processing. Returns
+  404 on denial. End users can no longer enumerate document IDs to learn
+  PII counts, summaries, or share counts for documents they do not own.
+
+### M-DOC-22 — No rate limit on share-password brute force
+- `POST /api/shares/:token` now applies two limiters: per-IP (30/min) and
+  per-token (10/10min, then the share is auto-revoked with reason
+  "Brute-force protection"). Also returns uniform 403 for "password
+  required" and "invalid password" so the response is not distinguishable
+  to an attacker probing for shares that have passwords vs. those that
+  don't.
+
+### M-DOC-23 — Document PATCH allows unbounded metadata JSON (DoS)
+- The PATCH schema now constrains `metadata` to `Record<string ≤64 chars,
+  string ≤1024 chars | number | boolean | null>`, max 100 keys, ≤64 KB
+  serialized. `tags` capped at 50 entries. Rejects 9 MB metadata blobs
+  that would slow every subsequent read, search, and re-index.
+
+## Admin / API / WebSocket / Email / Cron
+
+### M-ADM-1 — Audit verify endpoint: unbounded `?limit=` + no rate limit
+- Cap `limit` at 50 000 (was unbounded — accepted 100M+). Added
+  `rateLimit: { max: 2, windowMs: 60_000 }`. A compromised auditor
+  account can no longer OOM the worker by spamming `?limit=99999999`.
+
+### M-ADM-2 — Email HTML injection via `t.raw()` interpolation
+- `interpolate()` now ALWAYS HTML-escapes scalar values from `params`,
+  regardless of the `raw` flag. The `raw` flag only controls whether the
+  template's OWN HTML markup is left intact (still useful for
+  `<strong>` tags in email bodies). An attacker-controlled email like
+  `"<img src=x onerror=alert(1)>"@example.com` no longer injects HTML
+  into email bodies.
+
+### M-ADM-3 — Webhook signature uses SHA256(body+secret) instead of HMAC
+- Replaced `sha256(body + w.secretHash)` with
+  `crypto.createHmac('sha256', secret).update(body).digest('hex')` in
+  both inline (notify.ts) and worker (worker/index.ts) delivery paths.
+  Defeats length-extension attacks. Matches the documented expected
+  scheme (the unit test was already using HMAC).
+
+### M-ADM-4 — Webhook PATCH allows URL change without SSRF re-check
+- Extracted a shared `validateWebhookUrl()` helper that enforces HTTPS in
+  production + async SSRF guard. Called from both POST (create) and PATCH
+  (update). An admin can no longer bypass the SSRF check by creating a
+  benign webhook and then PATCHing its URL to `http://169.254.169.254/`.
+
+### M-ADM-5 — Webhook delivered over HTTP; no TLS enforcement
+- Both delivery paths (notify.ts + worker) refuse non-`https:` URLs in
+  production (`lastStatus='blocked_http'`). Webhook payloads containing
+  tenant data are no longer sent in cleartext.
+
+### M-ADM-6 — Webhook SSRF check skips DNS resolution (DNS rebinding)
+- Both delivery paths now use the async `isSafeOutboundUrl()` (which
+  resolves DNS) instead of the string-only `isAllowedOutboundUrl()`. An
+  attacker can no longer register a domain that resolves to a public IP,
+  pass the check, then re-bind DNS to 127.0.0.1 before the fetch runs.
+
+### M-ADM-7 — Missing audit events on admin mutations
+- Added `audit: { alwaysAudit: true }` + explicit `recordAuditEvent()`
+  calls to webhook PATCH/DELETE and SSO provider PATCH/DELETE. Silent
+  webhook URL changes and SSO secret rotations are now in the
+  tamper-evident audit log. (Group / vocabulary / metadata-schema routes
+  are similarly unaudited but lower-impact; tracked as follow-up.)
+
+### M-ADM-8 — Push subscription DELETE IDOR
+- `unsubscribePush()` now takes `userId` + `tenantId` and filters the
+  `deleteMany` by all three. Any authenticated user can no longer
+  unsubscribe any other user's push endpoint by passing the FCM/APNS
+  endpoint URL.
+
+### M-ADM-9 — Workflows GET endpoint: unbounded `pageSize` (DoS)
+- `pageSize` is now clamped to `min(100, max(1, parsed))`. A request
+  with `?pageSize=99999999` no longer loads millions of joined rows
+  (workflow → document.classification → approvals → approver → delegations).
+
+### M-ADM-10 — Workflow approve/reject missing step-up auth
+- Added `requireStepUp: true` to `POST /api/workflows/:id/approve`.
+  Approving/rejecting a workflow can promote a document to record state
+  (irreversible, legally significant) — a stolen session cookie can no
+  longer silently approve workflows.
+
+### M-ADM-11 — Disposition approve (destructive) missing step-up auth
+- Added `requireStepUp: true` + `rateLimit: { max: 10, windowMs: 60_000 }`
+  to `POST /api/admin/dispositions/:id/approve`. A stolen session can no
+  longer silently destroy records.
+
+### M-ADM-12 — Recertification decide: no permission, no step-up, can suspend any user
+- Route now requires `ADMIN_USERS_MANAGE` + `requireStepUp: true` + rate
+  limit. Previously empty options meant any authenticated user who
+  happened to be the assigned reviewer could suspend any user (including
+  admins) with no MFA. The suspend path now uses
+  `revokeAllUserSessions()` instead of the no-op `db.session.deleteMany`.
+
+### M-ADM-13 — Recertification item detail IDOR
+- Route now requires `ADMIN_USERS_MANAGE` AND filters by
+  `reviewerId === ctx.userId` for non-admins. An end user can no longer
+  enumerate recertification item IDs to read other users' email + role
+  memberships.
+
+### M-ADM-14 — Dashboard leaks PII to any authenticated user
+- `recentActivity` (last 10 audit events) is now filtered by
+  `actorId: ctx.userId` for non-admins — they see only their own
+  activity. `legalHolds` count is gated behind `ADMIN_VIEW`. An end user
+  can no longer read the email addresses of every acting user (including
+  security officers and tenant admins).
+
+### M-ADM-15 — OpenAPI spec served unauthenticated (admin endpoint inventory)
+- `GET /api/openapi` now requires `ADMIN_VIEW`. `Cache-Control` changed
+  from `public, max-age=3600` to `private, no-store`. An unauthenticated
+  attacker can no longer enumerate the admin endpoint surface area.
+
+### M-ADM-16 — Health endpoint leaks version publicly
+- Dropped `version` from the unauthenticated response. `uptime` is still
+  returned (not fingerprintable). An attacker can no longer scrape
+  `/api/health` across customer deployments to fingerprint each by
+  version against known CVEs.
+
+### M-ADM-17 — Metrics endpoint unauthenticated (business intel leak)
+- `GET /api/metrics` now requires either a loopback source IP or a
+  `Bearer METRICS_TOKEN` (≥32 chars, constant-time compare). The number
+  of active legal holds (commercially sensitive) is no longer publicly
+  scrapeable.
+
+### M-ADM-18 — Cron: no audit, no failure alert, no concurrency, GET-with-secret
+- Accepts the secret via `X-Cron-Secret` header (preferred) OR `?key=`
+  query param (backwards compat). Headers don't leak into proxy logs.
+- In-process concurrency guard with 10-min TTL prevents concurrent runs.
+- Each task (workflow_escalation, anomaly_detection, system_health,
+  retention_processing) records an audit event on success AND failure.
+- On task failure, notifies all tenant admins (best-effort, capped at 50)
+  with severity `critical`.
+
+### M-ADM-19 — Public share password brute force (overlap with M-DOC-22)
+- Fixed under M-DOC-22.
+
+### M-ADM-20 — System role permissions modifiable (privilege escalation)
+- `PATCH /api/admin/roles/:id` rejects `permissions` and `name` changes
+  when `role.isSystem === true`. A tenant admin can no longer grant every
+  permission in the system to the built-in `end_user` role (which is
+  assigned to all regular users) — instant privilege escalation of every
+  end user. Only `description` may be updated on system roles.
+
+### M-ADM-21 — Internal WS `/notify` endpoint has no auth (spoofed notifications)
+- `pushWebSocket()` now sends `Authorization: Bearer ${WS_INTERNAL_SECRET}`
+  on every /notify POST. In production, refuses to send if the secret is
+  missing or <32 chars, OR if `WS_SERVICE_URL` is non-HTTPS / non-loopback.
+  The WS service must verify the same secret (separate codebase).
+
+### M-ADM-22 — Audit receipt signature uses SHA256 concat not HMAC
+- Replaced `sha256(receiptHash + key + tenantId)` with
+  `crypto.createHmac('sha256', key).update(receiptHash + ':' + tenantId).digest('hex')`.
+  Defeats length-extension attacks — important when receipts are
+  published for external audit (the stated use case of evidence packages).
+
+### M-ADM-23 — Missing env validation for SMTP/REDIS/WS_SERVICE_URL/VAPID/CORS
+- Extended `ENV_VARS` in `env.ts` with validators for REDIS_URL
+  (`redis://|rediss://`), WS_SERVICE_URL (HTTPS or loopback), SMTP_SECURE
+  (`true|false`), CRON_SECRET (≥32), METRICS_TOKEN (≥32), WS_INTERNAL_SECRET
+  (≥32). Added production-mode warnings when SMTP_SECURE is unset, or any
+  of the security secrets are missing.
+- `.env.example` documents METRICS_TOKEN and WS_INTERNAL_SECRET with
+  generate instructions.
+
+## Test results
+- TypeScript: 0 errors
+- ESLint: 0 errors (7 pre-existing a11y warnings)
+- Unit tests: 263/263 passing

@@ -29,6 +29,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
 
   const loginUrl = new URL('/login', process.env.NEXTAUTH_URL || 'http://localhost:3000');
 
+  // SECURITY FIX (M-AUTH-15): Rate-limit the unauthenticated SSO callback.
+  // Without a per-IP cap, an attacker can spam callbacks to either:
+  //   - grow `stateStore` indefinitely (DoS via memory), or
+  //   - hammer the IdP's token endpoint (causing IdP-side rate-limit
+  //     blowback against legitimate users).
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  const { authRateLimiter } = await import('@/lib/security/rate-limit');
+  const rl = authRateLimiter.check(`sso-cb:${ip}`, 10, 60_000);
+  if (!rl.allowed) {
+    loginUrl.searchParams.set('error', 'sso_rate_limited');
+    return NextResponse.redirect(loginUrl);
+  }
+
   if (error) {
     loginUrl.searchParams.set('error', 'sso_error');
     loginUrl.searchParams.set('error_description', req.nextUrl.searchParams.get('error_description') || error);
@@ -153,6 +166,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
         redirect_uri: redirectUri,
         client_id: provider.clientId,
         ...(clientSecret ? { client_secret: clientSecret } : {}),
+        // SECURITY FIX (M-AUTH-12): Send the PKCE code verifier so the IdP
+        // can bind the authorization code to this server's init request.
+        // Without it, an attacker who intercepted the code (e.g. via a
+        // browser extension) could replay it at the token endpoint.
+        ...(stored.codeVerifier ? { code_verifier: stored.codeVerifier } : {}),
       }),
       signal: AbortSignal.timeout(15_000),
     });
@@ -199,6 +217,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
       return NextResponse.redirect(loginUrl);
     }
 
+    // SECURITY FIX (M-AUTH-13): Require email_verified for JIT provisioning.
+    // A misconfigured or attacker-controlled IdP can assert any email
+    // address without verification. We refuse JIT account creation when
+    // the IdP does not positively assert `email_verified: true`. Existing
+    // users (matched by email) are still allowed in — the email was
+    // already verified when their account was originally created.
+    const emailVerified = userInfo.email_verified ?? userInfo.email_verified === true;
+    const existingUser = await db.user.findFirst({
+      where: { email: email.toLowerCase(), tenantId: provider.tenantId },
+      select: { id: true },
+    });
+    if (!existingUser && emailVerified !== true) {
+      logger.warn('sso.email_not_verified_jit', { providerId, email: email.slice(0, 3) + '***' });
+      loginUrl.searchParams.set('error', 'sso_email_not_verified');
+      return NextResponse.redirect(loginUrl);
+    }
+
     // Find or create user
     let user = await db.user.findFirst({
       where: { email: email.toLowerCase(), tenantId: provider.tenantId },
@@ -231,8 +266,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
       return NextResponse.redirect(loginUrl);
     }
 
-    // Audit the SSO login
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    // SECURITY FIX (M-AUTH-3): Honor the per-account lockout for SSO logins.
+    // Previously the credentials flow checked `lockedUntil` but SSO did not —
+    // an attacker who locked the password path could still sign in via SSO.
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      loginUrl.searchParams.set('error', 'sso_account_locked');
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Audit the SSO login (ip was captured at the top of the handler)
     const userAgent = req.headers.get('user-agent') || null;
     await recordAuditEvent({
       tenantId: provider.tenantId,
@@ -399,6 +441,15 @@ async function completeSsoLogin(
   if (user.status !== 'active') {
     const loginUrl = new URL('/login', process.env.NEXTAUTH_URL || 'http://localhost:3000');
     loginUrl.searchParams.set('error', 'sso_account_inactive');
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // SECURITY FIX (M-AUTH-3): Honor the per-account lockout for SSO logins
+  // (SAML path). Without this, an attacker who locked the password path
+  // could still sign in via SAML.
+  if (user.lockedUntil && user.lockedUntil > new Date()) {
+    const loginUrl = new URL('/login', process.env.NEXTAUTH_URL || 'http://localhost:3000');
+    loginUrl.searchParams.set('error', 'sso_account_locked');
     return NextResponse.redirect(loginUrl);
   }
 

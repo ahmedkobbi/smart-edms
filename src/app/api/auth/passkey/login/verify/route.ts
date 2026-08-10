@@ -52,12 +52,20 @@ export async function POST(req: NextRequest) {
   // Find user + credential
   const user = await db.user.findUnique({
     where: { id: stored.userId },
-    select: { id: true, email: true, name: true, tenantId: true, status: true, passkeyCredentials: true, mfaEnabled: true },
+    select: { id: true, email: true, name: true, tenantId: true, status: true, passkeyCredentials: true, mfaEnabled: true, lockedUntil: true },
   });
 
   if (!user || user.status !== 'active') {
     authChallengeStore.delete(stored.challenge);
     return NextResponse.json({ error: { code: 'invalid_user' } }, { status: 403 });
+  }
+
+  // SECURITY FIX (M-AUTH-3): Honor the per-account lockout for passkey login.
+  // The credentials flow already checks `lockedUntil` but passkey login did not —
+  // an attacker who locked the password path could still sign in via passkey.
+  if (user.lockedUntil && user.lockedUntil > new Date()) {
+    authChallengeStore.delete(stored.challenge);
+    return NextResponse.json({ error: { code: 'account_locked', message: 'Account temporarily locked' } }, { status: 403 });
   }
 
   let credentials: StoredCredential[] = [];

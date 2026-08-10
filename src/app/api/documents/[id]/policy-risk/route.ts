@@ -30,6 +30,13 @@ export const POST = createApiHandler(
     });
     if (!doc) throw ApiError.notFound('document_not_found', 'Document not found');
 
+    // SECURITY FIX (M-DOC-21): Ownership check. See analyze-pii/route.ts.
+    const { canReadDocument } = await import('@/lib/documents/access-control');
+    const canRead = await canReadDocument(ctx.userId, ctx.tenantId, doc.id, ctx.session.user.permissions);
+    if (!canRead) {
+      throw ApiError.notFound('document_not_found', 'Document not found');
+    }
+
     const [policies, piiResult] = await Promise.all([
       db.policy.findMany({ where: { tenantId: ctx.tenantId, enabled: true } }),
       detectPii(ctx.tenantId, doc.id).catch(() => ({ findings: [], totalMatches: 0, byType: {}, source: 'heuristic' })),

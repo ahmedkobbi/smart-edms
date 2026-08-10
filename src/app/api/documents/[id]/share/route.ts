@@ -68,6 +68,19 @@ export const POST = createApiHandler(
     if (!doc.shareAllowed) {
       throw ApiError.forbidden('sharing_disabled', 'Sharing is disabled for this document');
     }
+
+    // SECURITY FIX (M-DOC-6): Share-create IDOR. The route required only
+    // SHARE_CREATE (granted to END_USER) with no ownership/share check — any
+    // end user could mint an external share link on any tenant document
+    // whose `shareAllowed` flag was true, even one they did not own. Re-use
+    // the shared access-control helper to enforce ownership/share read
+    // access (you must be able to READ a document to share it).
+    const { canReadDocument } = await import('@/lib/documents/access-control');
+    const canRead = await canReadDocument(ctx.userId, ctx.tenantId, doc.id, ctx.session.user.permissions);
+    if (!canRead) {
+      throw ApiError.notFound('document_not_found', 'Document not found');
+    }
+
     // Hardcoded classification-code checks (legacy, kept for backwards compat)
     if (doc.classification?.code === 'RESTRICTED' || doc.classification?.code === 'HS') {
       throw ApiError.forbidden('sharing_blocked_by_classification', 'External sharing is blocked for this classification');

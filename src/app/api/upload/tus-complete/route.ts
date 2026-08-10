@@ -25,7 +25,7 @@ import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { getFileStorage, buildStorageKey, sanitizeFileName } from '@/lib/storage/file-storage';
 import { validateUploadedFile, MAX_FILE_SIZE, ALLOWED_MIME_TYPES } from '@/lib/storage/file-validation';
 import { sha256, sha1 } from '@/lib/auth/crypto';
-import { getDocumentDek, encryptWithDek } from '@/lib/storage/envelope-encryption';
+import { createDocumentDek, encryptWithDek } from '@/lib/storage/envelope-encryption';
 import { z } from 'zod';
 import { logger } from '@/lib/config/logger';
 import { promises as fs } from 'fs';
@@ -122,22 +122,30 @@ export const POST = createApiHandler(
     }
 
     // --- 5. Move file to permanent storage ---
+    // SECURITY FIX (M-DOC-9): The previous code stored the file UNENCRYPTED
+    // at rest. It called `getDocumentDek(tenantId, 'pending')` which always
+    // returned null (no DEK exists for 'pending'), then ran
+    // `if (dek) encryptWithDek(...)` which was a no-op — and the result was
+    // discarded anyway. The raw plaintext buffer was stored.
+    //
+    // The fix mirrors the formData upload path (`/api/documents`): create a
+    // real DEK inside the transaction, encrypt the buffer, store the
+    // CIPHERTEXT, and persist `_encIv` in the version metadata so the
+    // redact/preview/download paths can decrypt it later.
     const storage = getFileStorage();
     const safeFileName = sanitizeFileName(body.fileName);
     const versionId = `v1_${Date.now()}`;
     const storageKey = buildStorageKey(ctx.tenantId, 'pending', versionId, safeFileName);
 
-    await storage.put(storageKey, buf, body.mimeType);
-
-    // Encrypt with per-document DEK (envelope encryption)
-    const dek = await getDocumentDek(ctx.tenantId, 'pending');
-    if (dek) encryptWithDek(dek, buf as any);
-
-    // Clean up TUS temp file
+    // Clean up TUS temp file (we have the buffer in memory)
     await fs.unlink(tusFilePath).catch(() => {});
 
-    // --- 6. Create Document + DocumentVersion ---
-    const title = body.title || body.fileName;
+    // --- 6. Create Document + DocumentVersion + DEK + ciphertext ---
+    // SECURITY FIX (M-DOC-10): Use sanitized filename for the DB-stored
+    // `fileName` too — previously only the storage key was sanitized, while
+    // the DB stored the raw user-supplied filename including Unicode bidi
+    // overrides (U+202E RTLO) that flip the apparent extension in the UI.
+    const title = body.title || safeFileName;
 
     const result = await db.$transaction(async (tx) => {
       const doc = await tx.document.create({
@@ -166,20 +174,23 @@ export const POST = createApiHandler(
         },
       });
 
+      // Create per-document DEK (envelope encryption)
+      const { dek } = await createDocumentDek(ctx.tenantId, doc.id, tx);
+      const encrypted = encryptWithDek(dek, buf);
+
       // Fix the storageKey with the actual document ID
       const finalStorageKey = buildStorageKey(ctx.tenantId, doc.id, versionId, safeFileName);
 
-      // Move file from pending to final key
-      const pendingBuf = await storage.get(storageKey);
-      await storage.put(finalStorageKey, pendingBuf, body.mimeType);
-      await storage.delete(storageKey).catch(() => {});
+      // Store the CIPHERTEXT (not the raw buffer)
+      const ciphertextBuf = Buffer.from(encrypted.ciphertext, 'base64');
+      await storage.put(finalStorageKey, ciphertextBuf, body.mimeType);
 
       const version = await tx.documentVersion.create({
         data: {
           tenantId: ctx.tenantId,
           documentId: doc.id,
           versionNumber: 1,
-          fileName: body.fileName,
+          fileName: safeFileName, // SECURITY FIX (M-DOC-10)
           mimeType: body.mimeType,
           sizeBytes: fileSize,
           storageKey: finalStorageKey,
@@ -187,7 +198,7 @@ export const POST = createApiHandler(
           checksumSha1,
           changeReason: body.changeReason,
           uploadedById: ctx.userId,
-          metadata: JSON.stringify(body.metadata),
+          metadata: JSON.stringify({ ...body.metadata, _encIv: encrypted.iv }),
         },
       });
 
@@ -210,7 +221,7 @@ export const POST = createApiHandler(
       result: 'allow',
       metadata: {
         versionId: result.version.id,
-        fileName: body.fileName,
+        fileName: safeFileName, // SECURITY FIX (M-DOC-10): sanitized in audit log too
         sizeBytes: fileSize,
         checksumSha256,
         uploadMethod: 'tus',

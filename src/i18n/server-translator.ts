@@ -256,8 +256,15 @@ function parsePluralBranches(body: string): Record<string, string> {
  * Core interpolation: replace {name} with params[name], applying plural/number/date
  * formatting when the param includes a type specifier.
  *
- * @param raw If true, interpolation values are inserted as-is (use only for
- *            trusted HTML content). If false, values are HTML-escaped.
+ * @param raw If true, the TEMPLATE'S own HTML markup is left intact (use for
+ *            email bodies with <strong> tags). Interpolated VALUES are always
+ *            HTML-escaped regardless of `raw` — they come from user input
+ *            (emails, document titles, names) and must never be rendered raw
+ *            in HTML contexts.
+ *            SECURITY FIX (M-ADM-2): Previously `raw=true` skipped escaping
+ *            for interpolated values, allowing an attacker-controlled email
+ *            like `"<img src=x onerror=alert(1)>"@example.com` to inject
+ *            arbitrary HTML into email bodies.
  */
 function interpolate(
   template: string,
@@ -271,14 +278,16 @@ function interpolate(
   // Then: handle typed formatters {name, number} and {name, date}
   out = out.replace(/\{(\w+),\s*(number|date)\}/g, (match, name: string, type: string) => {
     const value = params[name];
-    return raw ? formatValue(value, locale, type) : escapeHtml(formatValue(value, locale, type));
+    // ALWAYS escape interpolated values — the `raw` flag only controls
+    // whether the surrounding template markup is treated as trusted HTML.
+    return escapeHtml(formatValue(value, locale, type));
   });
 
   // Finally: handle plain {name}
   out = out.replace(/\{(\w+)\}/g, (match, name: string) => {
     const value = params[name];
     const formatted = formatValue(value, locale);
-    return raw ? formatted : escapeHtml(formatted);
+    return escapeHtml(formatted);
   });
 
   return out;

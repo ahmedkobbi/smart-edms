@@ -26,6 +26,18 @@ export const GET = createApiHandler(
     });
     if (!doc) throw ApiError.notFound('document_not_found', 'Document not found');
 
+    // SECURITY FIX (M-DOC-5): Preview IDOR. The route required only
+    // DOCUMENT_PREVIEW (granted to END_USER and VIEWER) with no ownership
+    // or share check — any end user could preview any tenant document whose
+    // `previewAllowed` flag was true. Re-use the shared access-control helper
+    // to enforce ownership/share read access.
+    const { canReadDocument } = await import('@/lib/documents/access-control');
+    const canRead = await canReadDocument(ctx.userId, ctx.tenantId, doc.id, ctx.session.user.permissions);
+    if (!canRead) {
+      // Return 404 (not 403) to avoid an existence-oracle for unauthorized users.
+      throw ApiError.notFound('document_not_found', 'Document not found');
+    }
+
     if (!doc.previewAllowed) {
       throw ApiError.forbidden('preview_disabled', 'Preview is disabled for this document');
     }

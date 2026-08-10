@@ -62,6 +62,65 @@ const ENV_VARS: EnvVar[] = [
     required: false,
     description: 'S3 bucket name (required if STORAGE_DRIVER=s3)',
   },
+  // SECURITY FIX (M-ADM-23): Validate security-relevant env vars that were
+  // previously read with no checks. A typo or DNS-poisoning of REDIS_URL
+  // could exfiltrate BullMQ jobs (webhook payloads, OCR text, audit data) to
+  // an attacker-controlled Redis. A misconfigured WS_SERVICE_URL could leak
+  // the shared secret over plaintext HTTP. A missing VAPID key in production
+  // means push notifications silently use dev keys.
+  {
+    name: 'REDIS_URL',
+    required: false,
+    description: 'Redis connection URL for BullMQ job queue',
+    validator: (v) => v.startsWith('redis://') || v.startsWith('rediss://'),
+    errorMessage: 'Must start with redis:// or rediss://',
+  },
+  {
+    name: 'WS_SERVICE_URL',
+    required: false,
+    description: 'Internal WebSocket notifications service URL',
+    validator: (v) => {
+      try {
+        const u = new URL(v);
+        const isLoopback = ['localhost', '127.0.0.1', '::1'].includes(u.hostname);
+        return u.protocol === 'https:' || (u.protocol === 'http:' && isLoopback);
+      } catch { return false; }
+    },
+    errorMessage: 'Must be https:// OR http://localhost (loopback only)',
+  },
+  {
+    name: 'SMTP_HOST',
+    required: false,
+    description: 'SMTP server hostname',
+  },
+  {
+    name: 'SMTP_SECURE',
+    required: false,
+    description: 'Use TLS for SMTP (true in production)',
+    validator: (v) => v === 'true' || v === 'false',
+    errorMessage: 'Must be "true" or "false"',
+  },
+  {
+    name: 'CRON_SECRET',
+    required: false,
+    description: 'Shared secret for the /api/cron/escalate endpoint',
+    validator: (v) => v.length >= 32,
+    errorMessage: 'Must be at least 32 characters',
+  },
+  {
+    name: 'METRICS_TOKEN',
+    required: false,
+    description: 'Bearer token for the /api/metrics endpoint',
+    validator: (v) => v.length >= 32,
+    errorMessage: 'Must be at least 32 characters',
+  },
+  {
+    name: 'WS_INTERNAL_SECRET',
+    required: false,
+    description: 'Shared secret between the Next.js app and the WS service',
+    validator: (v) => v.length >= 32,
+    errorMessage: 'Must be at least 32 characters',
+  },
 ];
 
 export interface EnvValidationResult {
@@ -99,6 +158,20 @@ export function validateEnv(): EnvValidationResult {
       }
       if (v.name === 'DATABASE_URL' && value?.startsWith('file:')) {
         warnings.push({ name: v.name, message: 'Using SQLite in production — use PostgreSQL' });
+      }
+      // SECURITY FIX (M-ADM-23): Production-mode warnings for security-critical
+      // config that operators may forget to set.
+      if (v.name === 'SMTP_HOST' && value && process.env.SMTP_SECURE !== 'true') {
+        warnings.push({ name: 'SMTP_SECURE', message: 'SMTP_SECURE should be "true" in production to enforce TLS for outbound email' });
+      }
+      if (v.name === 'CRON_SECRET' && !value) {
+        warnings.push({ name: v.name, message: 'CRON_SECRET not set — the cron endpoint will refuse all requests' });
+      }
+      if (v.name === 'METRICS_TOKEN' && !value) {
+        warnings.push({ name: v.name, message: 'METRICS_TOKEN not set — /api/metrics will only be reachable from loopback' });
+      }
+      if (v.name === 'WS_INTERNAL_SECRET' && !value) {
+        warnings.push({ name: v.name, message: 'WS_INTERNAL_SECRET not set — websocket notifications will be skipped in production' });
       }
     }
   }

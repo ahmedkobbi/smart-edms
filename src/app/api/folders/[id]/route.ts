@@ -7,14 +7,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
-import { PERMISSIONS } from '@/lib/auth/permissions';
+import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
 import { z } from 'zod';
+
+const MAX_FOLDER_DEPTH = 32;
 
 const patchSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).optional(),
   parentId: z.string().nullable().optional(),
 });
+
+/**
+ * Walk up the parent chain from `startId` to root and return true if
+ * `targetId` appears in the chain. Capped at MAX_FOLDER_DEPTH levels to
+ * bound runtime and protect against malformed cycles.
+ */
+async function isInParentChain(startId: string | null, targetId: string, tenantId: string): Promise<boolean> {
+  let current = startId;
+  let depth = 0;
+  while (current && depth < MAX_FOLDER_DEPTH) {
+    if (current === targetId) return true;
+    const f = await db.folder.findFirst({
+      where: { id: current, tenantId },
+      select: { parentId: true },
+    });
+    if (!f) return false;
+    current = f.parentId;
+    depth++;
+  }
+  return false;
+}
 
 export const PATCH = createApiHandler(
   { requiredPermission: PERMISSIONS.DOCUMENT_UPDATE },
@@ -23,8 +46,28 @@ export const PATCH = createApiHandler(
     const folder = await db.folder.findFirst({ where: { id: params!.id, tenantId: ctx.tenantId } });
     if (!folder) throw ApiError.notFound('not_found', 'Folder not found');
 
+    // SECURITY FIX (M-DOC-1): Folder PATCH has no ownership check (IDOR).
+    // End-users with DOCUMENT_UPDATE could rename/move any folder in the
+    // tenant, including folders anchoring other users' documents. Restrict
+    // to the folder's creator or admins.
+    const isFolderAdmin = hasPermission(ctx.session.user.permissions, PERMISSIONS.ADMIN_TENANT_MANAGE);
+    if (folder.createdBy !== ctx.userId && !isFolderAdmin) {
+      throw ApiError.forbidden('not_authorized', 'You can only modify folders you created');
+    }
+
     if (body.parentId === folder.id) {
       throw ApiError.badRequest('circular', 'Cannot set parent to self');
+    }
+
+    // SECURITY FIX (M-DOC-2): Cycle detection. The previous self-loop check
+    // was insufficient — A→B→C→A cycles would crash any code walking the
+    // folder tree (folders list, apply-classification's collectDescendants,
+    // retention inheritance). Walk up from the proposed parent to root and
+    // reject if `folder.id` appears in the chain.
+    if (body.parentId !== undefined && body.parentId !== null) {
+      if (await isInParentChain(body.parentId, folder.id, ctx.tenantId)) {
+        throw ApiError.badRequest('circular', 'Cannot create a folder cycle');
+      }
     }
 
     const updated = await db.folder.update({
@@ -44,6 +87,12 @@ export const DELETE = createApiHandler(
   async (req: NextRequest, ctx, params) => {
     const folder = await db.folder.findFirst({ where: { id: params!.id, tenantId: ctx.tenantId } });
     if (!folder) throw ApiError.notFound('not_found', 'Folder not found');
+
+    // SECURITY FIX (M-DOC-1): Folder DELETE ownership check (IDOR).
+    const isFolderAdmin = hasPermission(ctx.session.user.permissions, PERMISSIONS.ADMIN_TENANT_MANAGE);
+    if (folder.createdBy !== ctx.userId && !isFolderAdmin) {
+      throw ApiError.forbidden('not_authorized', 'You can only delete folders you created');
+    }
 
     // Move documents to root (unscoped)
     await db.$transaction(async (tx) => {

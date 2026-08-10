@@ -17,8 +17,12 @@ import { z } from 'zod';
 export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.WORKFLOW_APPROVE },
   async (req: NextRequest, ctx) => {
-    const page = parseInt(req.nextUrl.searchParams.get('page') || '1', 10);
-    const pageSize = parseInt(req.nextUrl.searchParams.get('pageSize') || '20', 10);
+    // SECURITY FIX (M-ADM-9): Clamp page + pageSize. The previous code did
+    // `parseInt(...)` with no clamp, allowing `?pageSize=99999999` to load
+    // millions of joined rows (workflow → document.classification → approvals
+    // → approver → delegations) into memory.
+    const page = Math.max(1, parseInt(req.nextUrl.searchParams.get('page') || '1', 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.nextUrl.searchParams.get('pageSize') || '20', 10) || 20));
     const status = req.nextUrl.searchParams.get('status');
     const documentId = req.nextUrl.searchParams.get('documentId');
     const assignedToMe = req.nextUrl.searchParams.get('assignedToMe') === 'true';

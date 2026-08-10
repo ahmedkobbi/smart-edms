@@ -35,11 +35,13 @@ export const DELETE = createApiHandler(
   async (req: NextRequest, ctx) => {
     const body = await req.json().catch(() => ({}));
     if (body.endpoint) {
-      await unsubscribePush(body.endpoint);
+      // SECURITY FIX (M-ADM-8): Pass userId + tenantId so the unsubscribe is
+      // scoped to the caller's own subscriptions.
+      await unsubscribePush(body.endpoint, ctx.userId, ctx.tenantId);
     } else {
       // Unsubscribe all for this user
       const { db } = await import('@/lib/db');
-      await db.pushSubscription.deleteMany({ where: { userId: ctx.userId } });
+      await db.pushSubscription.deleteMany({ where: { userId: ctx.userId, tenantId: ctx.tenantId } });
     }
     return NextResponse.json({ ok: true });
   },

@@ -16,6 +16,10 @@ import { getDocumentDek, encryptWithDek } from '@/lib/storage/envelope-encryptio
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024;
+// SECURITY FIX (M-DOC-12): Cap the number of versions per document.
+// Without a cap, a single document could accumulate terabytes of versions
+// (100 MB × 1000 = 100 GB), exhausting disk + OCR queue capacity.
+const MAX_VERSIONS_PER_DOCUMENT = 50;
 
 export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.DOCUMENT_READ },
@@ -82,6 +86,25 @@ export const POST = createApiHandler(
         orderBy: { versionNumber: 'desc' },
       });
       const versionNumber = (latestVersion?.versionNumber ?? 0) + 1;
+
+      // SECURITY FIX (M-DOC-12): Reject new versions beyond the cap.
+      if (versionNumber > MAX_VERSIONS_PER_DOCUMENT) {
+        throw ApiError.badRequest(
+          'max_versions_exceeded',
+          `This document already has the maximum of ${MAX_VERSIONS_PER_DOCUMENT} versions. Archive old versions or contact an administrator.`,
+        );
+      }
+
+      // SECURITY FIX (M-DOC-12): Reject no-op versions (identical checksum).
+      // Prevents a user from re-uploading the same file repeatedly to bloat
+      // storage or to spam the audit log.
+      if (latestVersion && latestVersion.checksumSha256 === checksumSha256) {
+        throw ApiError.badRequest(
+          'duplicate_version',
+          'The uploaded file is identical to the latest version. No new version was created.',
+        );
+      }
+
       const versionId = `${doc.id}_v${versionNumber}`;
       const storageKey = buildStorageKey(ctx.tenantId, doc.id, versionId, file.name);
       const mimeType = validation.detectedMime || file.type;

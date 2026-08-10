@@ -749,12 +749,17 @@ async function detectLanguageAdvanced(text: string): Promise<string> {
 export async function searchTextIndex(
   tenantId: string,
   query: string,
-  opts: { limit?: number } = {},
+  opts: { limit?: number; ownerId?: string } = {},
 ): Promise<{ documentId: string; snippet: string }[]> {
+  // SECURITY FIX (M-DOC-14): Honor `ownerId` filter when supplied so that
+  // end users (without DOCUMENT_READ) only get snippets from documents they
+  // own. Previously the function filtered ONLY by tenantId, leaking snippets
+  // from any tenant document whose extracted text contained the query.
   const results = await db.documentTextIndex.findMany({
     where: {
       tenantId,
       extractedText: { contains: query },
+      ...(opts.ownerId ? { document: { ownerId: opts.ownerId } } : {}),
     },
     take: opts.limit ?? 50,
     select: { documentId: true, extractedText: true, rawText: true },

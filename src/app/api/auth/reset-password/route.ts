@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { hashPassword } from '@/lib/auth/crypto';
+import { hashPassword, sha256 } from '@/lib/auth/crypto';
 import { authRateLimiter } from '@/lib/security/rate-limit';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { logger } from '@/lib/config/logger';
@@ -31,8 +31,10 @@ export async function POST(req: NextRequest) {
 
   const body = schema.parse(await req.json().catch(() => ({})));
 
+  // SECURITY FIX (M-AUTH-4): Look up by sha256(token) — the DB never stores
+  // the raw token, so a read-only DB leak does not yield live reset tokens.
   const token = await db.verificationToken.findUnique({
-    where: { token: body.token },
+    where: { token: sha256(body.token) },
   });
 
   if (!token || token.expires < new Date()) {

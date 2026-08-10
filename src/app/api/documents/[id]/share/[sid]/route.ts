@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
-import { PERMISSIONS } from '@/lib/auth/permissions';
+import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { fireWebhook } from '@/lib/notifications/notify';
 
@@ -21,6 +21,24 @@ export const DELETE = createApiHandler(
     });
     if (!share) throw ApiError.notFound('not_found', 'Share not found');
     if (share.revokedAt) throw ApiError.badRequest('already_revoked', 'Share already revoked');
+
+    // SECURITY FIX (M-DOC-6): Share-revoke IDOR. The route required only
+    // SHARE_REVOKE (granted to END_USER) with no check on who created the
+    // share — an end user could revoke OTHER users' legitimate shares,
+    // disrupting their collaboration. Allow revoke if:
+    //   - the caller created the share, OR
+    //   - the caller owns the document, OR
+    //   - the caller has SHARE_REVOKE_ALL (admin) permission
+    const doc = await db.document.findFirst({
+      where: { id: share.documentId, tenantId: ctx.tenantId },
+      select: { ownerId: true },
+    });
+    const isShareCreator = share.createdBy === ctx.userId;
+    const isDocOwner = doc?.ownerId === ctx.userId;
+    const isShareAdmin = hasPermission(ctx.session.user.permissions, PERMISSIONS.ADMIN_TENANT_MANAGE);
+    if (!isShareCreator && !isDocOwner && !isShareAdmin) {
+      throw ApiError.forbidden('not_authorized', 'You can only revoke shares you created or shares on documents you own');
+    }
 
     const reason = req.nextUrl.searchParams.get('reason') || 'Revoked by user';
 

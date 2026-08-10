@@ -11,6 +11,11 @@ import { challengeStore } from '../init/route';
 
 export const POST = createApiHandler(
   {
+    // SECURITY FIX (M-AUTH-15): Rate-limit passkey registration verify — each
+    // call performs CPU-intensive WebAuthn signature verification and writes
+    // to the user record. Without a cap, a hijacked session can spam the
+    // endpoint to exhaust CPU or fill the user's credential list.
+    rateLimit: { max: 5, windowMs: 60_000 },
     audit: { eventType: 'passkey.register', action: 'create', resourceType: 'user', alwaysAudit: true },
   },
   async (req: NextRequest, ctx) => {
@@ -42,7 +47,37 @@ export const POST = createApiHandler(
       transports: (registrationInfo as any)?.credentialDeviceType,
       deviceType: (registrationInfo as any)?.credentialDeviceType,
       backedUp: (registrationInfo as any)?.credentialBackedUp,
+      aaguid: (registrationInfo as any)?.aaguid || (registrationInfo as any)?.authenticatorAAGUID || (cred as any)?.aaguid,
     };
+
+    // SECURITY FIX (M-AUTH-11): AAGUID allowlist for passkey registration.
+    // Without this, a user with a hijacked session can enroll a software
+    // authenticator that reports `backedUp: false` (device-bound soft token)
+    // which then passes the "require true hardware key" check (which only
+    // inspects `backedUp`). When the tenant configures
+    // `settings.security.allowedAaguids`, only authenticators whose AAGUID
+    // is on the list may be registered. An empty/missing allowlist means
+    // "no restriction" (preserves backwards compatibility).
+    const aaguid: string | undefined = newCredential.aaguid;
+    if (aaguid) {
+      const tenant = await db.tenant.findUnique({
+        where: { id: ctx.tenantId },
+        select: { settings: true },
+      });
+      try {
+        const settings = JSON.parse(tenant?.settings || '{}');
+        const allowedAaguids: string[] = settings?.security?.allowedAaguids ?? [];
+        if (allowedAaguids.length > 0 && !allowedAaguids.includes(aaguid)) {
+          throw ApiError.badRequest(
+            'authenticator_not_allowed',
+            'This authenticator is not on the tenant allowlist. Contact your administrator.',
+          );
+        }
+      } catch (e) {
+        if (e instanceof ApiError) throw e;
+        // Settings parse failure — fail open for functionality (do not block registration)
+      }
+    }
 
     // Append to user's credentials
     const user = await db.user.findFirst({

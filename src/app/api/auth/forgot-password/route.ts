@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { randomToken } from '@/lib/auth/crypto';
+import { randomToken, sha256 } from '@/lib/auth/crypto';
 import { sendPasswordResetEmail } from '@/lib/notifications/email';
 import { authRateLimiter } from '@/lib/security/rate-limit';
 import { logger } from '@/lib/config/logger';
@@ -39,12 +39,17 @@ export async function POST(req: NextRequest) {
   const token = randomToken(32);
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 min
 
+  // SECURITY FIX (M-AUTH-4): Store SHA-256(token), not the raw token.
+  // A read-only DB compromise (SQL injection, backup leak, read replica
+  // exposure) would otherwise yield every pending password-reset token —
+  // each valid for 30 min and enough to take over the account. The raw
+  // token is only ever held in memory and in the email link.
   await db.verificationToken.create({
     data: {
       tenantId: user.tenantId,
       userId: user.id,
       identifier: user.email,
-      token,
+      token: sha256(token),
       expires: expiresAt,
     },
   });

@@ -16,6 +16,16 @@ export const POST = createApiHandler(
     audit: { eventType: 'ai.pii.detect', action: 'create', resourceType: 'document', alwaysAudit: true },
   },
   async (req: NextRequest, ctx, params) => {
+    // SECURITY FIX (M-DOC-21): Ownership check. The route required only
+    // AI_SUGGESTION_REQUEST (granted to END_USER) with no ownership check —
+    // any end user could enumerate document IDs and reveal PII counts for
+    // documents they did not own. Re-use the shared access-control helper.
+    const { canReadDocument } = await import('@/lib/documents/access-control');
+    const canRead = await canReadDocument(ctx.userId, ctx.tenantId, params!.id, ctx.session.user.permissions);
+    if (!canRead) {
+      throw ApiError.notFound('document_not_found', 'Document not found');
+    }
+
     const result = await detectPii(ctx.tenantId, params!.id);
     if (result.findings.length === 0) {
       throw ApiError.badRequest('no_pii', 'Document not found or no PII detected');

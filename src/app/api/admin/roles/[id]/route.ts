@@ -28,12 +28,32 @@ export const PATCH = createApiHandler(
     const role = await db.role.findFirst({ where: { id: params!.id, tenantId: ctx.tenantId } });
     if (!role) throw ApiError.notFound('not_found', 'Role not found');
 
+    // SECURITY FIX (M-ADM-20): System roles are seeded by the platform and
+    // assigned to all users in the tenant (end_user, viewer, records_manager,
+    // security_officer, tenant_admin, platform_admin). Allowing a tenant
+    // admin to PATCH the `permissions` array on a system role means they can
+    // grant every permission in the system to the `end_user` role —
+    // instantly privilege-escalating every end user to admin level on their
+    // next session refresh. Reject `permissions` (and `name`) changes on
+    // system roles; only `description` may be updated.
+    if (role.isSystem) {
+      if (body.name !== undefined && body.name !== role.name) {
+        throw ApiError.forbidden('system_locked', 'System role name cannot be changed');
+      }
+      if (body.permissions !== undefined) {
+        throw ApiError.forbidden(
+          'system_locked',
+          'System role permissions cannot be changed. Create a custom role with the desired permissions instead.',
+        );
+      }
+    }
+
     const updated = await db.role.update({
       where: { id: role.id },
       data: {
         ...(body.name !== undefined && !role.isSystem ? { name: body.name } : {}),
         ...(body.description !== undefined ? { description: body.description } : {}),
-        ...(body.permissions !== undefined ? { permissions: JSON.stringify(body.permissions) } : {}),
+        ...(!role.isSystem && body.permissions !== undefined ? { permissions: JSON.stringify(body.permissions) } : {}),
       },
     });
 

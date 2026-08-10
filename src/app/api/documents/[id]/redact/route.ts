@@ -59,26 +59,44 @@ export const POST = createApiHandler(
     const storage = getFileStorage();
     const encryptedBuf = await storage.get(sourceVersion.storageKey);
 
-    // SECURITY FIX (C3): Decrypt the source content before redacting.
+    // SECURITY FIX (C3 + M-DOC-18): Decrypt the source content before redacting.
     // The previous code operated on ciphertext, causing redaction to always
     // fail silently and produce a "redacted" version identical to the original.
+    //
+    // M-DOC-18: The C3 fix used the WRONG IV — it passed `encKey.iv` (the IV
+    // used to wrap the DEK with the KEK) instead of the content IV (stored
+    // in `sourceVersion.metadata._encIv`). AES-256-GCM with the wrong IV
+    // always failed the auth-tag check, fell into the catch, and used the raw
+    // ENCRYPTED buffer — pdf-lib couldn't parse ciphertext and threw, so
+    // every redaction request returned 500. The fix reads the content IV
+    // from the version metadata.
     let buf = encryptedBuf;
     const dek = await getDocumentDek(ctx.tenantId, doc.id);
     if (dek) {
       try {
         const { decryptWithDek } = await import('@/lib/storage/envelope-encryption');
-        // Read the IV from the version metadata (stored during upload)
-        // The encryption metadata is stored on the DocumentEncryptionKey
-        const encKey = await db.documentEncryptionKey.findFirst({
-          where: { documentId: doc.id, tenantId: ctx.tenantId },
-        });
-        if (encKey) {
-          buf = decryptWithDek(dek, encryptedBuf.toString('base64'), encKey.iv);
+        // Read the content IV from the version metadata (stored at upload time)
+        const versionMeta = JSON.parse(sourceVersion.metadata || '{}');
+        const contentIv: string | undefined = versionMeta._encIv;
+        if (!contentIv) {
+          // Version was stored without an IV — either a legacy upload that
+          // was never encrypted, or a bug. Refuse to redact rather than risk
+          // operating on ciphertext (which would silently produce a no-op).
+          throw ApiError.badRequest(
+            'missing_encryption_iv',
+            'Source version is missing its encryption IV. Redaction is unavailable for this version.',
+          );
         }
+        buf = decryptWithDek(dek, encryptedBuf.toString('base64'), contentIv);
       } catch (err) {
-        // If decryption fails, the content might not be encrypted (legacy upload)
-        // Log but continue with the raw buffer
-        console.warn('[redact] decryption failed, using raw buffer:', err);
+        // Re-throw ApiError so the client sees the right status code
+        if (err instanceof ApiError) throw err;
+        // Decryption failed for an unexpected reason — refuse to redact
+        console.warn('[redact] decryption failed:', err);
+        throw ApiError.badRequest(
+          'decryption_failed',
+          'Failed to decrypt the source version for redaction. The document may be corrupted.',
+        );
       }
     }
 

@@ -118,4 +118,8 @@ export interface StoredCredential {
   transports?: AuthenticatorTransportFuture[];
   deviceType?: string;
   backedUp?: boolean;
+  /** SECURITY FIX (M-AUTH-11): Authenticator Attestation GUID — used by the
+   *  register-verify route to enforce a tenant-configured allowlist of
+   *  approved hardware authenticators. */
+  aaguid?: string;
 }

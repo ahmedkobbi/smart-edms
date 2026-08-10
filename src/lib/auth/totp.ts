@@ -6,7 +6,7 @@
  */
 
 import * as OTPAuth from 'otpauth';
-import { encryptString, decryptString, randomBase64Url } from './crypto';
+import { encryptString, decryptString, randomBase64Url, sha256, timingSafeEqualStr } from './crypto';
 
 const ISSUER = 'Smart EDMS';
 
@@ -115,6 +115,12 @@ export function generateBackupCodes(): string[] {
 
 /**
  * Encrypt the JSON array of backup codes for storage.
+ *
+ * DEPRECATED — kept for backwards-compatibility only. New code should use
+ * `hashBackupCodes` instead, which stores one-way SHA-256 hashes. Backup
+ * codes are short single-use authenticators (like passwords) and should
+ * never be reversibly encrypted — a KEK leak + DB dump would otherwise
+ * recover every user's backup codes. See SECURITY FIX (M-AUTH-6).
  */
 export async function encryptBackupCodes(codes: string[]): Promise<string> {
   const blob = await encryptString(JSON.stringify(codes));
@@ -125,4 +131,62 @@ export async function decryptBackupCodes(encrypted: string): Promise<string[]> {
   const blob = JSON.parse(encrypted);
   const json = await decryptString(blob);
   return JSON.parse(json);
+}
+
+/**
+ * SECURITY FIX (M-AUTH-6): Hash backup codes with SHA-256 (one-way).
+ *
+ * Backup codes are short single-use authenticators, analogous to passwords.
+ * Reversible encryption (the previous scheme) means anyone with the KEK and
+ * DB read access can recover every user's backup codes — defeating the
+ * purpose of having a second factor at all. One-way hashing matches the
+ * threat model: the codes are only ever verified, never displayed again
+ * after generation.
+ *
+ * The stored JSON is `string[]` of hex SHA-256 hashes, then AES-encrypted
+ * with the tenant KEK as a defense-in-depth measure (so the hashes are
+ * not directly exposed by a raw SQL dump either).
+ */
+export async function hashBackupCodes(codes: string[]): Promise<string> {
+  const hashes = codes.map((c) => sha256(c));
+  const blob = await encryptString(JSON.stringify(hashes));
+  return JSON.stringify(blob);
+}
+
+/**
+ * Verify a user-supplied backup code against the stored hashes, and
+ * atomically remove the consumed code so it cannot be reused.
+ *
+ * Returns `{ valid, remaining }` where `remaining` is the updated list of
+ * hashes (excluding the consumed one). The caller MUST persist `remaining`
+ * back to `mfaBackupCodesEnc` on success — otherwise the consumed code
+ * remains valid.
+ */
+export async function verifyAndConsumeBackupCode(
+  encrypted: string,
+  submittedCode: string,
+): Promise<{ valid: boolean; remaining?: string }> {
+  let hashes: string[];
+  try {
+    const blob = JSON.parse(encrypted);
+    const json = await decryptString(blob);
+    hashes = JSON.parse(json);
+  } catch {
+    return { valid: false };
+  }
+
+  const submittedHash = sha256(submittedCode);
+  let matchedIndex = -1;
+  for (let i = 0; i < hashes.length; i++) {
+    if (timingSafeEqualStr(submittedHash, hashes[i])) {
+      matchedIndex = i;
+      break;
+    }
+  }
+  if (matchedIndex === -1) return { valid: false };
+
+  // Remove the consumed code
+  hashes.splice(matchedIndex, 1);
+  const blob = await encryptString(JSON.stringify(hashes));
+  return { valid: true, remaining: JSON.stringify(blob) };
 }

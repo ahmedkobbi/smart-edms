@@ -226,15 +226,20 @@ async function authenticateWithApiKey(req: NextRequest): Promise<SmartEdmsSessio
  * Verify step-up authentication token.
  */
 async function verifyStepUpToken(tenantId: string, userId: string, token: string): Promise<boolean> {
-  // SECURITY FIX (C5): Use atomic conditional update to prevent race
-  // condition where two concurrent requests both pass the "usedAt is null"
-  // check before either marks it as used.
+  // SECURITY FIX (C5 + M-AUTH-5 + M-AUTH-8): Atomic conditional update prevents
+  // the TOCTOU race where two concurrent requests both pass the "usedAt is null"
+  // check before either marks the token used. The `updateMany` with
+  // WHERE usedAt=null + expiresAt > now ensures only ONE concurrent request
+  // can "win" the token — the others get count=0.
   //
-  // The updateMany with WHERE usedAt=null + expiresAt > now ensures only
-  // ONE concurrent request can "win" the token — the others get count=0.
+  // SECURITY FIX (M-AUTH-5): The token is stored as `sha256(rawToken)` to
+  // prevent a read-only DB compromise from yielding live step-up tokens.
+  // The raw token is sent by the client in the X-Step-Up-Token header and
+  // hashed here before lookup.
+  const tokenHash = sha256(token);
   const result = await db.stepUpSession.updateMany({
     where: {
-      token,
+      token: tokenHash,
       tenantId,
       userId,
       usedAt: null,

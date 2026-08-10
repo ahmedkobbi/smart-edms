@@ -19,6 +19,16 @@ export const PATCH = createApiHandler(
       throw ApiError.forbidden('not_authorized', 'Cannot modify other users\' devices');
     }
 
+    // SECURITY FIX (M-AUTH-10): Device trust is admin-controlled by design —
+    // new devices are recorded with `trusted: false` at login precisely so an
+    // admin must review and approve them. Letting users self-trust their own
+    // devices defeated the model: an attacker who hijacks a session on a new
+    // device could simply mark that device as trusted. Restrict `trusted`
+    // changes to admins; non-admins may only update `label`.
+    if (body.trusted !== undefined && !hasPermission(ctx.session.user.permissions, PERMISSIONS.ADMIN_USERS_MANAGE)) {
+      throw ApiError.forbidden('not_authorized', 'Only administrators may change device trust');
+    }
+
     const updated = await db.device.update({
       where: { id: device.id },
       data: {

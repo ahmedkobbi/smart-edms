@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
-import { hashPassword } from '@/lib/auth/crypto';
+import { hashPassword, sha256 } from '@/lib/auth/crypto';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { z } from 'zod';
 
@@ -33,7 +33,10 @@ export const POST = createApiHandler(
 );
 
 async function handleAccept(req: NextRequest, token: string): Promise<NextResponse> {
-  const invitation = await db.invitation.findUnique({ where: { token } });
+  // SECURITY FIX (M-AUTH-4): Hash the token before lookup — the DB stores
+  // sha256(token), not the raw token, to prevent a read-only DB compromise
+  // from yielding live invitation tokens.
+  const invitation = await db.invitation.findUnique({ where: { token: sha256(token) } });
   if (!invitation) return NextResponse.json({ error: { code: 'not_found', message: 'Invitation not found' } }, { status: 404 });
   if (invitation.status === 'accepted') return NextResponse.json({ error: { code: 'already_accepted', message: 'Invitation already used' } }, { status: 410 });
   if (invitation.expiresAt < new Date()) return NextResponse.json({ error: { code: 'expired', message: 'Invitation expired' } }, { status: 410 });

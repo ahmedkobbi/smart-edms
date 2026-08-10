@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createApiHandler } from '@/lib/api/handler';
+import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { extractMetadataSuggestions } from '@/lib/ai/analyzer';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
@@ -15,6 +15,13 @@ export const POST = createApiHandler(
     rateLimit: { max: 10, windowMs: 60_000 },
   },
   async (req: NextRequest, ctx, params) => {
+    // SECURITY FIX (M-DOC-21): Ownership check. See analyze-pii/route.ts.
+    const { canReadDocument } = await import('@/lib/documents/access-control');
+    const canRead = await canReadDocument(ctx.userId, ctx.tenantId, params!.id, ctx.session.user.permissions);
+    if (!canRead) {
+      throw ApiError.notFound('document_not_found', 'Document not found');
+    }
+
     const result = await extractMetadataSuggestions(ctx.tenantId, params!.id);
 
     await recordAuditEvent({

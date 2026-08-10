@@ -11,8 +11,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
-import { verifyPassword, randomToken } from '@/lib/auth/crypto';
-import { decryptTotpSecret, verifyTotp } from '@/lib/auth/totp';
+import { verifyPassword, randomToken, sha256 } from '@/lib/auth/crypto';
+import { decryptTotpSecret, verifyTotpWithReplay } from '@/lib/auth/totp';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { z } from 'zod';
 
@@ -34,7 +34,7 @@ export const POST = createApiHandler(
 
     const user = await db.user.findFirst({
       where: { id: ctx.userId, tenantId: ctx.tenantId },
-      select: { id: true, email: true, passwordHash: true, mfaEnabled: true, mfaSecretEnc: true },
+      select: { id: true, email: true, passwordHash: true, mfaEnabled: true, mfaSecretEnc: true, mfaLastTimestep: true },
     });
     if (!user) throw ApiError.notFound('user_not_found', 'User not found');
 
@@ -46,9 +46,15 @@ export const POST = createApiHandler(
         throw ApiError.badRequest('invalid_token', 'A 6-digit TOTP code is required');
       }
       const secret = await decryptTotpSecret(user.mfaSecretEnc);
-      if (!verifyTotp(secret, body.token)) {
+      // SECURITY FIX (M-AUTH-7): Use verifyTotpWithReplay so a phished TOTP
+      // code cannot be replayed within the ±30s validity window to mint
+      // multiple step-up tokens. Matches the login flow's replay protection.
+      const newTimestep = verifyTotpWithReplay(secret, body.token, user.mfaLastTimestep ?? null);
+      if (newTimestep === null) {
         throw ApiError.badRequest('invalid_token', 'Invalid TOTP code');
       }
+      // Persist the new timestep so the same code cannot be reused
+      await db.user.update({ where: { id: user.id }, data: { mfaLastTimestep: newTimestep } });
     } else if (body.challenge === 'password') {
       if (!body.password) throw ApiError.badRequest('missing_password', 'Password is required');
       const ok = await verifyPassword(body.password, user.passwordHash || '');
@@ -58,13 +64,14 @@ export const POST = createApiHandler(
     }
 
     const token = randomToken(32);
+    const tokenHash = sha256(token); // SECURITY FIX (M-AUTH-5): store hash, not raw token
     const expiresAt = new Date(Date.now() + STEP_UP_TTL_MS);
 
     await db.stepUpSession.create({
       data: {
         tenantId: ctx.tenantId,
         userId: ctx.userId,
-        token,
+        token: tokenHash, // store hash — raw token is returned to client only once
         challenge: body.challenge,
         expiresAt,
       },
@@ -94,25 +101,10 @@ export const POST = createApiHandler(
   },
 );
 
-/**
- * Verify a step-up token. Returns true if valid + unused + not expired.
- * Marks the token as used (single-use semantics).
- */
-export async function verifyStepUpToken(
-  tenantId: string,
-  userId: string,
-  token: string,
-): Promise<boolean> {
-  const su = await db.stepUpSession.findFirst({
-    where: { token, tenantId, userId },
-  });
-  if (!su) return false;
-  if (su.usedAt) return false;
-  if (su.expiresAt < new Date()) return false;
-
-  await db.stepUpSession.update({
-    where: { id: su.id },
-    data: { usedAt: new Date() },
-  });
-  return true;
-}
+// SECURITY FIX (M-AUTH-8): The previously-exported `verifyStepUpToken` helper
+// used a non-atomic read-then-update pattern (findFirst → check usedAt → update)
+// which reintroduced the C5 TOCTOU race. The handler layer
+// (`src/lib/api/handler.ts`) has its own atomic `verifyStepUpToken` that uses
+// `updateMany` with a `usedAt: null` precondition — that is the only
+// verification path. No code should import a verifier from this file; the
+// export has been removed to prevent accidental re-introduction of the race.

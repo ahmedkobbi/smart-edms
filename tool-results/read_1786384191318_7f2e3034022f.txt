@@ -1,0 +1,695 @@
+     1→     1→/**
+     2→     2→ * Smart EDMS — Email delivery service (enterprise-grade)
+     3→     3→ *
+     4→     4→ * Production design:
+     5→     5→ *   1. Dual transport: SMTP (nodemailer) when SMTP_HOST is set,
+     6→     6→ *      dev console sink otherwise. Single cached transporter.
+     7→     7→ *   2. Templates loaded from /messages/{locale}.json via the server-side
+     8→     8→ *      translator — supports all 5 locales (en, fr, ar, es, de).
+     9→     9→ *   3. Enterprise HTML template:
+    10→    10→ *        - Table-based layout (Outlook 2010-2019 compatible)
+    11→    11→ *        - Inline CSS only (email-client safe — many strip <style>)
+    12→    12→ *        - Dark-mode aware via [data-ogsc] / [data-colorscheme] hints
+    13→    13→ *        - Preview text (preheader) for inbox list collapse
+    14→    14→ *        - Brand header with logo lockup
+    15→    15→ *        - Alert severity bands (info / warning / danger)
+    16→    16→ *        - Primary CTA button with safe fallback link
+    17→    17→ *        - Footer with privacy notice, unsubscribe, address
+    18→    18→ *        - RTL-aware via dir attribute for Arabic
+    19→    19→ *   4. HMAC-signed action URLs where the link grants a capability
+    20→    20→ *      (invitation accept, password reset, break-glass review) so that
+    21→    21→ *      a leaked token alone is insufficient.
+    22→    22→ *   5. Plain-text companion for every HTML email (anti-spam, accessibility).
+    23→    23→ */
+    24→    24→
+    25→    25→import crypto from 'crypto';
+    26→    26→import { getTranslator, type Locale } from '@/i18n/server-translator';
+    27→    27→import { logger } from '@/lib/config/logger';
+    28→    28→
+    29→    29→// ---------------------------------------------------------------------------
+    30→    30→//  Transport
+    31→    31→// ---------------------------------------------------------------------------
+    32→    32→
+    33→    33→interface EmailParams {
+    34→    34→  to: string;
+    35→    35→  subject: string;
+    36→    36→  html: string;
+    37→    37→  text: string;
+    38→    38→  /** Optional override of the "From" header. */
+    39→    39→  from?: string;
+    40→    40→  /** Optional reply-to (defaults to no-reply). */
+    41→    41→  replyTo?: string;
+    42→    42→  /** Optional list of unsubscribe header values for List-Unsubscribe RFC 2369. */
+    43→    43→  listUnsubscribe?: string;
+    44→    44→}
+    45→    45→
+    46→    46→interface SmtpConfig {
+    47→    47→  host: string;
+    48→    48→  port: number;
+    49→    49→  secure: boolean;
+    50→    50→  user: string;
+    51→    51→  pass: string;
+    52→    52→  from: string;
+    53→    53→}
+    54→    54→
+    55→    55→let cachedTransporter: any = null;
+    56→    56→
+    57→    57→async function getTransporter() {
+    58→    58→  if (cachedTransporter) return cachedTransporter;
+    59→    59→  if (!process.env.SMTP_HOST) return null;
+    60→    60→
+    61→    61→  const nodemailer = await import('nodemailer');
+    62→    62→  const config: SmtpConfig = {
+    63→    63→    host: process.env.SMTP_HOST,
+    64→    64→    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    65→    65→    secure: process.env.SMTP_SECURE === 'true',
+    66→    66→    user: process.env.SMTP_USER || '',
+    67→    67→    pass: process.env.SMTP_PASS || '',
+    68→    68→    from: process.env.SMTP_FROM || 'Smart EDMS <noreply@smartedms.local>',
+    69→    69→  };
+    70→    70→
+    71→    71→  cachedTransporter = nodemailer.createTransport({
+    72→    72→    host: config.host,
+    73→    73→    port: config.port,
+    74→    74→    secure: config.secure,
+    75→    75→    auth: config.user ? { user: config.user, pass: config.pass } : undefined,
+    76→    76→  });
+    77→    77→
+    78→    78→  return cachedTransporter;
+    79→    79→}
+    80→    80→
+    81→    81→export async function sendEmail(params: EmailParams): Promise<{ ok: boolean; message: string }> {
+    82→    82→  const transporter = await getTransporter();
+    83→    83→  const from = params.from || process.env.SMTP_FROM || 'Smart EDMS <noreply@smartedms.local>';
+    84→    84→
+    85→    85→  // Dev mode — log to console
+    86→    86→  if (!transporter) {
+    87→    87→    console.log('\n📧 EMAIL (dev mode — configure SMTP_HOST for delivery)');
+    88→    88→    console.log(`   From: ${from}`);
+    89→    89→    console.log(`   To: ${params.to}`);
+    90→    90→    console.log(`   Subject: ${params.subject}`);
+    91→    91→    console.log(`   Text: ${params.text.slice(0, 240)}${params.text.length > 240 ? '…' : ''}`);
+    92→    92→    console.log('');
+    93→    93→    return { ok: true, message: 'Email logged (dev mode — no SMTP configured)' };
+    94→    94→  }
+    95→    95→
+    96→    96→  try {
+    97→    97→    await transporter.sendMail({
+    98→    98→      from,
+    99→    99→      to: params.to,
+   100→   100→      subject: params.subject,
+   101→   101→      html: params.html,
+   102→   102→      text: params.text,
+   103→   103→      replyTo: params.replyTo,
+   104→   104→      headers: params.listUnsubscribe
+   105→   105→        ? { 'List-Unsubscribe': params.listUnsubscribe, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
+   106→   106→        : undefined,
+   107→   107→    });
+   108→   108→    return { ok: true, message: 'Email sent' };
+   109→   109→  } catch (err: any) {
+   110→   110→    logger.error('email.send_failed', { to: params.to, subject: params.subject, error: err.message });
+   111→   111→    return { ok: false, message: err.message };
+   112→   112→  }
+   113→   113→}
+   114→   114→
+   115→   115→// ---------------------------------------------------------------------------
+   116→   116→//  Link signing (HMAC-SHA256)
+   117→   117→// ---------------------------------------------------------------------------
+   118→   118→
+   119→   119→/**
+   120→   120→ * Sign a token with an HMAC-SHA256 of (token + purpose).
+   121→   121→ * Returns `${token}.${signature}` so the verifier can detect tampering
+   122→   122→ * even if the token is otherwise opaque.
+   123→   123→ *
+   124→   124→ * Uses NEXTAUTH_SECRET or AUTH_SECRET (falling back to a dev-only secret
+   125→   125→ * that is loud about not being safe for production).
+   126→   126→ */
+   127→   127→function getEmailSigningSecret(): string {
+   128→   128→  const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
+   129→   129→  if (!secret) {
+   130→   130→    if (process.env.NODE_ENV === 'production') {
+   131→   131→      logger.warn('email.signing_secret_missing_in_production', {});
+   132→   132→    }
+   133→   133→    return 'dev-only-unsafe-email-signing-secret';
+   134→   134→  }
+   135→   135→  return secret;
+   136→   136→}
+   137→   137→
+   138→   138→export function signEmailToken(token: string, purpose: string): string {
+   139→   139→  const secret = getEmailSigningSecret();
+   140→   140→  const sig = crypto.createHmac('sha256', secret).update(`${purpose}:${token}`).digest('hex');
+   141→   141→  return `${token}.${sig}`;
+   142→   142→}
+   143→   143→
+   144→   144→export function verifyEmailToken(signedToken: string, purpose: string): string | null {
+   145→   145→  if (!signedToken.includes('.')) return null;
+   146→   146→  const lastDot = signedToken.lastIndexOf('.');
+   147→   147→  const token = signedToken.slice(0, lastDot);
+   148→   148→  const sig = signedToken.slice(lastDot + 1);
+   149→   149→  const secret = getEmailSigningSecret();
+   150→   150→  const expected = crypto.createHmac('sha256', secret).update(`${purpose}:${token}`).digest('hex');
+   151→   151→  // Constant-time compare to prevent timing attacks
+   152→   152→  if (sig.length !== expected.length) return null;
+   153→   153→  try {
+   154→   154→    if (crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'))) {
+   155→   155→      return token;
+   156→   156→    }
+   157→   157→  } catch {
+   158→   158→    // Hex decode failure
+   159→   159→  }
+   160→   160→  return null;
+   161→   161→}
+   162→   162→
+   163→   163→// ---------------------------------------------------------------------------
+   164→   164→//  Enterprise HTML template
+   165→   165→// ---------------------------------------------------------------------------
+   166→   166→
+   167→   167→type AlertSeverity = 'info' | 'warning' | 'danger' | null;
+   168→   168→
+   169→   169→interface TemplateParams {
+   170→   170→  locale: Locale;
+   171→   171→  title: string;
+   172→   172→  preheader: string;
+   173→   173→  bodyHtml: string;
+   174→   174→  cta?: { label: string; href: string };
+   175→   175→  alert?: { severity: AlertSeverity; html: string };
+   176→   176→  /** Optional list of label/value rows shown under the body. */
+   177→   177→  metaRows?: { label: string; value: string }[];
+   178→   178→  /** Optional footer note (e.g. link expiry reminder). */
+   179→   179→  footerNote?: string;
+   180→   180→  /** Optional app URL for the brand header. */
+   181→   181→  appUrl?: string;
+   182→   182→  /** Optional unsubscribe URL (RFC 2369 List-Unsubscribe). */
+   183→   183→  unsubscribeUrl?: { manage: string; oneClick: string };
+   184→   184→}
+   185→   185→
+   186→   186→// Color palette — enterprise slate + accent blue, dark-mode aware
+   187→   187→const PALETTE = {
+   188→   188→  bgOuter: '#f1f5f9',
+   189→   189→  bgCard: '#ffffff',
+   190→   190→  bgFooter: '#f8fafc',
+   191→   191→  border: '#e2e8f0',
+   192→   192→  textPrimary: '#0f172a',
+   193→   193→  textSecondary: '#475569',
+   194→   194→  textMuted: '#94a3b8',
+   195→   195→  accentPrimary: '#0f172a',
+   196→   196→  accentSecondary: '#334155',
+   197→   197→  accentBg: '#0f172a',
+   198→   198→  accentBgDark: '#1e293b',
+   199→   199→  alertInfoBg: '#eff6ff',
+   200→   200→  alertInfoBorder: '#3b82f6',
+   201→   201→  alertInfoText: '#1e40af',
+   202→   202→  alertWarningBg: '#fef3c7',
+   203→   203→  alertWarningBorder: '#f59e0b',
+   204→   204→  alertWarningText: '#92400e',
+   205→   205→  alertDangerBg: '#fee2e2',
+   206→   206→  alertDangerBorder: '#ef4444',
+   207→   207→  alertDangerText: '#991b1b',
+   208→   208→  codeBg: '#f1f5f9',
+   209→   209→  codeText: '#0f172a',
+   210→   210→};
+   211→   211→
+   212→   212→function alertStyles(severity: NonNullable<AlertSeverity>): { bg: string; border: string; text: string } {
+   213→   213→  switch (severity) {
+   214→   214→    case 'info':
+   215→   215→      return { bg: PALETTE.alertInfoBg, border: PALETTE.alertInfoBorder, text: PALETTE.alertInfoText };
+   216→   216→    case 'warning':
+   217→   217→      return { bg: PALETTE.alertWarningBg, border: PALETTE.alertWarningBorder, text: PALETTE.alertWarningText };
+   218→   218→    case 'danger':
+   219→   219→      return { bg: PALETTE.alertDangerBg, border: PALETTE.alertDangerBorder, text: PALETTE.alertDangerText };
+   220→   220→  }
+   221→   221→}
+   222→   222→
+   223→   223→/**
+   224→   224→ * Build the enterprise HTML email.
+   225→   225→ *
+   226→   226→ * Layout (all inline CSS for email-client compatibility):
+   227→   227→ *   - Outer table (background slate)
+   228→   228→ *   - Centered 600px card
+   229→   229→ *   - Brand header (logo lockup + dark band)
+   230→   230→ *   - Preheader (hidden in client)
+   231→   231→ *   - Title H1
+   232→   232→ *   - Optional alert band
+   233→   233→ *   - Body paragraph(s)
+   234→   234→ *   - Optional metadata rows (label / value)
+   235→   235→ *   - Optional CTA button (table-based for Outlook)
+   236→   236→ *   - Optional fallback link
+   237→   237→ *   - Footer (privacy notice, unsubscribe, address)
+   238→   238→ */
+   239→   239→function renderEmailTemplate(p: TemplateParams): string {
+   240→   240→  const dir = p.locale === 'ar' ? 'rtl' : 'ltr';
+   241→   241→  const isRtl = dir === 'rtl';
+   242→   242→  const align = isRtl ? 'right' : 'left';
+   243→   243→  const oppositeAlign = isRtl ? 'left' : 'right';
+   244→   244→  const alertColors = p.alert?.severity ? alertStyles(p.alert.severity) : null;
+   245→   245→
+   246→   246→  // Preheader: hidden preview text shown in inbox list. Padding keeps it
+   247→   247→  // visible to the recipient when they open the email (no display:none,
+   248→   248→  // which some clients strip).
+   249→   249→  const preheaderHtml = p.preheader
+   250→   250→    ? `<div style="display:none;font-size:1px;color:#f1f5f9;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">${escapeHtml(p.preheader)}</div>`
+   251→   251→    : '';
+   252→   252→
+   253→   253→  const alertHtml = p.alert && alertColors
+   254→   254→    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;border-radius:8px;background:${alertColors.bg};border:1px solid ${alertColors.border};border-collapse:separate;">
+   255→   255→        <tr>
+   256→   256→          <td style="padding:16px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.5;color:${alertColors.text};text-align:${align};">${p.alert.html}</td>
+   257→   257→        </tr>
+   258→   258→      </table>`
+   259→   259→    : '';
+   260→   260→
+   261→   261→  const bodyParagraphHtml = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:${PALETTE.textSecondary};text-align:${align};">${p.bodyHtml}</div>`;
+   262→   262→
+   263→   263→  const metaRowsHtml = p.metaRows && p.metaRows.length > 0
+   264→   264→    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 0 0;border:1px solid ${PALETTE.border};border-radius:8px;background:${PALETTE.bgFooter};border-collapse:separate;">
+   265→   265→        ${p.metaRows.map((row) => `<tr>
+   266→   266→          <td style="padding:10px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:600;color:${PALETTE.textPrimary};text-align:${align};white-space:nowrap;width:30%;vertical-align:top;border-bottom:1px solid ${PALETTE.border};">${escapeHtml(row.label)}</td>
+   267→   267→          <td style="padding:10px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${PALETTE.textSecondary};text-align:${align};vertical-align:top;border-bottom:1px solid ${PALETTE.border};word-break:break-all;">${escapeHtml(row.value)}</td>
+   268→   268→        </tr>`).join('')}
+   269→   269→      </table>`
+   270→   270→    : '';
+   271→   271→
+   272→   272→  const ctaHtml = p.cta
+   273→   273→    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 8px 0;">
+   274→   274→        <tr>
+   275→   275→          <td style="text-align:${align};">
+   276→   276→            <!--[if mso]>
+   277→   277→            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${escapeHtml(p.cta.href)}" style="height:44px;v-text-anchor:middle;width:220px;" arcsize="25%" strokecolor="${PALETTE.accentBg}" fillcolor="${PALETTE.accentBg}">
+   278→   278→              <w:anchorlock/>
+   279→   279→              <center style="color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;font-weight:600;">${escapeHtml(p.cta.label)}</center>
+   280→   280→            </v:roundrect>
+   281→   281→            <![endif]-->
+   282→   282→            <!--[if !mso]><!-->
+   283→   283→            <a href="${escapeHtml(p.cta.href)}" target="_blank" style="display:inline-block;padding:12px 28px;background:${PALETTE.accentBg};color:#ffffff;text-decoration:none;border-radius:8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;font-weight:600;border:1px solid ${PALETTE.accentBg};mso-hide:all;">
+   284→   284→              ${escapeHtml(p.cta.label)}
+   285→   285→            </a>
+   286→   286→            <!--<![endif]-->
+   287→   287→          </td>
+   288→   288→        </tr>
+   289→   289→      </table>
+   290→   290→      <p style="margin:8px 0 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;color:${PALETTE.textMuted};text-align:${align};line-height:1.5;word-break:break-all;">
+   291→   291→        ${escapeHtml(p.cta.href)}
+   292→   292→      </p>`
+   293→   293→    : '';
+   294→   294→
+   295→   295→  const footerNoteHtml = p.footerNote
+   296→   296→    ? `<p style="margin:16px 0 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:${PALETTE.textMuted};text-align:${align};line-height:1.5;">${escapeHtml(p.footerNote)}</p>`
+   297→   297→    : '';
+   298→   298→
+   299→   299→  const appUrl = p.appUrl || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+   300→   300→  const appName = 'Smart EDMS';
+   301→   301→
+   302→   302→  // Footer
+   303→   303→  const manageUrl = p.unsubscribeUrl?.manage || `${appUrl}/settings/notifications`;
+   304→   304→  const footer = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:32px 0 0 0;padding:24px 0;background:${PALETTE.bgFooter};border-top:1px solid ${PALETTE.border};">
+   305→   305→    <tr>
+   306→   306→      <td style="padding:0 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;color:${PALETTE.textMuted};text-align:${align};line-height:1.6;">
+   307→   307→        <p style="margin:0 0 8px 0;font-weight:600;color:${PALETTE.textSecondary};">${escapeHtml(appName)}</p>
+   308→   308→        <p style="margin:0 0 12px 0;">${escapeHtml(p.locale === 'ar'
+   309→   309→      ? 'هذه رسالة آلية. يرجى عدم الرد مباشرة على هذا البريد.'
+   310→   310→      : p.locale === 'fr'
+   311→   311→        ? 'Ceci est un message automatique. Merci de ne pas répondre directement.'
+   312→   312→        : p.locale === 'es'
+   313→   313→          ? 'Este es un mensaje automatizado. Por favor no responda directamente.'
+   314→   314→          : p.locale === 'de'
+   315→   315→            ? 'Dies ist eine automatisierte Nachricht. Bitte nicht direkt antworten.'
+   316→   316→            : 'This is an automated message. Please do not reply directly.')}</p>
+   317→   317→        <p style="margin:0 0 12px 0;">
+   318→   318→          <a href="${escapeHtml(manageUrl)}" style="color:${PALETTE.textSecondary};text-decoration:underline;">${escapeHtml(p.locale === 'ar'
+   319→   319→      ? 'إدارة تفضيلات الإشعارات'
+   320→   320→      : p.locale === 'fr'
+   321→   321→        ? 'Gérer les préférences de notification'
+   322→   322→        : p.locale === 'es'
+   323→   323→          ? 'Gestionar preferencias de notificación'
+   324→   324→          : p.locale === 'de'
+   325→   325→            ? 'Benachrichtigungseinstellungen verwalten'
+   326→   326→            : 'Manage notification preferences')}</a>
+   327→   327→        </p>
+   328→   328→        <p style="margin:0;color:${PALETTE.textMuted};font-size:11px;">&copy; ${new Date().getFullYear()} ${escapeHtml(appName)}. All rights reserved.</p>
+   329→   329→      </td>
+   330→   330→    </tr>
+   331→   331→  </table>`;
+   332→   332→
+   333→   333→  return `<!DOCTYPE html>
+   334→   334→<html lang="${p.locale}" dir="${dir}">
+   335→   335→<head>
+   336→   336→  <meta charset="utf-8">
+   337→   337→  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+   338→   338→  <meta name="color-scheme" content="light dark">
+   339→   339→  <meta name="supported-color-schemes" content="light dark">
+   340→   340→  <meta http-equiv="Content-Type" content="text/html charset=utf-8">
+   341→   341→  <title>${escapeHtml(p.title)}</title>
+   342→   342→  <!--[if mso]>
+   343→   343→  <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+   344→   344→  <![endif]-->
+   345→   345→</head>
+   346→   346→<body style="margin:0;padding:0;background:${PALETTE.bgOuter};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;">
+   347→   347→  ${preheaderHtml || ''}
+   348→   348→  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${PALETTE.bgOuter};min-width:100%;">
+   349→   349→    <tr>
+   350→   350→      <td align="center" style="padding:24px 12px;">
+   351→   351→        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:${PALETTE.bgCard};border:1px solid ${PALETTE.border};border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,0.06);">
+   352→   352→          <!-- Brand header -->
+   353→   353→          <tr>
+   354→   354→            <td style="padding:24px 32px;background:${PALETTE.accentBg};border-bottom:3px solid ${PALETTE.accentSecondary};">
+   355→   355→              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+   356→   356→                <tr>
+   357→   357→                  <td style="text-align:${align};vertical-align:middle;">
+   358→   358→                    <table role="presentation" cellpadding="0" cellspacing="0" style="display:inline;">
+   359→   359→                      <tr>
+   360→   360→                        <td style="width:32px;height:32px;background:linear-gradient(135deg,#ffffff 0%,#e2e8f0 100%);border-radius:7px;text-align:center;vertical-align:middle;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:16px;font-weight:700;color:${PALETTE.accentPrimary};letter-spacing:-0.5px;">S</td>
+   361→   361→                        <td style="padding-${oppositeAlign}:12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:18px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;vertical-align:middle;">${escapeHtml(appName)}</td>
+   362→   362→                      </tr>
+   363→   363→                    </table>
+   364→   364→                  </td>
+   365→   365→                </tr>
+   366→   366→              </table>
+   367→   367→            </td>
+   368→   368→          </tr>
+   369→   369→          <!-- Body -->
+   370→   370→          <tr>
+   371→   371→            <td style="padding:32px;">
+   372→   372→              <h1 style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:22px;font-weight:700;color:${PALETTE.textPrimary};text-align:${align};line-height:1.35;letter-spacing:-0.3px;">${escapeHtml(p.title)}</h1>
+   373→   373→              ${alertHtml}
+   374→   374→              ${bodyParagraphHtml}
+   375→   375→              ${metaRowsHtml}
+   376→   376→              ${ctaHtml}
+   377→   377→              ${footerNoteHtml}
+   378→   378→            </td>
+   379→   379→          </tr>
+   380→   380→          <!-- Footer -->
+   381→   381→          <tr>
+   382→   382→            <td style="padding:0;">
+   383→   383→              ${footer}
+   384→   384→            </td>
+   385→   385→          </tr>
+   386→   386→        </table>
+   387→   387→      </td>
+   388→   388→    </tr>
+   389→   389→  </table>
+   390→   390→</body>
+   391→   391→</html>`;
+   392→   392→}
+   393→   393→
+   394→   394→function escapeHtml(value: string): string {
+   395→   395→  return value
+   396→   396→    .replace(/&/g, '&amp;')
+   397→   397→    .replace(/</g, '&lt;')
+   398→   398→    .replace(/>/g, '&gt;')
+   399→   399→    .replace(/"/g, '&quot;')
+   400→   400→    .replace(/'/g, '&#39;');
+   401→   401→}
+   402→   402→
+   403→   403→// ---------------------------------------------------------------------------
+   404→   404→//  Templated emails
+   405→   405→// ---------------------------------------------------------------------------
+   406→   406→
+   407→   407→export interface SendInvitationOpts {
+   408→   408→  to: string;
+   409→   409→  tenantName: string;
+   410→   410→  inviteUrl: string;
+   411→   411→  inviterEmail: string;
+   412→   412→  locale?: string;
+   413→   413→}
+   414→   414→
+   415→   415→export async function sendInvitationEmail(opts: SendInvitationOpts): Promise<void> {
+   416→   416→  const t = await getTranslator(opts.locale);
+   417→   417→  const signedUrl = signUrl(opts.inviteUrl, 'invitation');
+   418→   418→  const subject = t('emails.invitation.subject', { tenantName: opts.tenantName });
+   419→   419→  const heading = t.raw('emails.invitation.heading', { tenantName: opts.tenantName });
+   420→   420→  const body = t.raw('emails.invitation.body', { inviterEmail: opts.inviterEmail });
+   421→   421→  const welcome = t('emails.invitation.welcome');
+   422→   422→  const ctaLabel = t('emails.invitation.cta');
+   423→   423→  const expiresNote = t('emails.invitation.expiresNote');
+   424→   424→
+   425→   425→  const html = renderEmailTemplate({
+   426→   426→    locale: t.locale,
+   427→   427→    title: t('emails.invitation.title'),
+   428→   428→    preheader: heading,
+   429→   429→    bodyHtml: `<p style="margin:0 0 16px 0;">${body}</p><p style="margin:0 0 16px 0;">${escapeHtml(welcome)}</p>`,
+   430→   430→    cta: { label: ctaLabel, href: signedUrl },
+   431→   431→    footerNote: expiresNote,
+   432→   432→    appUrl: opts.inviteUrl.replace(/\/accept-invite.*$/, ''),
+   433→   433→  });
+   434→   434→
+   435→   435→  const text = t('emails.invitation.body', { inviterEmail: opts.inviterEmail, tenantName: opts.tenantName }) + '\n\n' +
+   436→   436→    ctaLabel + ': ' + signedUrl + '\n\n' + expiresNote;
+   437→   437→
+   438→   438→  await sendEmail({ to: opts.to, subject, html, text });
+   439→   439→}
+   440→   440→
+   441→   441→export interface SendFailedLoginAlertOpts {
+   442→   442→  to: string;
+   443→   443→  ip: string;
+   444→   444→  attemptCount: number;
+   445→   445→  locale?: string;
+   446→   446→}
+   447→   447→
+   448→   448→export async function sendFailedLoginAlert(opts: SendFailedLoginAlertOpts): Promise<void> {
+   449→   449→  const t = await getTranslator(opts.locale);
+   450→   450→  const subject = t('emails.failedLogin.subject', { count: opts.attemptCount });
+   451→   451→  const heading = t('emails.failedLogin.heading');
+   452→   452→  const alert = t.raw('emails.failedLogin.alert', { count: opts.attemptCount });
+   453→   453→  const ipLabel = t('emails.failedLogin.ipLabel');
+   454→   454→  const advice = t('emails.failedLogin.advice');
+   455→   455→  const lockWarning = t('emails.failedLogin.lockWarning');
+   456→   456→
+   457→   457→  const html = renderEmailTemplate({
+   458→   458→    locale: t.locale,
+   459→   459→    title: t('emails.failedLogin.title'),
+   460→   460→    preheader: t('emails.failedLogin.text', { count: opts.attemptCount, ip: opts.ip }),
+   461→   461→    bodyHtml: `<p style="margin:0 0 16px 0;">${escapeHtml(advice)}</p><p style="margin:0 0 0 0;">${escapeHtml(lockWarning)}</p>`,
+   462→   462→    alert: { severity: 'warning', html: alert },
+   463→   463→    metaRows: [{ label: ipLabel, value: opts.ip }],
+   464→   464→  });
+   465→   465→
+   466→   466→  const text = t('emails.failedLogin.text', { count: opts.attemptCount, ip: opts.ip }) + '\n\n' + advice + '\n\n' + lockWarning;
+   467→   467→  await sendEmail({ to: opts.to, subject, html, text });
+   468→   468→}
+   469→   469→
+   470→   470→export interface SendAccountLockedAlertOpts {
+   471→   471→  to: string;
+   472→   472→  email: string;
+   473→   473→  ip: string;
+   474→   474→  locale?: string;
+   475→   475→}
+   476→   476→
+   477→   477→export async function sendAccountLockedAlert(opts: SendAccountLockedAlertOpts): Promise<void> {
+   478→   478→  const t = await getTranslator(opts.locale);
+   479→   479→  const subject = t('emails.accountLocked.subject', { email: opts.email });
+   480→   480→  const alert = t.raw('emails.accountLocked.alert', { email: opts.email });
+   481→   481→  const ipLabel = t('emails.accountLocked.ipLabel');
+   482→   482→  const advice = t('emails.accountLocked.advice');
+   483→   483→
+   484→   484→  const html = renderEmailTemplate({
+   485→   485→    locale: t.locale,
+   486→   486→    title: t('emails.accountLocked.title'),
+   487→   487→    preheader: t('emails.accountLocked.text', { email: opts.email, ip: opts.ip }),
+   488→   488→    bodyHtml: `<p style="margin:0;">${escapeHtml(advice)}</p>`,
+   489→   489→    alert: { severity: 'danger', html: alert },
+   490→   490→    metaRows: [{ label: ipLabel, value: opts.ip }],
+   491→   491→  });
+   492→   492→
+   493→   493→  const text = t('emails.accountLocked.text', { email: opts.email, ip: opts.ip }) + '\n\n' + advice;
+   494→   494→  await sendEmail({ to: opts.to, subject, html, text });
+   495→   495→}
+   496→   496→
+   497→   497→export interface SendBreakGlassAlertOpts {
+   498→   498→  to: string;
+   499→   499→  userName: string;
+   500→   500→  userEmail: string;
+   501→   501→  reason: string;
+   502→   502→  expiresAt: Date;
+   503→   503→  locale?: string;
+   504→   504→  reviewUrl?: string;
+   505→   505→}
+   506→   506→
+   507→   507→export async function sendBreakGlassAlert(opts: SendBreakGlassAlertOpts): Promise<void> {
+   508→   508→  const t = await getTranslator(opts.locale);
+   509→   509→  const subject = t('emails.breakGlass.subject', { userEmail: opts.userEmail });
+   510→   510→  const alert = t.raw('emails.breakGlass.alert', { userEmail: opts.userEmail });
+   511→   511→  const userLabel = t('emails.breakGlass.userLabel');
+   512→   512→  const reasonLabel = t('emails.breakGlass.reasonLabel');
+   513→   513→  const expiresLabel = t('emails.breakGlass.expiresLabel');
+   514→   514→  const reviewAdvice = t('emails.breakGlass.reviewAdvice');
+   515→   515→  const expiresAtStr = opts.expiresAt.toISOString();
+   516→   516→
+   517→   517→  const cta = opts.reviewUrl
+   518→   518→    ? { label: t('emails.breakGlass.title'), href: signUrl(opts.reviewUrl, 'breakglass-review') }
+   519→   519→    : undefined;
+   520→   520→
+   521→   521→  const html = renderEmailTemplate({
+   522→   522→    locale: t.locale,
+   523→   523→    title: t('emails.breakGlass.title'),
+   524→   524→    preheader: t('emails.breakGlass.text', { userEmail: opts.userEmail, reason: opts.reason, expiresAt: expiresAtStr }),
+   525→   525→    bodyHtml: `<p style="margin:0;">${escapeHtml(reviewAdvice)}</p>`,
+   526→   526→    alert: { severity: 'danger', html: alert },
+   527→   527→    metaRows: [
+   528→   528→      { label: userLabel, value: `${opts.userName} (${opts.userEmail})` },
+   529→   529→      { label: reasonLabel, value: opts.reason },
+   530→   530→      { label: expiresLabel, value: expiresAtStr },
+   531→   531→    ],
+   532→   532→    cta,
+   533→   533→  });
+   534→   534→
+   535→   535→  const text = t('emails.breakGlass.text', { userEmail: opts.userEmail, reason: opts.reason, expiresAt: expiresAtStr }) + '\n\n' + reviewAdvice;
+   536→   536→  await sendEmail({ to: opts.to, subject, html, text });
+   537→   537→}
+   538→   538→
+   539→   539→export interface SendWorkflowAssignedEmailOpts {
+   540→   540→  to: string;
+   541→   541→  documentTitle: string;
+   542→   542→  workflowName: string;
+   543→   543→  workflowUrl: string;
+   544→   544→  locale?: string;
+   545→   545→}
+   546→   546→
+   547→   547→export async function sendWorkflowAssignedEmail(opts: SendWorkflowAssignedEmailOpts): Promise<void> {
+   548→   548→  const t = await getTranslator(opts.locale);
+   549→   549→  const signedUrl = signUrl(opts.workflowUrl, 'workflow-approve');
+   550→   550→  const subject = t('emails.workflowAssigned.subject', { documentTitle: opts.documentTitle });
+   551→   551→  const heading = t('emails.workflowAssigned.heading');
+   552→   552→  const body = t('emails.workflowAssigned.body');
+   553→   553→  const documentLabel = t('emails.workflowAssigned.documentLabel');
+   554→   554→  const workflowLabel = t('emails.workflowAssigned.workflowLabel');
+   555→   555→  const ctaLabel = t('emails.workflowAssigned.cta');
+   556→   556→
+   557→   557→  const html = renderEmailTemplate({
+   558→   558→    locale: t.locale,
+   559→   559→    title: t('emails.workflowAssigned.title'),
+   560→   560→    preheader: t('emails.workflowAssigned.text', { documentTitle: opts.documentTitle, workflowName: opts.workflowName, workflowUrl: opts.workflowUrl }),
+   561→   561→    bodyHtml: `<p style="margin:0 0 16px 0;">${escapeHtml(body)}</p>`,
+   562→   562→    metaRows: [
+   563→   563→      { label: documentLabel, value: opts.documentTitle },
+   564→   564→      { label: workflowLabel, value: opts.workflowName },
+   565→   565→    ],
+   566→   566→    cta: { label: ctaLabel, href: signedUrl },
+   567→   567→  });
+   568→   568→
+   569→   569→  const text = t('emails.workflowAssigned.text', { documentTitle: opts.documentTitle, workflowName: opts.workflowName, workflowUrl: signedUrl });
+   570→   570→  await sendEmail({ to: opts.to, subject, html, text });
+   571→   571→}
+   572→   572→
+   573→   573→export interface SendShareNotificationEmailOpts {
+   574→   574→  to: string;
+   575→   575→  documentTitle: string;
+   576→   576→  sharedBy: string;
+   577→   577→  shareUrl: string;
+   578→   578→  expiresAt?: Date;
+   579→   579→  locale?: string;
+   580→   580→}
+   581→   581→
+   582→   582→export async function sendShareNotificationEmail(opts: SendShareNotificationEmailOpts): Promise<void> {
+   583→   583→  const t = await getTranslator(opts.locale);
+   584→   584→  const signedUrl = signUrl(opts.shareUrl, 'share-view');
+   585→   585→  const subject = t('emails.shareNotification.subject', { documentTitle: opts.documentTitle });
+   586→   586→  const heading = t('emails.shareNotification.heading');
+   587→   587→  const body = t.raw('emails.shareNotification.body', { sharedBy: opts.sharedBy });
+   588→   588→  const documentLabel = t('emails.shareNotification.documentLabel');
+   589→   589→  const ctaLabel = t('emails.shareNotification.cta');
+   590→   590→  const expiresNote = opts.expiresAt
+   591→   591→    ? t('emails.shareNotification.expiresNote', { expiresAt: opts.expiresAt.toISOString() })
+   592→   592→    : undefined;
+   593→   593→
+   594→   594→  const html = renderEmailTemplate({
+   595→   595→    locale: t.locale,
+   596→   596→    title: t('emails.shareNotification.title'),
+   597→   597→    preheader: t('emails.shareNotification.text', { sharedBy: opts.sharedBy, documentTitle: opts.documentTitle, shareUrl: opts.shareUrl }),
+   598→   598→    bodyHtml: `<p style="margin:0 0 16px 0;">${body}</p>`,
+   599→   599→    metaRows: [{ label: documentLabel, value: opts.documentTitle }],
+   600→   600→    cta: { label: ctaLabel, href: signedUrl },
+   601→   601→    footerNote: expiresNote,
+   602→   602→  });
+   603→   603→
+   604→   604→  const text = t('emails.shareNotification.text', { sharedBy: opts.sharedBy, documentTitle: opts.documentTitle, shareUrl: signedUrl }) +
+   605→   605→    (expiresNote ? '\n\n' + expiresNote : '');
+   606→   606→  await sendEmail({ to: opts.to, subject, html, text });
+   607→   607→}
+   608→   608→
+   609→   609→export interface SendDispositionApprovalEmailOpts {
+   610→   610→  to: string;
+   611→   611→  documentTitle: string;
+   612→   612→  action: 'delete' | 'archive' | 'review';
+   613→   613→  url: string;
+   614→   614→  locale?: string;
+   615→   615→}
+   616→   616→
+   617→   617→export async function sendDispositionApprovalEmail(opts: SendDispositionApprovalEmailOpts): Promise<void> {
+   618→   618→  const t = await getTranslator(opts.locale);
+   619→   619→  const signedUrl = signUrl(opts.url, 'disposition-approve');
+   620→   620→  const actionLabel = t(`emails.dispositionApproval.actions.${opts.action}`) || opts.action;
+   621→   621→  const subject = t('emails.dispositionApproval.subject', { documentTitle: opts.documentTitle });
+   622→   622→  const alert = t.raw('emails.dispositionApproval.alert', { actionLabel });
+   623→   623→  const documentLabel = t('emails.dispositionApproval.documentLabel');
+   624→   624→  const actionLabelKey = t('emails.dispositionApproval.actionLabel');
+   625→   625→  const ctaLabel = t('emails.dispositionApproval.cta');
+   626→   626→
+   627→   627→  const html = renderEmailTemplate({
+   628→   628→    locale: t.locale,
+   629→   629→    title: t('emails.dispositionApproval.title'),
+   630→   630→    preheader: t('emails.dispositionApproval.text', { documentTitle: opts.documentTitle, action: opts.action, url: opts.url }),
+   631→   631→    bodyHtml: '',
+   632→   632→    alert: { severity: 'warning', html: alert },
+   633→   633→    metaRows: [
+   634→   634→      { label: documentLabel, value: opts.documentTitle },
+   635→   635→      { label: actionLabelKey, value: actionLabel },
+   636→   636→    ],
+   637→   637→    cta: { label: ctaLabel, href: signedUrl },
+   638→   638→  });
+   639→   639→
+   640→   640→  const text = t('emails.dispositionApproval.text', { documentTitle: opts.documentTitle, action: opts.action, url: signedUrl });
+   641→   641→  await sendEmail({ to: opts.to, subject, html, text });
+   642→   642→}
+   643→   643→
+   644→   644→export interface SendPasswordResetEmailOpts {
+   645→   645→  to: string;
+   646→   646→  resetUrl: string;
+   647→   647→  locale?: string;
+   648→   648→}
+   649→   649→
+   650→   650→export async function sendPasswordResetEmail(opts: SendPasswordResetEmailOpts): Promise<void> {
+   651→   651→  const t = await getTranslator(opts.locale);
+   652→   652→  const signedUrl = signUrl(opts.resetUrl, 'password-reset');
+   653→   653→  const subject = t('emails.passwordReset.subject');
+   654→   654→  const body = t('emails.passwordReset.body');
+   655→   655→  const alert = t.raw('emails.passwordReset.alert');
+   656→   656→  const ctaLabel = t('emails.passwordReset.cta');
+   657→   657→
+   658→   658→  const html = renderEmailTemplate({
+   659→   659→    locale: t.locale,
+   660→   660→    title: t('emails.passwordReset.title'),
+   661→   661→    preheader: t('emails.passwordReset.text', { resetUrl: opts.resetUrl }),
+   662→   662→    bodyHtml: `<p style="margin:0 0 16px 0;">${escapeHtml(body)}</p>`,
+   663→   663→    alert: { severity: 'info', html: alert },
+   664→   664→    cta: { label: ctaLabel, href: signedUrl },
+   665→   665→  });
+   666→   666→
+   667→   667→  const text = t('emails.passwordReset.text', { resetUrl: signedUrl });
+   668→   668→  await sendEmail({ to: opts.to, subject, html, text });
+   669→   669→}
+   670→   670→
+   671→   671→// ---------------------------------------------------------------------------
+   672→   672→//  Helpers
+   673→   673→// ---------------------------------------------------------------------------
+   674→   674→
+   675→   675→/**
+   676→   676→ * Sign a URL by appending (or replacing) the `sig` query parameter.
+   677→   677→ * The signature covers the URL path + query (excluding `sig`) + the purpose.
+   678→   678→ * Verifiers recompute the HMAC and compare.
+   679→   679→ *
+   680→   680→ * Exported for use in tests and in route handlers that need to verify
+   681→   681→ * signed URLs (e.g. /accept-invite, /reset-password).
+   682→   682→ */
+   683→   683→export function signUrl(url: string, purpose: string): string {
+   684→   684→  try {
+   685→   685→    const u = new URL(url);
+   686→   686→    const data = `${purpose}:${u.pathname}${u.search ? '?' + u.search.replace(/[?&]sig=[^&]*/g, '').replace(/^[?&]/, '?') : ''}`;
+   687→   687→    const sig = crypto.createHmac('sha256', getEmailSigningSecret()).update(data).digest('hex');
+   688→   688→    u.searchParams.set('sig', sig);
+   689→   689→    return u.toString();
+   690→   690→  } catch {
+   691→   691→    // Not a valid URL — fall back to token-style signing
+   692→   692→    return signEmailToken(url, purpose);
+   693→   693→  }
+   694→   694→}
+   695→   695→

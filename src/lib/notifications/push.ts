@@ -93,9 +93,15 @@ export async function subscribePush(opts: {
 
 /**
  * Unsubscribe a user's browser from push notifications.
+ *
+ * SECURITY FIX (M-ADM-8): Filter by `userId` and `tenantId` so that a user
+ * can only unsubscribe THEIR OWN push subscriptions. Previously the function
+ * filtered only by `endpoint`, allowing any authenticated user to unsubscribe
+ * any other user's push endpoint (FCM/APNS endpoints are observable via
+ * shared browsers or network sniffing).
  */
-export async function unsubscribePush(endpoint: string): Promise<void> {
-  await db.pushSubscription.deleteMany({ where: { endpoint } }).catch(() => {});
+export async function unsubscribePush(endpoint: string, userId: string, tenantId: string): Promise<void> {
+  await db.pushSubscription.deleteMany({ where: { endpoint, userId, tenantId } }).catch(() => {});
 }
 
 /**

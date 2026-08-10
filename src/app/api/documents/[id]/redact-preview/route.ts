@@ -18,6 +18,7 @@ import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { getFileStorage } from '@/lib/storage/file-storage';
+import { getDocumentDek } from '@/lib/storage/envelope-encryption';
 import { z } from 'zod';
 
 const regionSchema = z.object({
@@ -51,7 +52,37 @@ export const POST = createApiHandler(
     if (!version) throw ApiError.notFound('no_version', 'No version available');
 
     const storage = getFileStorage();
-    const buf = await storage.get(version.storageKey);
+    const encryptedBuf = await storage.get(version.storageKey);
+
+    // SECURITY FIX (M-DOC-17): Decrypt the source content before rendering.
+    // The previous code fed ciphertext straight to sharp/pdfjs, both of
+    // which would throw — making redaction-preview unusable for any
+    // encrypted document (i.e. every document uploaded via the formData or
+    // TUS paths). The decryption mirrors the redact route: read the content
+    // IV from `version.metadata._encIv` and AES-GCM-decrypt with the doc DEK.
+    let buf = encryptedBuf;
+    const dek = await getDocumentDek(ctx.tenantId, doc.id);
+    if (dek) {
+      try {
+        const { decryptWithDek } = await import('@/lib/storage/envelope-encryption');
+        const versionMeta = JSON.parse(version.metadata || '{}');
+        const contentIv: string | undefined = versionMeta._encIv;
+        if (!contentIv) {
+          throw ApiError.badRequest(
+            'missing_encryption_iv',
+            'Source version is missing its encryption IV. Redaction preview is unavailable for this version.',
+          );
+        }
+        buf = decryptWithDek(dek, encryptedBuf.toString('base64'), contentIv);
+      } catch (err) {
+        if (err instanceof ApiError) throw err;
+        console.warn('[redact-preview] decryption failed:', err);
+        throw ApiError.badRequest(
+          'decryption_failed',
+          'Failed to decrypt the source version for preview. The document may be corrupted.',
+        );
+      }
+    }
 
     // Generate preview based on file type
     let previewBase64: string;

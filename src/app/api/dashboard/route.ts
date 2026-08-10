@@ -16,6 +16,15 @@ export const GET = createApiHandler(
   async (req: NextRequest, ctx) => {
     const isAdmin = hasPermission(ctx.session.user.permissions, PERMISSIONS.ADMIN_VIEW);
 
+    // SECURITY FIX (M-ADM-14): `recentActivity` (last 10 audit events) and
+    // `legalHolds` count leak PII of other tenant users — actorEmail exposes
+    // every acting user's email (including admins and security officers) to
+    // every other user. Restrict:
+    //   - Non-admins see only THEIR OWN recent activity (filtered by actorId).
+    //   - Non-admins do not see the legalHolds count (gate behind LEGAL_HOLD_MANAGE).
+    const auditWhere = isAdmin
+      ? { tenantId: ctx.tenantId }
+      : { tenantId: ctx.tenantId, actorId: ctx.userId };
     const [
       totalDocs,
       byState,
@@ -52,7 +61,7 @@ export const GET = createApiHandler(
         where: { tenantId: ctx.tenantId, ownerId: ctx.userId, deletedAt: null },
       }),
       db.auditEvent.findMany({
-        where: { tenantId: ctx.tenantId },
+        where: auditWhere,
         orderBy: { sequenceNum: 'desc' },
         take: 10,
         select: {
@@ -60,7 +69,10 @@ export const GET = createApiHandler(
           actorEmail: true, resourceName: true, createdAt: true,
         },
       }),
-      db.legalHold.count({ where: { tenantId: ctx.tenantId, releasedAt: null } }),
+      // SECURITY FIX (M-ADM-14): Only expose legalHolds count to admins.
+      isAdmin
+        ? db.legalHold.count({ where: { tenantId: ctx.tenantId, releasedAt: null } })
+        : Promise.resolve(0),
       db.favorite.findMany({
         where: { userId: ctx.userId, tenantId: ctx.tenantId },
         orderBy: { createdAt: 'desc' },

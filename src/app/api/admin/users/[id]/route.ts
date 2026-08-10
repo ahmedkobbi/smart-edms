@@ -11,6 +11,7 @@ import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { fireWebhook } from '@/lib/notifications/notify';
+import { revokeAllUserSessions } from '@/lib/auth/session-revocation';
 import { z } from 'zod';
 
 export const GET = createApiHandler(
@@ -93,8 +94,16 @@ export const PATCH = createApiHandler(
     });
 
     if (body.resetMfa) {
-      // Kill all sessions for this user
-      await db.session.deleteMany({ where: { userId: user.id } });
+      // SECURITY FIX (M-AUTH-1): Use revokeAllUserSessions — JWT-based sessions
+      // are not invalidated by `db.session.deleteMany` (the Session table is unused
+      // for active JWTs). revokeAllUserSessions sets `sessionsRevokedAt` (which
+      // the API handler checks against the JWT `iat`) and also revokes API keys
+      // + active step-up tokens for the user.
+      await revokeAllUserSessions(user.id, 'admin_mfa_reset');
+    }
+    if (body.status === 'suspended') {
+      // Same fix for the suspend path inside PATCH (status change).
+      await revokeAllUserSessions(user.id, 'admin_suspend');
     }
 
     await recordAuditEvent({
@@ -132,7 +141,9 @@ export const DELETE = createApiHandler(
     if (user.id === ctx.userId) throw ApiError.badRequest('cannot_delete_self', 'Cannot delete your own account');
 
     await db.user.update({ where: { id: user.id }, data: { status: 'suspended' } });
-    await db.session.deleteMany({ where: { userId: user.id } });
+    // SECURITY FIX (M-AUTH-1): revoke JWT sessions + API keys + step-up tokens.
+    // The previous `db.session.deleteMany` was a no-op for JWT-based sessions.
+    await revokeAllUserSessions(user.id, 'admin_suspend');
 
     await recordAuditEvent({
       tenantId: ctx.tenantId,

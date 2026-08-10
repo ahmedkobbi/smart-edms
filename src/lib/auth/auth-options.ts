@@ -150,6 +150,19 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Too many login attempts. Try again later.');
         }
 
+        // SECURITY FIX (M-AUTH-14): Per-email global rate limit.
+        // The (ip, email) limiter above is trivially bypassed by an attacker
+        // rotating across many IPs (botnet, residential proxies, Tor) — each
+        // IP gets its own 10-attempt budget. This second limiter, keyed on
+        // email alone, caps total attempts across all IPs to 20/hour, which
+        // makes large-scale credential stuffing infeasible without
+        // sacrificing too many legitimate users sharing an IP.
+        const emailRlKey = `login-email:${credentials.email.toLowerCase()}`;
+        const emailRl = authRateLimiter.check(emailRlKey, 20, 60 * 60 * 1000);
+        if (!emailRl.allowed) {
+          throw new Error('Too many login attempts for this account. Try again later.');
+        }
+
         const user = await db.user.findFirst({
           where: {
             email: credentials.email.toLowerCase(),
@@ -425,6 +438,20 @@ export const authOptions: NextAuthOptions = {
         token.roles = roles;
         token.permissions = permissions;
         (token as any).refreshAt = Date.now() + 5 * 60 * 1000; // refresh every 5 min
+
+        // SECURITY FIX (M-AUTH-2): Refresh `mfaVerified` from the DB so that
+        // an admin MFA-reset (which sets `mfaEnabled=false` and revokes
+        // sessions) takes effect on the user's NEXT surviving JWT refresh,
+        // and so that disabling MFA on the account clears the claim.
+        try {
+          const u = await db.user.findUnique({
+            where: { id: token.id as string },
+            select: { mfaEnabled: true },
+          });
+          token.mfaVerified = !!(u?.mfaEnabled);
+        } catch {
+          // DB error — leave the existing claim in place (fail safe)
+        }
       }
       return token;
     },

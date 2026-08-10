@@ -22,6 +22,12 @@ const schema = z.object({
 export const POST = createApiHandler(
   {
     requiredPermission: PERMISSIONS.WORKFLOW_APPROVE,
+    // SECURITY FIX (M-ADM-10): Approving/rejecting a workflow can promote a
+    // document to record state (`isRecord: true, state: 'record'`) — an
+    // irreversible, legally significant action. Require step-up auth so a
+    // stolen session cookie (e.g. via XSS on another tab) cannot silently
+    // approve workflows.
+    requireStepUp: true,
     audit: { eventType: 'workflow.approve', action: 'update', resourceType: 'workflow', alwaysAudit: true },
   },
   async (req: NextRequest, ctx, params) => {

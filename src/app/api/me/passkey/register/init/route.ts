@@ -13,7 +13,13 @@ import { generatePasskeyRegistrationOptions } from '@/lib/auth/webauthn';
 const challengeStore = new Map<string, { challenge: string; expiresAt: number }>();
 
 export const POST = createApiHandler(
-  {},
+  {
+    // SECURITY FIX (M-AUTH-15): Rate-limit passkey registration init.
+    // Without a cap, a hijacked session can spam this endpoint to grow the
+    // `challengeStore` Map indefinitely (entries expire after 5 min but the
+    // sweep is best-effort) — cheap memory-exhaustion DoS.
+    rateLimit: { max: 5, windowMs: 60_000 },
+  },
   async (req: NextRequest, ctx) => {
     const user = await db.user.findFirst({
       where: { id: ctx.userId, tenantId: ctx.tenantId },

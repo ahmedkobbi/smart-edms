@@ -6,8 +6,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
+import { PERMISSIONS } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { notify } from '@/lib/notifications/notify';
+import { revokeAllUserSessions } from '@/lib/auth/session-revocation';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -16,7 +18,17 @@ const schema = z.object({
 });
 
 export const POST = createApiHandler(
-  {},
+  {
+    // SECURITY FIX (M-ADM-12): Recertification decide can SUSPEND a user
+    // (decision='revoke') — a destructive, high-impact action. Require
+    // admin-level permission + step-up auth. Previously the route had EMPTY
+    // options — any authenticated user who happened to be the assigned
+    // reviewer could suspend any user (including admins) with no MFA.
+    requiredPermission: PERMISSIONS.ADMIN_USERS_MANAGE,
+    requireStepUp: true,
+    rateLimit: { max: 10, windowMs: 60_000 },
+    audit: { eventType: 'recertification.decide', action: 'update', resourceType: 'user', alwaysAudit: true },
+  },
   async (req: NextRequest, ctx, params) => {
     const body = schema.parse(await req.json());
 
@@ -43,7 +55,9 @@ export const POST = createApiHandler(
         where: { id: item.userId },
         data: { status: 'suspended' },
       });
-      await db.session.deleteMany({ where: { userId: item.userId } }).catch(() => {});
+      // SECURITY FIX (M-ADM-12): Use revokeAllUserSessions — the previous
+      // `db.session.deleteMany` was a no-op for JWT-based sessions.
+      await revokeAllUserSessions(item.userId, 'recertification_revoke');
       await notify({
         tenantId: ctx.tenantId,
         userId: item.userId,

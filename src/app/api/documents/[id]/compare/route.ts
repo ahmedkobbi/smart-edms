@@ -62,7 +62,28 @@ export const GET = createApiHandler(
       toText = idx?.extractedText || '';
     }
 
-    const diff = computeLineDiff(fromText, toText);
+    // SECURITY FIX (M-DOC-16): Cap input size BEFORE allocating the O(m×n) DP
+    // table. Two 50 000-line files would otherwise allocate a 2.5×10⁹ entry
+    // table (~20 GB) and OOM the worker. Cap each side at 5 000 lines and
+    // 200 KB total per side; if exceeded, return a 413.
+    const MAX_LINES_PER_SIDE = 5000;
+    const MAX_BYTES_PER_SIDE = 200 * 1024;
+    if (fromText.length > MAX_BYTES_PER_SIDE || toText.length > MAX_BYTES_PER_SIDE) {
+      throw ApiError.badRequest(
+        'diff_too_large',
+        `Version content exceeds the ${MAX_BYTES_PER_SIDE}-byte diff limit. Use a dedicated diff tool for large files.`,
+      );
+    }
+    const fromLines = fromText.split('\n');
+    const toLines = toText.split('\n');
+    if (fromLines.length > MAX_LINES_PER_SIDE || toLines.length > MAX_LINES_PER_SIDE) {
+      throw ApiError.badRequest(
+        'diff_too_many_lines',
+        `Version has more than ${MAX_LINES_PER_SIDE} lines — diff is capped to prevent OOM.`,
+      );
+    }
+
+    const diff = computeLineDiff(fromLines, toLines);
 
     return NextResponse.json({
       from: { versionNumber: fromVersion.versionNumber, fileName: fromVersion.fileName, sizeBytes: fromVersion.sizeBytes, createdAt: fromVersion.createdAt },
@@ -83,12 +104,10 @@ interface DiffLine {
   content: string;
 }
 
-function computeLineDiff(from: string, to: string): DiffLine[] {
-  const fromLines = from.split('\n');
-  const toLines = to.split('\n');
+function computeLineDiff(fromLines: string[], toLines: string[]): DiffLine[] {
   const result: DiffLine[] = [];
 
-  // Simple LCS-based diff
+  // Simple LCS-based diff (inputs are already size-capped by the caller)
   const m = fromLines.length;
   const n = toLines.length;
   const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));

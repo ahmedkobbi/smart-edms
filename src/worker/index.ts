@@ -112,14 +112,26 @@ async function handleWebhookJob(job: Job): Promise<void> {
   // Build the body
   const body = JSON.stringify({ event, payload, ts: Date.now() });
 
-  // Sign with HMAC-SHA256
+  // SECURITY FIX (M-ADM-3): Use HMAC-SHA256 (not plain SHA-256 concat) to
+  // defeat length-extension attacks. The previous `sha256(body + secret)`
+  // allowed an attacker who captured a valid (body, sig) pair to compute a
+  // valid signature for `body || padding || extension` without the secret.
   const crypto = await import('crypto');
-  const { sha256 } = await import('../lib/auth/crypto');
-  const signature = webhookSecretHash ? sha256(body + webhookSecretHash) : '';
+  const signature = webhookSecretHash
+    ? crypto.createHmac('sha256', webhookSecretHash).update(body).digest('hex')
+    : '';
 
-  // SSRF check
-  const { isAllowedOutboundUrl } = await import('../lib/security/ssrf-guard');
-  const ssrfCheck = isAllowedOutboundUrl(webhookUrl);
+  // SECURITY FIX (M-ADM-5 + M-ADM-6): Enforce HTTPS in production and use
+  // the async SSRF guard (with DNS resolution) to defeat DNS rebinding.
+  if (process.env.NODE_ENV === 'production' && !webhookUrl.startsWith('https://')) {
+    await db.webhook.update({
+      where: { id: webhookId },
+      data: { lastStatus: 'blocked_http' },
+    }).catch(() => {});
+    throw new Error(`HTTP webhook blocked in production: ${webhookUrl}`);
+  }
+  const { isSafeOutboundUrl } = await import('../lib/security/ssrf-guard');
+  const ssrfCheck = await isSafeOutboundUrl(webhookUrl);
   if (!ssrfCheck.allowed) {
     await db.webhook.update({
       where: { id: webhookId },

@@ -217,10 +217,20 @@ export const GET = createApiHandler(
     ]);
 
     // Augment with full-text matches from DocumentTextIndex (OCR + extracted)
+    // SECURITY FIX (M-DOC-14): Only return full-text snippets for documents
+    // the caller already owns or has been shared. Previously the fallback
+    // path ran `searchTextIndex(tenantId, q)` which filtered ONLY by tenantId —
+    // an end user could read snippets from any tenant document whose
+    // extracted text contained the query.
     let fullTextMatches: { documentId: string; snippet: string }[] = [];
     if (q.q && q.q.length >= 3) {
       try {
-        fullTextMatches = await searchTextIndex(ctx.tenantId, q.q, { limit: 10 });
+        fullTextMatches = await searchTextIndex(ctx.tenantId, q.q, {
+          limit: 10,
+          // Filter snippets to documents the caller can read. For end users
+          // (without DOCUMENT_READ), this restricts to owned documents.
+          ownerId: canReadAll ? undefined : ctx.userId,
+        });
       } catch {
         // ignore if text index unavailable
       }
@@ -240,17 +250,36 @@ export const GET = createApiHandler(
     }
 
     // Compute facets
-    const allMatching = await db.document.findMany({
-      where: { tenantId: ctx.tenantId, deletedAt: null, ...(canReadAll ? {} : { ownerId: ctx.userId }) },
-      select: { classificationId: true, tags: true, state: true },
-    });
+    // SECURITY FIX (M-DOC-15): Use SQL GROUP BY aggregation instead of loading
+    // every matching document row into the Node process. The previous code
+    // ran `db.document.findMany({ ... select: { classificationId, tags, state } })`
+    // with no pagination — for a tenant with 1M documents this loaded 1M rows
+    // + parsed 1M JSON tag strings per request. Now we run three aggregate
+    // queries that return at most a few hundred rows each.
+    const facetWhere = {
+      tenantId: ctx.tenantId,
+      deletedAt: null,
+      ...(canReadAll ? {} : { ownerId: ctx.userId }),
+    };
+    const [classificationFacetsRaw, stateFacetsRaw] = await Promise.all([
+      db.document.groupBy({
+        by: ['classificationId'],
+        where: facetWhere,
+        _count: { classificationId: true },
+      }),
+      db.document.groupBy({
+        by: ['state'],
+        where: facetWhere,
+        _count: { state: true },
+      }),
+    ]);
 
-    const classificationFacet = new Map<string, number>();
+    // For tags we still need to parse JSON (Prisma can't group by JSON array
+    // elements). To bound the work, only compute tag facets on the current
+    // page of results — this gives a representative sample for the UI without
+    // loading every document. (For precise tag facets, use OpenSearch.)
     const tagFacet = new Map<string, number>();
-    const stateFacet = new Map<string, number>();
-    for (const d of allMatching) {
-      if (d.classificationId) classificationFacet.set(d.classificationId, (classificationFacet.get(d.classificationId) ?? 0) + 1);
-      stateFacet.set(d.state, (stateFacet.get(d.state) ?? 0) + 1);
+    for (const d of filtered) {
       try {
         const tags: string[] = JSON.parse(d.tags || '[]');
         for (const t of tags) tagFacet.set(t, (tagFacet.get(t) ?? 0) + 1);
@@ -291,9 +320,9 @@ export const GET = createApiHandler(
       searchEngine: prismaSearchEngine, // Indicates fallback mode (+ semantic re-rank if available)
       fullTextMatches,
       facets: {
-        classifications: Array.from(classificationFacet.entries()).map(([id, count]) => ({ id, count })),
+        classifications: classificationFacetsRaw.map((r) => ({ id: r.classificationId, count: r._count.classificationId })),
         tags: Array.from(tagFacet.entries()).map(([name, count]) => ({ name, count })),
-        states: Array.from(stateFacet.entries()).map(([state, count]) => ({ state, count })),
+        states: stateFacetsRaw.map((r) => ({ state: r.state, count: r._count.state })),
         metadata: [], // Prisma fallback doesn't compute metadata facets
       },
     });

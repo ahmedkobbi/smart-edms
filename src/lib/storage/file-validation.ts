@@ -10,8 +10,17 @@ export const ALLOWED_MIME_TYPES = new Set([
   'application/vnd.ms-powerpoint',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   'application/vnd.oasis.opendocument.text', 'application/vnd.oasis.opendocument.spreadsheet',
-  'application/rtf', 'text/plain', 'text/csv', 'text/markdown', 'application/json', 'text/html', 'application/xml',
-  'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/tiff', 'image/bmp', 'image/svg+xml',
+  'application/rtf', 'text/plain', 'text/csv', 'text/markdown', 'application/json',
+  // SECURITY FIX (M-DOC-8): Removed 'text/html', 'application/xml', and
+  // 'image/svg+xml' from the allow-list. All three can carry JavaScript and
+  // could be served inline by the S3 backend (which does NOT set
+  // Content-Disposition: attachment at PUT time), leading to stored XSS in
+  // the EDMS origin. HTML/XML/SVG files are still accepted as text/plain
+  // (the magic-byte detector classifies them as text and the declared MIME
+  // must match — so an HTML file declared as text/html is now rejected, but
+  // the same file declared as text/plain is accepted and served as
+  // text/plain with Content-Disposition: attachment).
+  'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/tiff', 'image/bmp',
   'application/zip', 'application/x-7z-compressed', 'application/gzip', 'application/x-tar',
 ]);
 

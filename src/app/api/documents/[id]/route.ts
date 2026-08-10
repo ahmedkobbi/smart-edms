@@ -87,14 +87,33 @@ const patchSchema = z.object({
   documentType: z.string().max(100).optional(),
   classificationId: z.string().nullable().optional(),
   folderId: z.string().nullable().optional(),
-  tags: z.array(z.string()).optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
+  tags: z.array(z.string()).max(50).optional(),
+  // SECURITY FIX (M-DOC-23): Bound metadata to prevent DoS / storage abuse.
+  // Previously `z.record(z.string(), z.unknown())` accepted arbitrarily
+  // large/deeply-nested JSON — a single PATCH could store 9 MB of metadata
+  // that every subsequent read, search, and re-index had to parse.
+  // Now: max 100 keys, keys ≤ 64 chars, values are scalars ≤ 1024 chars,
+  // total serialized size ≤ 64 KB.
+  metadata: z.record(
+    z.string().max(64),
+    z.union([z.string().max(1024), z.number(), z.boolean(), z.null()]),
+  ).optional(),
   shareAllowed: z.boolean().optional(),
   downloadAllowed: z.boolean().optional(),
   previewAllowed: z.boolean().optional(),
   watermarkEnabled: z.boolean().optional(),
   reason: z.string().max(500).optional(),
-});
+}).refine(
+  (data) => {
+    if (!data.metadata) return true;
+    const keys = Object.keys(data.metadata);
+    if (keys.length > 100) return false;
+    const serialized = JSON.stringify(data.metadata);
+    if (serialized.length > 65536) return false;
+    return true;
+  },
+  { message: 'metadata must have ≤ 100 keys and ≤ 64 KB serialized size' },
+);
 
 export const PATCH = createApiHandler(
   {

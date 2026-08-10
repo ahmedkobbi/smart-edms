@@ -7,15 +7,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
-import { PERMISSIONS } from '@/lib/auth/permissions';
+import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
 import { z } from 'zod';
 
 export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.SEARCH_USE },
   async (req: NextRequest, ctx) => {
     const parentId = req.nextUrl.searchParams.get('parentId') || null;
+    // SECURITY FIX (M-DOC-3): Folder names can reveal sensitive organizational
+    // structure (e.g. "HR Investigations", "M&A Due Diligence"). Previously
+    // any user with SEARCH_USE saw every folder in the tenant. Now:
+    //   - Users with DOCUMENT_READ (elevated) see all folders (admin-equivalent).
+    //   - End users only see folders they created OR folders that contain
+    //     documents they own (via a sub-query on Document.ownerId).
+    const canReadAll = hasPermission(ctx.session.user.permissions, PERMISSIONS.DOCUMENT_READ);
+    let where: any = { tenantId: ctx.tenantId, parentId: parentId ?? null };
+    if (!canReadAll) {
+      // Folders the user created OR folders containing documents they own
+      where = {
+        tenantId: ctx.tenantId,
+        parentId: parentId ?? null,
+        OR: [
+          { createdBy: ctx.userId },
+          { documents: { some: { ownerId: ctx.userId, deletedAt: null } } },
+        ],
+      };
+    }
     const items = await db.folder.findMany({
-      where: { tenantId: ctx.tenantId, parentId: parentId ?? null },
+      where,
       orderBy: { name: 'asc' },
       include: {
         _count: { select: { documents: true, children: true } },

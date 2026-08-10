@@ -24,6 +24,12 @@ const schema = z.object({
 export const POST = createApiHandler(
   {
     requiredPermission: PERMISSIONS.RETENTION_DISPOSITION_APPROVE,
+    // SECURITY FIX (M-ADM-11): Disposition approval is a destructive,
+    // records-compliance-significant action (deletes or archives a document,
+    // generates a certificate of destruction). Require step-up auth so a
+    // stolen session cookie cannot silently destroy records.
+    requireStepUp: true,
+    rateLimit: { max: 10, windowMs: 60_000 },
     audit: { eventType: 'disposition.approve', action: 'update', resourceType: 'disposition', alwaysAudit: true },
   },
   async (req: NextRequest, ctx, params) => {

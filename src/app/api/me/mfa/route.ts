@@ -10,8 +10,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
-import { generateTotpSecret, encryptTotpSecret, decryptTotpSecret, verifyTotp, generateBackupCodes, encryptBackupCodes } from '@/lib/auth/totp';
+import { generateTotpSecret, encryptTotpSecret, decryptTotpSecret, verifyTotp, generateBackupCodes, hashBackupCodes } from '@/lib/auth/totp';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
+import { revokeAllUserSessions } from '@/lib/auth/session-revocation';
 import { z } from 'zod';
 import QRCode from 'qrcode';
 
@@ -58,7 +59,11 @@ export const POST = createApiHandler(
       if (!verifyTotp(secret, token)) throw ApiError.badRequest('invalid_token', 'Invalid TOTP token');
 
       const codes = generateBackupCodes();
-      const encCodes = await encryptBackupCodes(codes);
+      // SECURITY FIX (M-AUTH-6): Store one-way SHA-256 hashes of backup codes
+      // rather than reversibly-encrypted plaintext codes. Backup codes are
+      // single-use authenticators (like passwords) and must not be recoverable
+      // from a DB read + KEK leak.
+      const encCodes = await hashBackupCodes(codes);
 
       await db.user.update({
         where: { id: user.id },
@@ -97,6 +102,12 @@ export const POST = createApiHandler(
         where: { id: user.id },
         data: { mfaEnabled: false, mfaSecretEnc: null, mfaBackupCodesEnc: null },
       });
+
+      // SECURITY FIX (M-AUTH-2): Revoke all sessions so that the `mfaVerified`
+      // claim on existing JWTs is re-evaluated on next sign-in. Without this,
+      // existing JWTs continue to carry `mfaVerified: true` for up to 8 hours
+      // after MFA is disabled.
+      await revokeAllUserSessions(user.id, 'mfa_disabled');
 
       await recordAuditEvent({
         tenantId: ctx.tenantId,

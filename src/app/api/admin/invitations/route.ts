@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
-import { randomToken } from '@/lib/auth/crypto';
+import { randomToken, sha256 } from '@/lib/auth/crypto';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { notify } from '@/lib/notifications/notify';
 import { sendInvitationEmail } from '@/lib/notifications/email';
@@ -52,11 +52,16 @@ export const POST = createApiHandler(
     if (existingInv) throw ApiError.conflict('invitation_exists', 'Pending invitation already exists');
 
     const token = randomToken(32);
+    // SECURITY FIX (M-AUTH-4): Store SHA-256(token), not the raw token.
+    // A read-only DB compromise would otherwise yield every pending
+    // invitation token — each valid for 7 days and enough to accept the
+    // invitation with an attacker-chosen password. The raw token is only
+    // ever held in memory and in the email link.
     const invitation = await db.invitation.create({
       data: {
         tenantId: ctx.tenantId,
         email: body.email.toLowerCase(),
-        token,
+        token: sha256(token),
         invitedBy: ctx.userId,
         roleNames: JSON.stringify(body.roleNames),
         status: 'pending',

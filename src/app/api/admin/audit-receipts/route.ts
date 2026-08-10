@@ -12,6 +12,7 @@ import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { sha256 } from '@/lib/auth/crypto';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
+import crypto from 'crypto';
 import { z } from 'zod';
 
 export const GET = createApiHandler(
@@ -68,8 +69,18 @@ export const POST = createApiHandler(
     };
 
     const receiptHash = sha256(JSON.stringify(summary));
+    // SECURITY FIX (M-ADM-22): Use HMAC-SHA256 (not plain SHA-256 concat) so
+    // the signature scheme is cryptographically sound against length-extension
+    // attacks. The previous `sha256(receiptHash + key + tenantId)` construction
+    // allowed an attacker who captured a valid (receiptHash, signature) pair
+    // to compute a valid signature for `receiptHash + padding + extension`.
+    // This matters when receipts are published for external audit (the stated
+    // use case of evidence packages).
     const receiptKey = process.env.NEXTAUTH_SECRET || 'dev-only-secret';
-    const signature = sha256(receiptHash + receiptKey + ctx.tenantId);
+    const signature = crypto
+      .createHmac('sha256', receiptKey)
+      .update(`${receiptHash}:${ctx.tenantId}`)
+      .digest('hex');
 
     const receipt = await db.auditReceipt.create({
       data: {
