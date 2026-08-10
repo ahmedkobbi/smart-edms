@@ -34,8 +34,9 @@ yarn-error.log*
 *.db-journal
 db/
 
-# Storage (local FS adapter)
-storage/
+# Storage (local FS adapter data — NOT src/lib/storage/)
+/storage/
+!src/lib/storage/
 
 # KEK file (dev only — never commit)
 .kek

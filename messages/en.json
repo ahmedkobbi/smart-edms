@@ -196,7 +196,9 @@
     "breakGlass": "Break-glass",
     "dualControl": "Dual Control",
     "developer": "Developer",
-    "sessions": "Sessions"
+    "sessions": "Sessions",
+    "locales": "Locales & Translations",
+    "localePrefs": "Language & Locale"
   },
   "settings": {
     "title": "Settings",

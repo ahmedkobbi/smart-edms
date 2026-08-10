@@ -210,7 +210,9 @@
     "breakGlass": "Notfallzugriff",
     "dualControl": "Dual Control",
     "developer": "Entwickler",
-    "sessions": "Sitzungen"
+    "sessions": "Sitzungen",
+    "locales": "Sprachen & Übersetzungen",
+    "localePrefs": "Sprache & Gebietsschema"
   },
   "settings": {
     "title": "Settings",

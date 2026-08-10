@@ -119,6 +119,17 @@ export async function fireWebhook(
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
+          // SSRF check before every attempt (in case DNS changed)
+          const { isAllowedOutboundUrl } = await import('@/lib/security/ssrf-guard');
+          const ssrfCheck = isAllowedOutboundUrl(w.url);
+          if (!ssrfCheck.allowed) {
+            await db.webhook.update({
+              where: { id: w.id },
+              data: { lastStatus: 'blocked_ssrf', lastSentAt: new Date() },
+            });
+            return;
+          }
+
           const res = await fetch(w.url, {
             method: 'POST',
             headers: {

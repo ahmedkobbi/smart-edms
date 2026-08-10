@@ -196,7 +196,9 @@
     "breakGlass": "الوصول الطارئ",
     "dualControl": "الرقابة المزدوجة",
     "developer": "المطور",
-    "sessions": "الجلسات"
+    "sessions": "الجلسات",
+    "locales": "اللغات والترجمات",
+    "localePrefs": "اللغة والإعداد المحلي"
   },
   "settings": {
     "title": "الإعدادات",

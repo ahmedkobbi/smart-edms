@@ -1,0 +1,1257 @@
+     1→// Smart EDMS — Prisma schema
+     2→// Multi-tenant Electronic Document Management System
+     3→// Database: SQLite (dev). The schema is portable to PostgreSQL by changing
+     4→// the datasource provider; row-level security can then be added in a migration.
+     5→
+     6→generator client {
+     7→  provider = "prisma-client-js"
+     8→}
+     9→
+    10→datasource db {
+    11→  provider = "sqlite"
+    12→  url      = env("DATABASE_URL")
+    13→}
+    14→
+    15→// ============================================================================
+    16→//  TENANCY
+    17→// ============================================================================
+    18→
+    19→model Tenant {
+    20→  id              String   @id @default(cuid())
+    21→  name            String
+    22→  slug            String   @unique
+    23→  status          String   @default("active") // active | suspended | deleted
+    24→  settings        String   @default("{}") // JSON blob: branding, residency, feature flags
+    25→  createdAt       DateTime @default(now())
+    26→  updatedAt       DateTime @updatedAt
+    27→
+    28→  users                  User[]
+    29→  groups                 Group[]
+    30→  roles                  Role[]
+    31→  policies               Policy[]
+    32→  classifications        Classification[]
+    33→  metadataSchemas        MetadataSchema[]
+    34→  documents              Document[]
+    35→  folders                Folder[]
+    36→  workflows              Workflow[]
+    37→  workflowDefinitions    WorkflowDefinition[]
+    38→  retentionSchedules     RetentionSchedule[]
+    39→  legalHolds             LegalHold[]
+    40→  auditEvents            AuditEvent[]
+    41→  notifications          Notification[]
+    42→  shares                 Share[]
+    43→  apiKeys                ApiKey[]
+    44→  webhooks               Webhook[]
+    45→  sessions               Session[]
+    46→  accounts               Account[]
+    47→  verificationTokens     VerificationToken[]
+    48→  devices                Device[]
+    49→  classificationChanges  ClassificationChange[]
+    50→  comments               DocumentComment[]
+    51→  favorites              Favorite[]
+    52→  recentViews            RecentView[]
+    53→  savedSearches          SavedSearch[]
+    54→  redactions             Redaction[]
+    55→  dispositionRecords     DispositionRecord[]
+    56→  serviceAccounts        ServiceAccount[]
+    57→  stepUpSessions         StepUpSession[]
+    58→  documentEncryptionKeys DocumentEncryptionKey[]
+    59→  malwareScans           MalwareScan[]
+    60→  controlledVocabularies ControlledVocabulary[]
+    61→  invitations            Invitation[]
+    62→  recertificationCampaigns RecertificationCampaign[]
+    63→  breakGlassAccesses     BreakGlassAccess[]
+    64→  ssoProviders           SsoProvider[]
+    65→  auditReceipts          AuditReceipt[]
+    66→  subscription           Subscription?
+    67→  documentTextIndexes    DocumentTextIndex[]
+    68→  securityAnomalies      SecurityAnomaly[]
+    69→  userLocalePreferences  UserLocalePreference[]
+    70→  evidencePackages       EvidencePackage[]
+    71→  collaborationSessions  CollaborationSession[]
+    72→}
+    73→
+    74→// ============================================================================
+    75→//  IDENTITY & ACCESS
+    76→// ============================================================================
+    77→
+    78→model User {
+    79→  id                String   @id @default(cuid())
+    80→  tenantId          String
+    81→  email             String
+    82→  emailVerified     DateTime?
+    83→  name              String?
+    84→  passwordHash      String?
+    85→  status            String   @default("active") // active | suspended | invited | locked
+    86→  mfaEnabled        Boolean  @default(false)
+    87→  mfaSecretEnc      String?  // encrypted TOTP secret
+    88→  mfaBackupCodesEnc String?  // encrypted JSON array of backup codes
+    89→  passkeyCredentials String  @default("[]") // JSON array of WebAuthn credential descriptors
+    90→  lastLoginAt       DateTime?
+    91→  lastLoginIp       String?
+    92→  lastLoginUserAgent String?
+    93→  failedLoginAttempts Int    @default(0)
+    94→  lockedUntil       DateTime?
+    95→  avatarUrl         String?
+    96→  jobTitle          String?
+    97→  department        String?
+    98→  createdBy         String?
+    99→  createdAt         DateTime @default(now())
+   100→  updatedAt         DateTime @updatedAt
+   101→
+   102→  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   103→  groupMemberships GroupMember[]
+   104→  roleAssignments RoleAssignment[]
+   105→  documents       Document[]   @relation("DocumentOwner")
+   106→  documentVersions DocumentVersion[]
+   107→  auditEvents     AuditEvent[]
+   108→  approvals       Approval[]
+   109→  delegationsReceived ApprovalDelegation[]
+   110→  notifications   Notification[]
+   111→  shares          Share[]
+   112→  sessions        Session[]
+   113→  accounts        Account[]
+   114→  verificationTokens VerificationToken[]
+   115→  devices         Device[]
+   116→  workflowInitiated Workflow[]
+   117→  approvalDelegationsFrom ApprovalDelegation[] @relation("ApprovalDelegationFrom")
+   118→  classificationChangesAsActor ClassificationChange[]
+   119→  comments               DocumentComment[] @relation("UserComments")
+   120→  favorites              Favorite[] @relation("UserFavorites")
+   121→  recentViews            RecentView[] @relation("UserRecentViews")
+   122→  savedSearches          SavedSearch[] @relation("UserSavedSearches")
+   123→  stepUpSessions         StepUpSession[]
+   124→  localePreference       UserLocalePreference? @relation("UserLocalePreference")
+   125→
+   126→  @@unique([tenantId, email])
+   127→  @@index([tenantId])
+   128→  @@index([email])
+   129→}
+   130→
+   131→model Group {
+   132→  id          String   @id @default(cuid())
+   133→  tenantId    String
+   134→  name        String
+   135→  description String?
+   136→  createdAt   DateTime @default(now())
+   137→  updatedAt   DateTime @updatedAt
+   138→
+   139→  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   140→  members   GroupMember[]
+   141→  policies  Policy[]      @relation("PolicyGroup")
+   142→
+   143→  @@unique([tenantId, name])
+   144→  @@index([tenantId])
+   145→}
+   146→
+   147→model GroupMember {
+   148→  id        String   @id @default(cuid())
+   149→  groupId   String
+   150→  userId    String
+   151→  tenantId  String
+   152→  addedAt   DateTime @default(now())
+   153→
+   154→  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+   155→  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+   156→
+   157→  @@unique([groupId, userId])
+   158→  @@index([userId])
+   159→  @@index([tenantId])
+   160→}
+   161→
+   162→model Role {
+   163→  id          String   @id @default(cuid())
+   164→  tenantId    String
+   165→  name        String
+   166→  description String?
+   167→  permissions String   @default("[]") // JSON array of permission strings
+   168→  isSystem    Boolean  @default(false) // system roles cannot be deleted
+   169→  createdAt   DateTime @default(now())
+   170→  updatedAt   DateTime @updatedAt
+   171→
+   172→  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   173→  assignments RoleAssignment[]
+   174→
+   175→  @@unique([tenantId, name])
+   176→  @@index([tenantId])
+   177→}
+   178→
+   179→model RoleAssignment {
+   180→  id        String   @id @default(cuid())
+   181→  tenantId  String
+   182→  userId    String
+   183→  roleId    String
+   184→  scope     String?  // optional scope: folder:abc or doc:xyz
+   185→  createdAt DateTime @default(now())
+   186→
+   187→  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+   188→  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+   189→
+   190→  @@unique([userId, roleId, scope])
+   191→  @@index([tenantId])
+   192→}
+   193→
+   194→model Policy {
+   195→  id          String   @id @default(cuid())
+   196→  tenantId    String
+   197→  name        String
+   198→  description String?
+   199→  effect      String   // allow | deny
+   200→  action      String   // e.g. "document:read", "*"
+   201→  resource    String   // e.g. "document:*", "folder:abc"
+   202→  conditions  String   @default("{}") // JSON: classification, hasTag, timeOfDay, etc.
+   203→  priority    Int      @default(100)
+   204→  enabled     Boolean  @default(true)
+   205→  createdAt   DateTime @default(now())
+   206→  updatedAt   DateTime @updatedAt
+   207→
+   208→  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   209→  groups  Group[] @relation("PolicyGroup")
+   210→
+   211→  @@unique([tenantId, name])
+   212→  @@index([tenantId])
+   213→}
+   214→
+   215→model ApiKey {
+   216→  id          String   @id @default(cuid())
+   217→  tenantId    String
+   218→  name        String
+   219→  description String?
+   220→  // We store only the hash; the raw key is shown ONCE at creation.
+   221→  keyHash     String   @unique
+   222→  keyPrefix   String   // first 8 chars for identification in UI
+   223→  scopes      String   @default("[]") // JSON array of permission strings
+   224→  expiresAt   DateTime?
+   225→  lastUsedAt  DateTime?
+   226→  createdBy   String?
+   227→  revokedAt   DateTime?
+   228→  createdAt   DateTime @default(now())
+   229→
+   230→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   231→
+   232→  @@index([tenantId])
+   233→}
+   234→
+   235→model Webhook {
+   236→  id          String   @id @default(cuid())
+   237→  tenantId    String
+   238→  name        String
+   239→  url         String
+   240→  events      String   @default("[]") // JSON array of event names
+   241→  secretHash  String?
+   242→  enabled     Boolean  @default(true)
+   243→  lastStatus  String?
+   244→  lastSentAt  DateTime?
+   245→  createdAt   DateTime @default(now())
+   246→  updatedAt   DateTime @updatedAt
+   247→
+   248→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   249→
+   250→  @@index([tenantId])
+   251→}
+   252→
+   253→model Device {
+   254→  id          String   @id @default(cuid())
+   255→  tenantId    String
+   256→  userId      String
+   257→  label       String
+   258→  fingerprint String   // hashed user-agent + IP-range + geo hint
+   259→  trusted     Boolean  @default(false)
+   260→  lastSeenAt  DateTime @default(now())
+   261→  lastSeenIp  String?
+   262→  createdAt   DateTime @default(now())
+   263→
+   264→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   265→  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+   266→
+   267→  @@index([userId])
+   268→}
+   269→
+   270→// ============================================================================
+   271→//  DOCUMENT MANAGEMENT
+   272→// ============================================================================
+   273→
+   274→model Folder {
+   275→  id          String   @id @default(cuid())
+   276→  tenantId    String
+   277→  parentId    String?
+   278→  name        String
+   279→  description String?
+   280→  createdBy   String?
+   281→  createdAt   DateTime @default(now())
+   282→  updatedAt   DateTime @updatedAt
+   283→
+   284→  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   285→  parent    Folder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+   286→  children  Folder[] @relation("FolderTree")
+   287→  documents Document[]
+   288→
+   289→  @@index([tenantId, parentId])
+   290→}
+   291→
+   292→model Classification {
+   293→  id           String   @id @default(cuid())
+   294→  tenantId     String
+   295→  code         String   // e.g. "PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED", "HS"
+   296→  name         String
+   297→  description  String?
+   298→  level        Int      // 0=lowest, higher=more sensitive
+   299→  color        String   // hex banner color
+   300→  defaultPolicy String? // JSON policy snippet for documents of this class
+   301→  isSystem     Boolean  @default(false)
+   302→  createdAt    DateTime @default(now())
+   303→  updatedAt    DateTime @updatedAt
+   304→
+   305→  tenant            Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   306→  documents         Document[]
+   307→  changesAsFrom     ClassificationChange[] @relation("ClassChangeFrom")
+   308→  changesAsTo       ClassificationChange[] @relation("ClassChangeTo")
+   309→
+   310→  @@unique([tenantId, code])
+   311→  @@index([tenantId])
+   312→}
+   313→
+   314→model MetadataSchema {
+   315→  id          String   @id @default(cuid())
+   316→  tenantId    String
+   317→  name        String
+   318→  description String?
+   319→  fields      String   // JSON: [{name,label,type,required,options,validation}]
+   320→  appliesTo   String   @default("*") // document type filter
+   321→  createdAt   DateTime @default(now())
+   322→  updatedAt   DateTime @updatedAt
+   323→
+   324→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   325→
+   326→  @@unique([tenantId, name])
+   327→}
+   328→
+   329→model Document {
+   330→  id              String   @id @default(cuid())
+   331→  tenantId        String
+   332→  folderId        String?
+   333→  ownerId         String?
+   334→  title           String
+   335→  description     String?
+   336→  documentType    String   @default("generic") // contract, policy, invoice, etc.
+   337→  documentLanguage String  @default("en") // ISO 639-1: en, ar, fr, es, de
+   338→  textDirection   String   @default("ltr") // ltr | rtl
+   339→  classificationId String?
+   340→  tags            String   @default("[]") // JSON array
+   341→  metadata        String   @default("{}") // JSON
+   342→  state           String   @default("draft") // draft | active | record | archived | disposed
+   343→  isRecord        Boolean  @default(false)
+   344→  isLocked        Boolean  @default(false)
+   345→  lockedBy        String?
+   346→  lockedReason    String?
+   347→  lockedUntil     DateTime?
+   348→  currentVersion  Int      @default(0)
+   349→  retentionScheduleId String?
+   350→  retentionStartDate DateTime?
+   351→  retentionDisposeAfter DateTime?
+   352→  legalHold       Boolean  @default(false)
+   353→  legalHoldReason String?
+   354→  legalHoldSetBy  String?
+   355→  legalHoldSetAt  DateTime?
+   356→  shareAllowed    Boolean  @default(true)
+   357→  downloadAllowed Boolean  @default(true)
+   358→  previewAllowed  Boolean  @default(true)
+   359→  watermarkEnabled Boolean @default(true)
+   360→  redactionCount  Int      @default(0)
+   361→  aiClassificationSuggested String? // suggested by AI, awaiting approval
+   362→  aiClassificationReason String?
+   363→  aiSuggestionState String? // pending | approved | rejected
+   364→  createdAt       DateTime @default(now())
+   365→  updatedAt       DateTime @updatedAt
+   366→  deletedAt       DateTime?
+   367→
+   368→  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   369→  folder          Folder?        @relation(fields: [folderId], references: [id], onDelete: SetNull)
+   370→  owner           User?          @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+   371→  classification  Classification? @relation(fields: [classificationId], references: [id], onDelete: SetNull)
+   372→  versions        DocumentVersion[]
+   373→  approvals       Approval[]
+   374→  shares          Share[]
+   375→  classificationChanges ClassificationChange[]
+   376→  legalHoldJoins  LegalHoldDocument[] @relation("LegalHoldDocumentJoin")
+   377→  retentionSchedule RetentionSchedule? @relation(fields: [retentionScheduleId], references: [id], onDelete: SetNull)
+   378→  comments        DocumentComment[] @relation("DocumentComments")
+   379→  favorites       Favorite[]
+   380→  recentViews     RecentView[] @relation("DocumentRecentViews")
+   381→  redactions      Redaction[]
+   382→  encryptionKey   DocumentEncryptionKey?
+   383→  textIndex       DocumentTextIndex?
+   384→
+   385→  @@index([tenantId, folderId])
+   386→  @@index([tenantId, state])
+   387→  @@index([tenantId, classificationId])
+   388→  @@index([tenantId, ownerId])
+   389→}
+   390→
+   391→model DocumentVersion {
+   392→  id            String   @id @default(cuid())
+   393→  tenantId      String
+   394→  documentId    String
+   395→  versionNumber Int
+   396→  storageKey    String   // path in object storage
+   397→  fileName      String
+   398→  mimeType      String
+   399→  sizeBytes     Int
+   400→  checksumSha256 String
+   401→  checksumSha1  String?
+   402→  uploadedById  String?
+   403→  changeReason  String?
+   404→  redacted      Boolean  @default(false)
+   405→  derivedFrom   String?  // parent version id, if this is a derivative (e.g. redacted)
+   406→  metadata      String   @default("{}") // JSON snapshot of doc metadata at this version
+   407→  createdAt     DateTime @default(now())
+   408→
+   409→  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+   410→  uploader User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+   411→
+   412→  @@unique([documentId, versionNumber])
+   413→  @@index([tenantId, documentId])
+   414→}
+   415→
+   416→// ============================================================================
+   417→//  WORKFLOW & APPROVALS
+   418→// ============================================================================
+   419→
+   420→model WorkflowDefinition {
+   421→  id          String   @id @default(cuid())
+   422→  tenantId    String
+   423→  name        String
+   424→  description String?
+   425→  steps       String   // JSON: [{name, approverType, approverIds, mode, dueInHours, escalatesTo}]
+   426→  triggerEvent String? // document.upload | document.classify | manual
+   427→  enabled     Boolean  @default(true)
+   428→  createdAt   DateTime @default(now())
+   429→  updatedAt   DateTime @updatedAt
+   430→
+   431→  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   432→  workflows Workflow[]
+   433→
+   434→  @@index([tenantId])
+   435→}
+   436→
+   437→model Workflow {
+   438→  id             String   @id @default(cuid())
+   439→  tenantId       String
+   440→  definitionId   String?
+   441→  documentId     String?
+   442→  initiatedById  String?
+   443→  name           String
+   444→  status         String   @default("pending") // pending | approved | rejected | cancelled | escalated
+   445→  currentStep    Int      @default(0)
+   446→  dueAt          DateTime?
+   447→  completedAt    DateTime?
+   448→  reason         String?
+   449→  createdAt      DateTime @default(now())
+   450→  updatedAt      DateTime @updatedAt
+   451→
+   452→  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   453→  definition  WorkflowDefinition? @relation(fields: [definitionId], references: [id], onDelete: SetNull)
+   454→  initiator   User?       @relation(fields: [initiatedById], references: [id], onDelete: SetNull)
+   455→  approvals   Approval[]
+   456→
+   457→  @@index([tenantId, status])
+   458→  @@index([tenantId, documentId])
+   459→}
+   460→
+   461→model Approval {
+   462→  id          String   @id @default(cuid())
+   463→  tenantId    String
+   464→  workflowId  String
+   465→  documentId  String?
+   466→  stepIndex   Int
+   467→  stepName    String
+   468→  approverId  String
+   469→  status      String   @default("pending") // pending | approved | rejected | delegated | escalated
+   470→  comment     String?
+   471→  signature   String?  // attestation hash
+   472→  delegatedTo String?
+   473→  dueAt       DateTime?
+   474→  decidedAt   DateTime?
+   475→  createdAt   DateTime @default(now())
+   476→
+   477→  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+   478→  document Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+   479→  approver User     @relation(fields: [approverId], references: [id], onDelete: Cascade)
+   480→  delegations ApprovalDelegation[]
+   481→
+   482→  @@index([tenantId, approverId, status])
+   483→  @@index([tenantId, workflowId])
+   484→}
+   485→
+   486→model ApprovalDelegation {
+   487→  id           String   @id @default(cuid())
+   488→  approvalId   String
+   489→  fromUserId   String
+   490→  toUserId     String
+   491→  reason       String?
+   492→  delegatedAt  DateTime @default(now())
+   493→
+   494→  approval Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+   495→  fromUser User     @relation("ApprovalDelegationFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+   496→  toUser   User     @relation(fields: [toUserId], references: [id], onDelete: Cascade)
+   497→
+   498→  @@index([fromUserId])
+   499→  @@index([toUserId])
+   500→}
+   501→
+   502→// ============================================================================
+   503→//  RETENTION, DISPOSITION & LEGAL HOLD
+   504→// ============================================================================
+   505→
+   506→model RetentionSchedule {
+   507→  id              String   @id @default(cuid())
+   508→  tenantId        String
+   509→  name            String
+   510→  description     String?
+   511→  retentionDays   Int      // total retention from trigger event
+   512→  startTrigger    String   // document.created | document.closed | document.lastModified | custom
+   513→  dispositionAction String // delete | archive | review
+   514→  requireApproval Boolean  @default(true)
+   515→  appliesTo       String   @default("*") // document type filter
+   516→  createdAt       DateTime @default(now())
+   517→  updatedAt       DateTime @updatedAt
+   518→
+   519→  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   520→  documents Document[]
+   521→
+   522→  @@unique([tenantId, name])
+   523→  @@index([tenantId])
+   524→}
+   525→
+   526→model LegalHold {
+   527→  id          String   @id @default(cuid())
+   528→  tenantId    String
+   529→  name        String
+   530→  reason      String
+   531→  caseRef     String?
+   532→  setById     String?
+   533→  releasedAt  DateTime?
+   534→  releasedBy  String?
+   535→  releaseReason String?
+   536→  createdAt   DateTime @default(now())
+   537→  updatedAt   DateTime @updatedAt
+   538→
+   539→  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   540→  documents   LegalHoldDocument[] @relation("LegalHoldDocs")
+   541→
+   542→  @@index([tenantId])
+   543→}
+   544→
+   545→// Explicit join model for LegalHold <-> Document (many-to-many)
+   546→model LegalHoldDocument {
+   547→  id          String   @id @default(cuid())
+   548→  tenantId    String
+   549→  legalHoldId String
+   550→  documentId  String
+   551→  addedAt     DateTime @default(now())
+   552→  addedBy     String?
+   553→
+   554→  legalHold  LegalHold @relation("LegalHoldDocs", fields: [legalHoldId], references: [id], onDelete: Cascade)
+   555→  document   Document  @relation("LegalHoldDocumentJoin", fields: [documentId], references: [id], onDelete: Cascade)
+   556→
+   557→  @@unique([legalHoldId, documentId])
+   558→  @@index([tenantId, documentId])
+   559→}
+   560→
+   561→// ============================================================================
+   562→//  SHARING
+   563→// ============================================================================
+   564→
+   565→model Share {
+   566→  id              String   @id @default(cuid())
+   567→  tenantId        String
+   568→  documentId      String
+   569→  createdBy       String?
+   570→  token           String   @unique
+   571→  recipientEmail  String?
+   572→  recipientUserId String?
+   573→  mode            String   @default("view") // view | download | review
+   574→  passwordHash    String?
+   575→  expiresAt       DateTime?
+   576→  maxViews        Int?
+   577→  viewCount       Int      @default(0)
+   578→  watermark       Boolean  @default(true)
+   579→  revokedAt       DateTime?
+   580→  revokeReason    String?
+   581→  createdAt       DateTime @default(now())
+   582→
+   583→  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   584→  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+   585→  creator  User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+   586→
+   587→  @@index([tenantId, documentId])
+   588→  @@index([token])
+   589→}
+   590→
+   591→// ============================================================================
+   592→//  AUDIT (tamper-evident, hash-chained)
+   593→// ============================================================================
+   594→
+   595→model AuditEvent {
+   596→  id           String   @id @default(cuid())
+   597→  tenantId     String
+   598→  sequenceNum  Int      // monotonic per-tenant sequence for chaining
+   599→  eventType    String   // auth.login | document.read | admin.policy.update ...
+   600→  actorId      String?
+   601→  actorEmail   String?
+   602→  actorIp      String?
+   603→  actorUserAgent String?
+   604→  action       String   // create | read | update | delete | login | approve | ...
+   605→  resourceType String?  // document | user | policy | classification ...
+   606→  resourceId   String?
+   607→  resourceName String?
+   608→  result       String   @default("allow") // allow | deny | error
+   609→  reason       String?
+   610→  correlationId String?
+   611→  sessionId    String?
+   612→  metadata     String   @default("{}") // JSON
+   613→  prevHash     String   // hash of previous event in chain
+   614→  eventHash    String   // hash of this event's contents (for verification)
+   615→  createdAt    DateTime @default(now())
+   616→
+   617→  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   618→  actor    User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+   619→
+   620→  @@unique([tenantId, sequenceNum])
+   621→  @@index([tenantId, eventType, createdAt])
+   622→  @@index([tenantId, resourceType, resourceId])
+   623→  @@index([tenantId, actorId])
+   624→  @@index([tenantId, createdAt])
+   625→}
+   626→
+   627→model ClassificationChange {
+   628→  id           String   @id @default(cuid())
+   629→  tenantId     String
+   630→  documentId   String
+   631→  fromClassId  String?
+   632→  toClassId    String?
+   633→  reason       String?
+   634→  actorId      String?
+   635→  isDowngrade  Boolean  @default(false)
+   636→  approved     Boolean  @default(false)
+   637→  createdAt    DateTime @default(now())
+   638→
+   639→  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   640→  document      Document       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+   641→  fromClass     Classification? @relation("ClassChangeFrom", fields: [fromClassId], references: [id], onDelete: SetNull)
+   642→  toClass       Classification? @relation("ClassChangeTo", fields: [toClassId], references: [id], onDelete: SetNull)
+   643→  actor         User?          @relation(fields: [actorId], references: [id], onDelete: SetNull)
+   644→
+   645→  @@index([tenantId, documentId])
+   646→}
+   647→
+   648→// ============================================================================
+   649→//  NOTIFICATIONS
+   650→// ============================================================================
+   651→
+   652→model Notification {
+   653→  id          String   @id @default(cuid())
+   654→  tenantId    String
+   655→  userId      String
+   656→  type        String   // workflow.assigned | share.created | audit.anomaly ...
+   657→  title       String
+   658→  body        String
+   659→  severity    String   @default("info") // info | success | warning | critical
+   660→  link        String?
+   661→  readAt      DateTime?
+   662→  metadata    String   @default("{}") // JSON
+   663→  createdAt   DateTime @default(now())
+   664→
+   665→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   666→  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+   667→
+   668→  @@index([tenantId, userId, readAt])
+   669→}
+   670→
+   671→// ============================================================================
+   672→//  NextAuth-required models (compatible with the adapter contract)
+   673→// ============================================================================
+   674→
+   675→model Session {
+   676→  id           String   @id @default(cuid())
+   677→  sessionToken String   @unique
+   678→  tenantId     String
+   679→  userId       String
+   680→  expires      DateTime
+   681→  ip           String?
+   682→  userAgent    String?
+   683→  csrfToken    String?
+   684→  createdAt    DateTime @default(now())
+   685→
+   686→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   687→  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+   688→
+   689→  @@index([userId])
+   690→  @@index([tenantId])
+   691→}
+   692→
+   693→model Account {
+   694→  id                String   @id @default(cuid())
+   695→  tenantId          String
+   696→  userId            String
+   697→  type              String
+   698→  provider          String
+   699→  providerAccountId String
+   700→  refresh_token     String?
+   701→  access_token      String?
+   702→  expires_at        Int?
+   703→  token_type        String?
+   704→  scope             String?
+   705→  id_token          String?
+   706→  session_state     String?
+   707→  createdAt         DateTime @default(now())
+   708→  updatedAt         DateTime @updatedAt
+   709→
+   710→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   711→  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+   712→
+   713→  @@unique([provider, providerAccountId])
+   714→  @@index([userId])
+   715→}
+   716→
+   717→model VerificationToken {
+   718→  id           String   @id @default(cuid())
+   719→  tenantId     String
+   720→  identifier   String
+   721→  token        String   @unique
+   722→  expires      DateTime
+   723→  createdAt    DateTime @default(now())
+   724→
+   725→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   726→  user   User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+   727→  userId String?
+   728→
+   729→  @@index([identifier])
+   730→}
+   731→
+   732→// ============================================================================
+   733→//  DOCUMENT COMMENTS
+   734→// ============================================================================
+   735→
+   736→model DocumentComment {
+   737→  id          String   @id @default(cuid())
+   738→  tenantId    String
+   739→  documentId  String
+   740→  authorId    String
+   741→  body        String
+   742→  parentId    String?  // for threaded replies
+   743→  resolvedAt  DateTime?
+   744→  resolvedBy  String?
+   745→  createdAt   DateTime @default(now())
+   746→  updatedAt   DateTime @updatedAt
+   747→
+   748→  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   749→  document Document @relation("DocumentComments", fields: [documentId], references: [id], onDelete: Cascade)
+   750→  author   User     @relation("UserComments", fields: [authorId], references: [id], onDelete: Cascade)
+   751→
+   752→  @@index([tenantId, documentId, createdAt])
+   753→  @@index([tenantId, parentId])
+   754→}
+   755→
+   756→// ============================================================================
+   757→//  FAVORITES & RECENT
+   758→// ============================================================================
+   759→
+   760→model Favorite {
+   761→  id         String   @id @default(cuid())
+   762→  tenantId   String
+   763→  userId     String
+   764→  documentId String
+   765→  createdAt  DateTime @default(now())
+   766→
+   767→  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   768→  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+   769→  user     User     @relation("UserFavorites", fields: [userId], references: [id], onDelete: Cascade)
+   770→
+   771→  @@unique([userId, documentId])
+   772→  @@index([tenantId, userId])
+   773→}
+   774→
+   775→model RecentView {
+   776→  id         String   @id @default(cuid())
+   777→  tenantId   String
+   778→  userId     String
+   779→  documentId String
+   780→  viewedAt   DateTime @default(now())
+   781→
+   782→  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   783→  document Document @relation("DocumentRecentViews", fields: [documentId], references: [id], onDelete: Cascade)
+   784→  user     User     @relation("UserRecentViews", fields: [userId], references: [id], onDelete: Cascade)
+   785→
+   786→  @@unique([userId, documentId])
+   787→  @@index([tenantId, userId, viewedAt])
+   788→}
+   789→
+   790→// ============================================================================
+   791→//  SAVED SEARCHES
+   792→// ============================================================================
+   793→
+   794→model SavedSearch {
+   795→  id        String   @id @default(cuid())
+   796→  tenantId  String
+   797→  userId    String
+   798→  name      String
+   799→  query     String   // JSON-encoded query object
+   800→  isShared  Boolean  @default(false)
+   801→  createdAt DateTime @default(now())
+   802→  updatedAt DateTime @updatedAt
+   803→
+   804→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   805→  user   User   @relation("UserSavedSearches", fields: [userId], references: [id], onDelete: Cascade)
+   806→
+   807→  @@unique([tenantId, userId, name])
+   808→  @@index([tenantId, userId])
+   809→}
+   810→
+   811→// ============================================================================
+   812→//  REDACTION RECORDS
+   813→// ============================================================================
+   814→
+   815→model Redaction {
+   816→  id            String   @id @default(cuid())
+   817→  tenantId      String
+   818→  documentId    String
+   819→  versionId     String
+   820→  redactorId    String
+   821→  regions       String   // JSON: [{page, x, y, w, h, reason}]
+   822→  reason        String?
+   823→  derivativeVersionId String?
+   824→  createdAt     DateTime @default(now())
+   825→
+   826→  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   827→  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+   828→
+   829→  @@index([tenantId, documentId])
+   830→}
+   831→
+   832→// ============================================================================
+   833→//  DISPOSITION RECORDS (certificates of destruction)
+   834→// ============================================================================
+   835→
+   836→model DispositionRecord {
+   837→  id              String   @id @default(cuid())
+   838→  tenantId        String
+   839→  documentId      String
+   840→  scheduleId      String?
+   841→  action          String   // delete | archive | review
+   842→  requestedById   String
+   843→  approvedById    String?
+   844→  status          String   @default("pending") // pending | approved | executed | cancelled
+   845→  reason          String?
+   846→  certificateHash String?
+   847→  executedAt      DateTime?
+   848→  createdAt       DateTime @default(now())
+   849→  updatedAt       DateTime @updatedAt
+   850→
+   851→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   852→
+   853→  @@index([tenantId, status])
+   854→  @@index([tenantId, documentId])
+   855→}
+   856→
+   857→// ============================================================================
+   858→//  SERVICE ACCOUNTS
+   859→// ============================================================================
+   860→
+   861→model ServiceAccount {
+   862→  id          String   @id @default(cuid())
+   863→  tenantId    String
+   864→  name        String
+   865→  description String?
+   866→  keyHash     String   @unique
+   867→  keyPrefix   String
+   868→  scopes      String   @default("[]")
+   869→  createdBy   String?
+   870→  lastUsedAt  DateTime?
+   871→  expiresAt   DateTime?
+   872→  revokedAt   DateTime?
+   873→  createdAt   DateTime @default(now())
+   874→
+   875→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   876→
+   877→  @@index([tenantId])
+   878→}
+   879→
+   880→// ============================================================================
+   881→//  STEP-UP AUTH SESSIONS (short-lived elevated sessions)
+   882→// ============================================================================
+   883→
+   884→model StepUpSession {
+   885→  id         String   @id @default(cuid())
+   886→  tenantId   String
+   887→  userId     String
+   888→  token      String   @unique
+   889→  challenge  String   // 'totp' | 'password'
+   890→  expiresAt  DateTime
+   891→  usedAt     DateTime?
+   892→  createdAt  DateTime @default(now())
+   893→
+   894→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   895→  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+   896→
+   897→  @@index([userId, expiresAt])
+   898→}
+   899→
+   900→// ============================================================================
+   901→//  ENVELOPE ENCRYPTION (per-document Data Encryption Keys)
+   902→// ============================================================================
+   903→
+   904→model DocumentEncryptionKey {
+   905→  id            String   @id @default(cuid())
+   906→  tenantId      String
+   907→  documentId    String   @unique
+   908→  // AES-256-GCM-encrypted DEK (wrapped by the tenant KEK)
+   909→  encryptedDek  String
+   910→  // IV used to encrypt the DEK
+   911→  iv            String
+   912→  // Key version for rotation tracking
+   913→  keyVersion    Int      @default(1)
+   914→  createdAt     DateTime @default(now())
+   915→  rotatedAt     DateTime?
+   916→
+   917→  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   918→  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+   919→
+   920→  @@index([tenantId])
+   921→}
+   922→
+   923→// ============================================================================
+   924→//  MALWARE SCAN RESULTS
+   925→// ============================================================================
+   926→
+   927→model MalwareScan {
+   928→  id           String   @id @default(cuid())
+   929→  tenantId     String
+   930→  documentVersionId String
+   931→  status       String   // pending | clean | infected | error
+   932→  scanner      String   // clamav | signature | heuristic
+   933→  signatureHash String?
+   934→  threatName   String?
+   935→  quarantined  Boolean  @default(false)
+   936→  scannedAt    DateTime @default(now())
+   937→
+   938→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   939→
+   940→  @@index([tenantId, documentVersionId])
+   941→  @@index([tenantId, status])
+   942→}
+   943→
+   944→// ============================================================================
+   945→//  CONTROLLED VOCABULARIES
+   946→// ============================================================================
+   947→
+   948→model ControlledVocabulary {
+   949→  id          String   @id @default(cuid())
+   950→  tenantId    String
+   951→  name        String
+   952→  description String?
+   953→  terms       String   @default("[]") // JSON array of strings
+   954→  createdAt   DateTime @default(now())
+   955→  updatedAt   DateTime @updatedAt
+   956→
+   957→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   958→
+   959→  @@unique([tenantId, name])
+   960→  @@index([tenantId])
+   961→}
+   962→
+   963→// ============================================================================
+   964→//  INVITATIONS
+   965→// ============================================================================
+   966→
+   967→model Invitation {
+   968→  id           String   @id @default(cuid())
+   969→  tenantId     String
+   970→  email        String
+   971→  token        String   @unique
+   972→  invitedBy    String
+   973→  roleNames    String   @default("[]") // JSON
+   974→  status       String   @default("pending") // pending | accepted | expired | revoked
+   975→  expiresAt    DateTime
+   976→  acceptedAt   DateTime?
+   977→  acceptedById String?
+   978→  createdAt    DateTime @default(now())
+   979→
+   980→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   981→
+   982→  @@index([tenantId, email])
+   983→  @@index([tenantId, status])
+   984→}
+   985→
+   986→// ============================================================================
+   987→//  ACCESS RECERTIFICATION
+   988→// ============================================================================
+   989→
+   990→model RecertificationCampaign {
+   991→  id          String   @id @default(cuid())
+   992→  tenantId    String
+   993→  name        String
+   994→  description String?
+   995→  status      String   @default("open") // open | completed | cancelled
+   996→  dueAt       DateTime?
+   997→  createdAt   DateTime @default(now())
+   998→  updatedAt   DateTime @updatedAt
+   999→
+  1000→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  1001→  items  RecertificationItem[]
+  1002→
+  1003→  @@index([tenantId, status])
+  1004→}
+  1005→
+  1006→model RecertificationItem {
+  1007→  id          String   @id @default(cuid())
+  1008→  campaignId  String
+  1009→  tenantId    String
+  1010→  userId      String
+  1011→  reviewerId  String
+  1012→  decision    String   @default("pending") // pending | keep | revoke | change
+  1013→  reason      String?
+  1014→  decidedAt   DateTime?
+  1015→  createdAt   DateTime @default(now())
+  1016→
+  1017→  campaign RecertificationCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  1018→
+  1019→  @@index([tenantId, reviewerId, decision])
+  1020→  @@unique([campaignId, userId])
+  1021→}
+  1022→
+  1023→// ============================================================================
+  1024→//  BREAK-GLASS EMERGENCY ACCESS
+  1025→// ============================================================================
+  1026→
+  1027→model BreakGlassAccess {
+  1028→  id          String   @id @default(cuid())
+  1029→  tenantId    String
+  1030→  userId      String
+  1031→  reason      String
+  1032→  justification String
+  1033→  grantedAt   DateTime @default(now())
+  1034→  expiresAt   DateTime
+  1035→  reviewed    Boolean  @default(false)
+  1036→  reviewedBy  String?
+  1037→  reviewedAt  DateTime?
+  1038→  reviewNotes String?
+  1039→  // The escalated permissions granted
+  1040→  grantedPermissions String @default("[]") // JSON
+  1041→
+  1042→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  1043→
+  1044→  @@index([tenantId, reviewed])
+  1045→  @@index([tenantId, userId])
+  1046→}
+  1047→
+  1048→// ============================================================================
+  1049→//  SSO PROVIDER CONFIGURATION (OIDC / SAML)
+  1050→// ============================================================================
+  1051→
+  1052→model SsoProvider {
+  1053→  id            String   @id @default(cuid())
+  1054→  tenantId      String
+  1055→  name          String
+  1056→  type          String   // oidc | saml
+  1057→  // OIDC
+  1058→  issuerUrl     String?
+  1059→  authorizationEndpoint String?
+  1060→  tokenEndpoint String?
+  1061→  userInfoEndpoint String?
+  1062→  jwksUri       String?
+  1063→  clientId      String
+  1064→  clientSecretEnc String? // encrypted
+  1065→  scopes        String   @default("openid profile email")
+  1066→  // SAML
+  1067→  metadataUrl   String?
+  1068→  entityId      String?
+  1069→  // Mapping
+  1070→  emailAttribute String  @default("email")
+  1071→  nameAttribute  String  @default("name")
+  1072→  enabled       Boolean  @default(true)
+  1073→  createdAt     DateTime @default(now())
+  1074→  updatedAt     DateTime @updatedAt
+  1075→
+  1076→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  1077→
+  1078→  @@unique([tenantId, name])
+  1079→  @@index([tenantId])
+  1080→}
+  1081→
+  1082→// ============================================================================
+  1083→//  AUDIT SIGNED RECEIPTS (periodic integrity snapshots)
+  1084→// ============================================================================
+  1085→
+  1086→model AuditReceipt {
+  1087→  id              String   @id @default(cuid())
+  1088→  tenantId        String
+  1089→  periodStart     DateTime
+  1090→  periodEnd       DateTime
+  1091→  eventCount      Int
+  1092→  lastSequenceNum Int
+  1093→  lastEventHash   String
+  1094→  receiptHash     String  // hash of period summary
+  1095→  signature       String  // HMAC signature using receipt key
+  1096→  createdAt       DateTime @default(now())
+  1097→
+  1098→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  1099→
+  1100→  @@index([tenantId, periodEnd])
+  1101→}
+  1102→
+  1103→// ============================================================================
+  1104→//  BILLING / SUBSCRIPTION
+  1105→// ============================================================================
+  1106→
+  1107→model Subscription {
+  1108→  id           String   @id @default(cuid())
+  1109→  tenantId     String   @unique
+  1110→  plan         String   @default("trial") // trial | starter | business | enterprise
+  1111→  status       String   @default("active") // active | past_due | canceled | trialing
+  1112→  seats        Int      @default(1)
+  1113→  storageBytes BigInt   @default(1073741824) // 1GB default
+  1114→  currentPeriodStart DateTime?
+  1115→  currentPeriodEnd   DateTime?
+  1116→  createdAt    DateTime @default(now())
+  1117→  updatedAt    DateTime @updatedAt
+  1118→
+  1119→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  1120→}
+  1121→
+  1122→// ============================================================================
+  1123→//  DOCUMENT TEXT INDEX (for OCR + full-text search)
+  1124→// ============================================================================
+  1125→
+  1126→model DocumentTextIndex {
+  1127→  id           String   @id @default(cuid())
+  1128→  tenantId     String
+  1129→  documentId   String   @unique
+  1130→  versionId    String
+  1131→  extractedText String  @default("")
+  1132→  ocrApplied   Boolean  @default(false)
+  1133→  language     String   @default("en")
+  1134→  pageCount    Int      @default(0)
+  1135→  indexedAt    DateTime @default(now())
+  1136→
+  1137→  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  1138→  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  1139→
+  1140→  @@index([tenantId])
+  1141→}
+  1142→
+  1143→// ============================================================================
+  1144→//  ANOMALY DETECTION
+  1145→// ============================================================================
+  1146→
+  1147→model SecurityAnomaly {
+  1148→  id          String   @id @default(cuid())
+  1149→  tenantId    String
+  1150→  type        String   // burst_failed_logins | off_hours_access | unusual_download | mass_export
+  1151→  severity    String   @default("warning") // info | warning | critical
+  1152→  description String
+  1153→  actorEmail  String?
+  1154→  actorIp     String?
+  1155→  metadata    String   @default("{}")
+  1156→  resolved    Boolean  @default(false)
+  1157→  resolvedBy  String?
+  1158→  resolvedAt  DateTime?
+  1159→  createdAt   DateTime @default(now())
+  1160→
+  1161→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  1162→
+  1163→  @@index([tenantId, resolved, createdAt])
+  1164→  @@index([tenantId, severity])
+  1165→}
+  1166→
+  1167→// ============================================================================
+  1168→//  USER LOCALE PREFERENCES
+  1169→// ============================================================================
+  1170→
+  1171→model UserLocalePreference {
+  1172→  id           String   @id @default(cuid())
+  1173→  tenantId     String
+  1174→  userId       String   @unique
+  1175→  locale       String   @default("en") // en | ar | fr | es | de
+  1176→  timezone     String   @default("UTC")
+  1177→  direction    String   @default("ltr") // ltr | rtl
+  1178→  dateFormat   String   @default("yyyy-MM-dd")
+  1179→  numberFormat String   @default("en-US")
+  1180→  calendar     String   @default("gregory") // gregory | islamic | islamic-umalqura
+  1181→  updatedAt    DateTime @updatedAt
+  1182→
+  1183→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  1184→  user   User   @relation("UserLocalePreference", fields: [userId], references: [id], onDelete: Cascade)
+  1185→
+  1186→  @@index([tenantId])
+  1187→}
+  1188→
+  1189→// ============================================================================
+  1190→//  EVIDENCE PACKAGES (§9.12 — exportable audit evidence)
+  1191→// ============================================================================
+  1192→
+  1193→model EvidencePackage {
+  1194→  id              String   @id @default(cuid())
+  1195→  tenantId        String
+  1196→  name            String
+  1197→  description     String?
+  1198→  createdBy       String
+  1199→  status          String   @default("generating") // generating | ready | failed
+  1200→  locale          String   @default("en") // locale for labels in the export
+  1201→  periodStart     DateTime
+  1202→  periodEnd       DateTime
+  1203→  eventCount      Int      @default(0)
+  1204→  documentCount   Int      @default(0)
+  1205→  // JSON manifest of what's included: { auditEvents: bool, documents: bool, classifications: bool, etc. }
+  1206→  manifest        String   @default("{}")
+  1207→  // SHA-256 hash of the final package for integrity verification
+  1208→  packageHash     String?
+  1209→  // Storage key for the generated ZIP/file
+  1210→  storageKey      String?
+  1211→  fileSize        Int?
+  1212→  createdAt       DateTime @default(now())
+  1213→  completedAt     DateTime?
+  1214→
+  1215→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  1216→
+  1217→  @@index([tenantId, status])
+  1218→  @@index([tenantId, createdAt])
+  1219→}
+  1220→
+  1221→// ============================================================================
+  1222→//  COLLABORATIVE EDITING
+  1223→// ============================================================================
+  1224→
+  1225→model CollaborationSession {
+  1226→  id           String   @id @default(cuid())
+  1227→  tenantId     String
+  1228→  documentId   String
+  1229→  startedBy    String
+  1230→  status       String   @default("active") // active | ended
+  1231→  participantCount Int  @default(0)
+  1232→  lastActivity DateTime @default(now())
+  1233→  createdAt    DateTime @default(now())
+  1234→  endedAt      DateTime?
+  1235→
+  1236→  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  1237→
+  1238→  @@index([tenantId, documentId])
+  1239→  @@index([tenantId, status])
+  1240→}
+  1241→
+  1242→model CollaborationPresence {
+  1243→  id           String   @id @default(cuid())
+  1244→  tenantId     String
+  1245→  sessionId    String
+  1246→  userId       String
+  1247→  userEmail    String
+  1248→  userName     String
+  1249→  color        String   @default("#0ea5e9")
+  1250→  cursorPos    Int      @default(0)
+  1251→  lastSeen     DateTime @default(now())
+  1252→  joinedAt     DateTime @default(now())
+  1253→
+  1254→  @@index([sessionId])
+  1255→  @@index([tenantId, userId])
+  1256→}
+  1257→

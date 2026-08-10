@@ -195,7 +195,9 @@ Do not include any other text.`;
       ],
       temperature: 0,
       max_tokens: 200,
-    });
+      // Explicit no-store: do not use customer data for training
+      store: false,
+    } as any);
 
     const text = completion.choices?.[0]?.message?.content ?? '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);

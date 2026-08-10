@@ -10,6 +10,7 @@
 
 import { db } from '@/lib/db';
 import { getFileStorage } from '@/lib/storage/file-storage';
+import { isAiEnabledForTenant, maskPiiForAi } from '@/lib/ai/tenant-guard';
 
 export interface PiiFinding {
   type: string; // email, phone, ssn, credit_card, passport, iban, ip
@@ -135,7 +136,18 @@ export async function summarizeDocument(tenantId: string, documentId: string): P
   });
   if (!doc) throw new Error('Document not found');
 
-  const text = (await extractText(doc)).slice(0, 8000);
+  // Check tenant AI flag
+  if (!(await isAiEnabledForTenant(tenantId))) {
+    return {
+      summary: 'AI features are disabled for this tenant.',
+      keyPoints: [],
+      source: 'heuristic',
+    };
+  }
+
+  const rawText = (await extractText(doc)).slice(0, 8000);
+  // Data minimization: mask PII before sending to external LLM
+  const text = maskPiiForAi(rawText);
 
   // Try LLM if configured
   if (process.env.AI_API_KEY) {
@@ -149,7 +161,9 @@ export async function summarizeDocument(tenantId: string, documentId: string): P
         ],
         temperature: 0.2,
         max_tokens: 500,
-      });
+        // Explicit no-store: do not use this data for training
+        store: false,
+      } as any);
       const out = completion.choices?.[0]?.message?.content ?? '';
       // Parse summary + bullets
       const lines = out.split('\n').map((l) => l.trim()).filter(Boolean);

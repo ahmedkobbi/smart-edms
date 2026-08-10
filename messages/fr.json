@@ -232,6 +232,8 @@
     "breakGlass": "Accès d'urgence",
     "dualControl": "Contrôle dual",
     "developer": "Développeur",
-    "sessions": "Sessions"
+    "sessions": "Sessions",
+    "locales": "Langues et traductions",
+    "localePrefs": "Langue et locale"
   }
 }

@@ -83,14 +83,27 @@ class StructuredLogger {
   }
 
   private sanitize(entry: Record<string, unknown>): Record<string, unknown> {
-    const sensitive = ['password', 'passwordHash', 'token', 'secret', 'kek', 'dek', 'mfaSecret', 'clientSecret', 'apiKey'];
+    const sensitiveKeys = ['password', 'passwordhash', 'token', 'secret', 'kek', 'dek', 'mfasecret', 'clientsecret', 'apikey', 'authorization', 'cookie', 'session'];
+    const piiPatterns: { type: string; regex: RegExp; replacement: string }[] = [
+      { type: 'email', regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, replacement: '[EMAIL]' },
+      { type: 'ssn', regex: /\b\d{3}-\d{2}-\d{4}\b/g, replacement: '[SSN]' },
+      { type: 'credit_card', regex: /\b(?:\d[ -]*?){13,16}\b/g, replacement: '[CARD]' },
+      { type: 'iban', regex: /\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b/g, replacement: '[IBAN]' },
+    ];
     const out: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(entry)) {
-      if (sensitive.some((s) => key.toLowerCase().includes(s.toLowerCase()))) {
+      const lowerKey = key.toLowerCase();
+      if (sensitiveKeys.some((s) => lowerKey.includes(s))) {
         out[key] = '[REDACTED]';
-      } else if (typeof value === 'string' && value.length > 1000) {
-        out[key] = value.slice(0, 1000) + '...[truncated]';
+      } else if (typeof value === 'string') {
+        let masked = value;
+        for (const pattern of piiPatterns) {
+          masked = masked.replace(pattern.regex, pattern.replacement);
+        }
+        out[key] = masked.length > 1000 ? masked.slice(0, 1000) + '...[truncated]' : masked;
+      } else if (typeof value === 'object' && value !== null) {
+        out[key] = this.sanitize(value as Record<string, unknown>);
       } else {
         out[key] = value;
       }

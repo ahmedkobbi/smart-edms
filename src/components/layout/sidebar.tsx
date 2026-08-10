@@ -7,7 +7,7 @@ import {
   Shield, FileText, Search, GitBranch, Clock, FileLock, ScrollText, Settings,
   LayoutDashboard, Users, ShieldCheck, BookMarked, KeyRound, Webhook, Database,
   Bot, ShieldAlert, FileCheck, Smartphone, Mail, BookOpen, LogIn, RefreshCw,
-  AlertTriangle, CreditCard, Building2, FolderOpen, Menu, X, Code2,
+  AlertTriangle, CreditCard, Building2, FolderOpen, Menu, X, Code2, Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSessionData } from '@/components/providers/use-session-data';
@@ -56,6 +56,7 @@ const NAV_GROUPS: { titleKey: string; items: NavItem[] }[] = [
       { href: '/admin/roles', labelKey: 'nav.roles', icon: KeyRound, permission: PERMISSIONS.ADMIN_ROLES_MANAGE },
       { href: '/admin/recertification', labelKey: 'nav.recertification', icon: RefreshCw, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
       { href: '/admin/developer', labelKey: 'admin.developer', icon: Code2, permission: PERMISSIONS.ADMIN_VIEW },
+      { href: '/admin/locales', labelKey: 'admin.locales', icon: Globe, permission: PERMISSIONS.ADMIN_VIEW },
       { href: '/admin/classifications', labelKey: 'nav.classifications', icon: BookMarked, permission: PERMISSIONS.ADMIN_CLASSIFICATIONS_MANAGE },
       { href: '/admin/policies', labelKey: 'nav.policies', icon: ShieldCheck, permission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
       { href: '/admin/metadata-schemas', labelKey: 'nav.metadataSchemas', icon: Database, permission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
@@ -74,6 +75,7 @@ const NAV_GROUPS: { titleKey: string; items: NavItem[] }[] = [
     titleKey: 'nav.account',
     items: [
       { href: '/settings', labelKey: 'nav.settings', icon: Settings },
+      { href: '/settings/locale', labelKey: 'admin.localePrefs', icon: Globe },
       { href: '/settings/sessions', labelKey: 'admin.sessions', icon: Smartphone },
     ],
   },

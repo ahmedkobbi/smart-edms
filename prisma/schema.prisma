@@ -69,6 +69,11 @@ model Tenant {
   userLocalePreferences  UserLocalePreference[]
   evidencePackages       EvidencePackage[]
   collaborationSessions  CollaborationSession[]
+  permissions            Permission[]
+  jobs                   Job[]
+  localeResources        LocaleResource[]
+  glossaryTerms          GlossaryTerm[]
+  accessGrants           AccessGrant[]
 }
 
 // ============================================================================
@@ -1253,4 +1258,109 @@ model CollaborationPresence {
 
   @@index([sessionId])
   @@index([tenantId, userId])
+}
+
+// ============================================================================
+//  ADDITIONAL CORE ENTITIES (§14.1)
+// ============================================================================
+
+model Permission {
+  id          String   @id @default(cuid())
+  tenantId    String
+  code        String   // e.g. "document:read"
+  description String?
+  category    String   // document, admin, audit, workflow, etc.
+  isSystem    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([tenantId, category])
+}
+
+model Job {
+  id          String   @id @default(cuid())
+  tenantId    String
+  type        String   // evidence_package, search_reindex, bulk_import, etc.
+  status      String   @default("pending") // pending | running | completed | failed | cancelled
+  progress    Int      @default(0) // 0-100
+  result      String?  // JSON result
+  error       String?
+  startedBy   String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, type])
+}
+
+model LocaleResource {
+  id          String   @id @default(cuid())
+  tenantId    String
+  locale      String   // en, ar, fr, es, de
+  namespace   String   // common, auth, documents, etc.
+  key         String   // dot-notation key
+  value       String   // translated value
+  version     Int      @default(1)
+  reviewStatus String  @default("draft") // draft | reviewed | approved
+  updatedBy   String?
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, locale, namespace, key])
+  @@index([tenantId, locale])
+}
+
+model GlossaryTerm {
+  id          String   @id @default(cuid())
+  tenantId    String
+  english     String
+  arabic      String
+  context     String?  // where this term is used
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, english])
+}
+
+model AccessGrant {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String
+  grantedBy   String
+  permission  String
+  resourceType String?
+  resourceId  String?
+  scope       String?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  revokedBy   String?
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+  @@index([tenantId, resourceType, resourceId])
+}
+
+// Classification localization support
+model ClassificationLocalization {
+  id              String   @id @default(cuid())
+  tenantId        String
+  classificationId String
+  locale          String
+  name            String
+  description     String?
+  updatedAt       DateTime @updatedAt
+
+  @@unique([classificationId, locale])
+  @@index([tenantId, locale])
 }

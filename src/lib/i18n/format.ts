@@ -25,10 +25,26 @@ const LOCALE_MAP: Record<string, Locale> = {
 type Locale = typeof enUS;
 
 /**
- * Format a date according to locale.
+ * Format a date according to locale + calendar preference.
+ * Supports Islamic (Hijri) calendar when calendar='islamic-umalqura'.
  */
-export function formatDate(date: Date | string, locale: string = 'en', formatStr: string = 'PP'): string {
+export function formatDate(date: Date | string, locale: string = 'en', formatStr: string = 'PP', calendar?: string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
+
+  // Islamic calendar support via Intl.DateTimeFormat
+  if (calendar === 'islamic-umalqura' || calendar === 'islamic') {
+    try {
+      const intlLocale = locale === 'ar' ? 'ar-SA-u-ca-islamic-umalqura' : `${getIntlLocale(locale)}-u-ca-islamic-umalqura`;
+      return new Intl.DateTimeFormat(intlLocale, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }).format(d);
+    } catch {
+      // Fallback to Gregorian
+    }
+  }
+
   const dateFnsLocale = LOCALE_MAP[locale] || enUS;
   try {
     return format(d, formatStr, { locale: dateFnsLocale });
