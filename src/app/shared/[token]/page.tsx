@@ -72,7 +72,7 @@ export default function SharedDocumentPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center mesh-bg">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -80,7 +80,7 @@ export default function SharedDocumentPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+      <div className="min-h-screen flex items-center justify-center mesh-bg px-4">
         <Card className="max-w-md w-full">
           <CardContent className="p-8 text-center">
             <Lock className="h-10 w-10 mx-auto text-red-500 mb-3" />
@@ -97,7 +97,7 @@ export default function SharedDocumentPage() {
   const doc = share.share.document;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950" dir="auto">
+    <div className="min-h-screen flex flex-col mesh-bg" dir="auto">
       {/* Classification banner */}
       {doc.classification && (
         <div
@@ -109,7 +109,7 @@ export default function SharedDocumentPage() {
         </div>
       )}
 
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+      <header className="glass border-b border-white/10 dark:border-white/5">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center">
@@ -182,7 +182,7 @@ export default function SharedDocumentPage() {
         )}
       </main>
 
-      <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-3">
+      <footer className="glass border-t border-white/10 dark:border-white/5 py-3">
         <p className="text-center text-xs text-muted-foreground">
           Smart EDMS — access is logged and tamper-evident. Unauthorized use is prohibited.
         </p>

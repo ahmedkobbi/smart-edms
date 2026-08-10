@@ -80,7 +80,10 @@ export function TopBar() {
 
   return (
     <>
-      <header className="h-14 glass border-b border-white/10 dark:border-white/5 sticky top-0 z-30">
+      <header
+        className="glass border-b border-white/10 dark:border-white/5 sticky top-0 z-30"
+        style={{ paddingTop: 'var(--safe-top)', height: 'calc(3.5rem + var(--safe-top))' }}
+      >
         <div className="h-full px-4 ps-14 md:ps-4 flex items-center justify-between gap-4">
           <div className="flex-1 max-w-md">
             <button

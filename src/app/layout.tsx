@@ -2,7 +2,7 @@
  * Smart EDMS — Root layout
  */
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Cairo } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
@@ -40,8 +40,22 @@ export const metadata: Metadata = {
     "Smart EDMS",
   ],
   authors: [{ name: "Smart EDMS" }],
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Smart EDMS",
+  },
   icons: {
-    icon: "/logo.svg",
+    icon: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: ["/apple-touch-icon.png"],
   },
   openGraph: {
     title: "Smart EDMS",
@@ -50,6 +64,20 @@ export const metadata: Metadata = {
     type: "website",
   },
   robots: { index: false, follow: false },
+};
+
+// P1: Viewport export — required by Next.js 14+ for proper mobile rendering.
+// viewportFit=cover enables safe-area-inset env() variables for notch support.
+// themeColor is split by prefers-color-scheme so the browser UI matches.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5, // allow zoom for accessibility (WCAG 1.4.4)
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+  ],
 };
 
 // Validate environment at startup
@@ -72,7 +100,8 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${cairo.variable} font-sans antialiased bg-background text-foreground min-h-screen`}
       >
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+        {/* P6: enableSystem + defaultTheme="system" — follows OS dark mode preference */}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <LocaleDirProvider>
             <SessionProvider>
               <QueryProvider>

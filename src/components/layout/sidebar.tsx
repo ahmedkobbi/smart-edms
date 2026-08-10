@@ -121,6 +121,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                       key={item.href}
                       href={item.href}
                       onClick={onNavigate}
+                      aria-current={active ? 'page' : undefined}
                       className={cn(
                         'flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors',
                         active

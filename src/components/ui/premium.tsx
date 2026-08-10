@@ -9,14 +9,14 @@ import { cn } from '@/lib/utils';
  */
 export function PremiumSpinner({ size = 'md', className }: { size?: 'sm' | 'md' | 'lg'; className?: string }) {
   const sizeClass = size === 'sm' ? 'spinner-premium-sm' : size === 'lg' ? 'spinner-premium-lg' : '';
-  return <div className={cn('spinner-premium', sizeClass, className)} />;
+  return <div role="status" aria-label="Loading" className={cn('spinner-premium', sizeClass, className)} />;
 }
 
 /**
  * Premium dual-ring spinner (more elaborate)
  */
 export function DualSpinner({ className }: { className?: string }) {
-  return <div className={cn('spinner-dual', className)} />;
+  return <div role="status" aria-label="Loading" className={cn('spinner-dual', className)} />;
 }
 
 /**

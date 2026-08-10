@@ -52,7 +52,7 @@ export default function ApiDocsPage() {
   }, [loaded]);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen mesh-bg">
       <div ref={containerRef}>
         <div className="flex items-center justify-center h-screen">
           <div className="text-center">
