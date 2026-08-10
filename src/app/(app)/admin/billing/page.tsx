@@ -104,7 +104,7 @@ export default function AdminBillingPage() {
   useEffect(() => {
     if (pollData?.invoice?.status === 'confirmed' && !confirmedRef.current) {
       confirmedRef.current = true;
-      toast({ title: 'Payment confirmed', description: 'Your subscription has been activated.' });
+      toast({ title: t('admin.billing.paymentConfirmedToast'), description: t('admin.billing.paymentConfirmedDesc') });
       refetch();
     }
   }, [pollData, toast, refetch]);
@@ -200,7 +200,7 @@ export default function AdminBillingPage() {
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${billingCycle === 'annual' ? 'bg-primary text-primary-foreground' : 'glass border-0'}`}
             >
               {t('admin.billing.annual')}
-              <Badge variant="secondary" className="ms-2 text-[10px]">−2 months</Badge>
+              <Badge variant="secondary" className="ms-2 text-[10px]">{t('admin.billing.twoMonthsFree')}</Badge>
             </button>
           </div>
 
@@ -225,14 +225,14 @@ export default function AdminBillingPage() {
                 >
                   {isCurrent && (
                     <Badge className="absolute top-2 end-2 text-[10px]" variant="default">
-                      <Check className="h-3 w-3 me-1" /> Current
+                      <Check className="h-3 w-3 me-1" /> {t('admin.billing.currentPlanBadge')}
                     </Badge>
                   )}
                   <p className="font-semibold text-sm capitalize">{plan.name}</p>
                   <p className="text-2xl font-bold mt-1">${price}<span className="text-xs font-normal text-muted-foreground">/{billingCycle === 'annual' ? 'yr' : 'mo'}</span></p>
                   <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
-                    <p>✓ {plan.seats} seats</p>
-                    <p>✓ {plan.storage} storage</p>
+                    <p>{t('admin.billing.seatsFeature', { seats: plan.seats })}</p>
+                    <p>{t('admin.billing.storageFeature', { storage: plan.storage })}</p>
                   </div>
                 </button>
               );
@@ -275,7 +275,7 @@ export default function AdminBillingPage() {
                   disabled={checkout.isPending}
                 >
                   {checkout.isPending ? (
-                    <><Loader2 className="h-4 w-4 animate-spin me-2" /> Redirecting…</>
+                    <><Loader2 className="h-4 w-4 animate-spin me-2" /> {t('admin.billing.redirecting')}</>
                   ) : (
                     <><Bitcoin className="h-4 w-4 me-2" /> {t('admin.billing.continueToPayment')}</>
                   )}
@@ -319,7 +319,7 @@ export default function AdminBillingPage() {
                 {inv.invoiceUrl && inv.status === 'waiting' && (
                   <a href={inv.invoiceUrl} target="_blank" rel="noopener noreferrer">
                     <Button size="sm" variant="outline">
-                      <ExternalLink className="h-3 w-3 me-1" /> Pay
+                      <ExternalLink className="h-3 w-3 me-1" /> {t('admin.billing.pay')}
                     </Button>
                   </a>
                 )}
@@ -340,9 +340,9 @@ export default function AdminBillingPage() {
           <DetailRow label={t('admin.billing.status')} value={<span className="capitalize">{sub.status}</span>} />
           <DetailRow label={t('admin.billing.seatsIncluded')} value={sub.seats} />
           <DetailRow label={t('admin.billing.storageLimit')} value={formatBytes(Number(sub.storageBytes))} />
-          {sub.stripeCustomerId && <DetailRow label="Stripe Customer" value={sub.stripeCustomerId} />}
-          {sub.stripeSubscriptionId && <DetailRow label="Stripe Subscription" value={sub.stripeSubscriptionId} />}
-          <DetailRow label="Billing mode" value={<Badge variant="outline" className="text-xs capitalize">{billingMode}</Badge>} />
+          {sub.stripeCustomerId && <DetailRow label={t('admin.billing.stripeCustomer')} value={sub.stripeCustomerId} />}
+          {sub.stripeSubscriptionId && <DetailRow label={t('admin.billing.stripeSubscription')} value={sub.stripeSubscriptionId} />}
+          <DetailRow label={t('admin.billing.billingMode')} value={<Badge variant="outline" className="text-xs capitalize">{billingMode}</Badge>} />
         </CardContent>
       </Card>
     </div>
@@ -374,6 +374,7 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 }
 
 function PaymentStatusBanner({ status, amountUsd, cryptoAmount, cryptoCurrency }: { status: string; amountUsd: number; cryptoAmount?: number; cryptoCurrency?: string }) {
+  const { t } = useI18n();
   const isConfirmed = status === 'confirmed';
   const isFailed = status === 'failed' || status === 'expired';
   const isPending = status === 'waiting' || status === 'confirming' || status === 'pending';
@@ -382,13 +383,13 @@ function PaymentStatusBanner({ status, amountUsd, cryptoAmount, cryptoCurrency }
                isFailed ? <AlertCircle className="h-5 w-5 text-red-500" /> :
                <Clock className="h-5 w-5 text-amber-500 animate-pulse" />;
 
-  const title = isConfirmed ? 'Payment confirmed' :
-                isFailed ? 'Payment failed' :
-                'Payment in progress';
+  const title = isConfirmed ? t('admin.billing.paymentConfirmed') :
+                isFailed ? t('admin.billing.paymentFailed') :
+                t('admin.billing.paymentInProgress');
 
-  const desc = isConfirmed ? `Your $${amountUsd} payment has been confirmed. Subscription activated.` :
-               isFailed ? `The payment has ${status}. Please try again.` :
-               `Waiting for blockchain confirmation${cryptoAmount ? ` (${cryptoAmount} ${cryptoCurrency?.toUpperCase()})` : ''}…`;
+  const desc = isConfirmed ? t('admin.billing.paymentConfirmedBannerDesc', { amount: amountUsd }) :
+               isFailed ? t('admin.billing.paymentFailedBannerDesc', { status }) :
+               t('admin.billing.paymentInProgressBannerDesc', { cryptoAmount: cryptoAmount ?? '', cryptoCurrency: cryptoCurrency ?? '' });
 
   const bgClass = isConfirmed ? 'border-green-500/20 bg-green-500/5' :
                   isFailed ? 'border-red-500/20 bg-red-500/5' :

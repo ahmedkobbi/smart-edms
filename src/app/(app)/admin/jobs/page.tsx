@@ -23,6 +23,7 @@ import { Loader2, RefreshCw, Play, Pause, RotateCcw, XCircle, AlertCircle, Check
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
+import { useI18n } from '@/i18n/use-i18n';
 
 interface QueueMetrics {
   name: string;
@@ -64,6 +65,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AdminJobsPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -92,10 +94,10 @@ export default function AdminJobsPage() {
     mutationFn: ({ jobId, action, queue }: { jobId: string; action: 'retry' | 'cancel'; queue: string }) =>
       api.post(`/api/admin/jobs/${jobId}`, { action, queue }),
     onSuccess: (_, vars) => {
-      toast({ title: `Job ${vars.action}ed` });
+      toast({ title: vars.action === 'retry' ? t('admin.jobs.retriedToast') : t('admin.jobs.cancelledToast') });
       qc.invalidateQueries({ queryKey: ['admin-jobs'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const redisAvailable = data?.queues && data.queues.length > 0;
@@ -106,10 +108,10 @@ export default function AdminJobsPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-            <Activity className="h-6 w-6" /> Background Jobs
+            <Activity className="h-6 w-6" /> {t('admin.jobs.title')}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Monitor background job queues, retry failed jobs, and manage queue lifecycle.
+            {t('admin.jobs.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -120,7 +122,7 @@ export default function AdminJobsPage() {
             title={autoRefresh ? 'Auto-refresh on (10s)' : 'Auto-refresh off'}
           >
             {autoRefresh ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            <span className="ms-1 text-xs">{autoRefresh ? 'Live' : 'Paused'}</span>
+            <span className="ms-1 text-xs">{autoRefresh ? t('admin.jobs.live') : t('admin.jobs.paused')}</span>
           </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="h-4 w-4" />
@@ -135,11 +137,10 @@ export default function AdminJobsPage() {
             <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
             <div>
               <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
-                Redis is not configured — background job queues are unavailable
+                {t('admin.jobs.redisUnavailableTitle')}
               </p>
               <p className="text-xs text-amber-700 dark:text-amber-300">
-                Jobs run in-process (fire-and-forget) without retries or dead-letter queues.
-                Set <code className="font-mono">REDIS_URL</code> and start the worker process for production-grade job processing.
+                {t('admin.jobs.redisUnavailableBody')}
               </p>
             </div>
           </CardContent>
@@ -159,29 +160,29 @@ export default function AdminJobsPage() {
                       <Icon className="h-4 w-4" />
                       <span className="capitalize">{q.name}</span>
                     </span>
-                    {q.paused && <Badge variant="outline" className="text-xs">Paused</Badge>}
+                    {q.paused && <Badge variant="outline" className="text-xs">{t('admin.jobs.paused')}</Badge>}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div>
                       <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{q.waiting}</p>
-                      <p className="text-xs text-muted-foreground">Waiting</p>
+                      <p className="text-xs text-muted-foreground">{t('admin.jobs.waiting')}</p>
                     </div>
                     <div>
                       <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{q.active}</p>
-                      <p className="text-xs text-muted-foreground">Active</p>
+                      <p className="text-xs text-muted-foreground">{t('admin.jobs.active')}</p>
                     </div>
                     <div>
                       <p className={`text-2xl font-bold ${q.failed > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                         {q.failed}
                       </p>
-                      <p className="text-xs text-muted-foreground">Failed</p>
+                      <p className="text-xs text-muted-foreground">{t('admin.jobs.failed')}</p>
                     </div>
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground pt-1 border-t">
-                    <span>Completed: {q.completed}</span>
-                    <span>Delayed: {q.delayed}</span>
+                    <span>{t('admin.jobs.completed')}: {q.completed}</span>
+                    <span>{t('admin.jobs.delayed')}: {q.delayed}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -195,9 +196,9 @@ export default function AdminJobsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <XCircle className="h-4 w-4 text-red-500" /> Failed Jobs
+              <XCircle className="h-4 w-4 text-red-500" /> {t('admin.jobs.failedJobsTitle')}
             </CardTitle>
-            <CardDescription>Retry or cancel failed jobs. Jobs are auto-retried per queue policy before appearing here.</CardDescription>
+            <CardDescription>{t('admin.jobs.failedJobsDesc')}</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-slate-100 dark:divide-slate-900">
@@ -207,9 +208,9 @@ export default function AdminJobsPage() {
                     <Badge variant="destructive" className="mt-0.5 text-xs">{queue}</Badge>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium font-mono truncate">{job.id}</p>
-                      <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">{job.failedReason || 'Unknown error'}</p>
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">{job.failedReason || t('common.unknownError')}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Attempt {job.attemptsMade} · {job.finishedOn ? formatDistanceToNow(new Date(job.finishedOn), { addSuffix: true }) : 'N/A'}
+                        {t('admin.jobs.attempt')} {job.attemptsMade} · {job.finishedOn ? formatDistanceToNow(new Date(job.finishedOn), { addSuffix: true }) : t('admin.jobs.na')}
                       </p>
                     </div>
                     <div className="flex gap-1">
@@ -220,7 +221,7 @@ export default function AdminJobsPage() {
                         onClick={() => jobAction.mutate({ jobId: job.id, action: 'retry', queue })}
                         disabled={jobAction.isPending}
                       >
-                        <RotateCcw className="me-1 h-3 w-3" /> Retry
+                        <RotateCcw className="me-1 h-3 w-3" /> {t('admin.jobs.retry')}
                       </Button>
                       <Button
                         variant="ghost"
@@ -229,7 +230,7 @@ export default function AdminJobsPage() {
                         onClick={() => jobAction.mutate({ jobId: job.id, action: 'cancel', queue })}
                         disabled={jobAction.isPending}
                       >
-                        <XCircle className="me-1 h-3 w-3" /> Cancel
+                        <XCircle className="me-1 h-3 w-3" /> {t('common.cancel')}
                       </Button>
                     </div>
                   </div>
@@ -246,9 +247,9 @@ export default function AdminJobsPage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="h-4 w-4" /> Job History
+                <Clock className="h-4 w-4" /> {t('admin.jobs.historyTitle')}
               </CardTitle>
-              <CardDescription>Recent background jobs (OCR, webhooks, evidence, reindex)</CardDescription>
+              <CardDescription>{t('admin.jobs.historyDesc')}</CardDescription>
             </div>
             {/* SECURITY FIX (L-ADM-4): Filters for job history */}
             <div className="flex items-center gap-2 text-xs">
@@ -281,7 +282,7 @@ export default function AdminJobsPage() {
           {isLoading ? (
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : !data?.jobs?.length ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">No jobs found.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">{t('admin.jobs.empty')}</p>
           ) : (
             <>
               <div className="divide-y divide-slate-100 dark:divide-slate-900">

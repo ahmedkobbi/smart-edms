@@ -359,7 +359,9 @@
     "resultFilterAll": "All results",
     "resultFilterAllow": "Allow",
     "resultFilterDeny": "Deny",
-    "resultFilterError": "Error"
+    "resultFilterError": "Error",
+    "eventsVerifiedCount": "{count} events verified",
+    "brokenAtSequence": "At sequence #{sequence}"
   },
   "admin": {
     "securityPosture": {
@@ -397,16 +399,67 @@
       "empty": "No users found",
       "createUserDesc": "If no password is set, a temporary one will be generated.",
       "passwordOptional": "Password (optional)",
-      "role": "Role"
+      "role": "Role",
+      "emailLabel": "Email *",
+      "nameLabel": "Name *",
+      "jobTitle": "Job title",
+      "department": "Department",
+      "userCreatedToast": "User created",
+      "temporaryPasswordPrefix": "Temporary password: {password}"
     },
-    "breakGlass": "Break-glass",
+    "breakGlass": {
+      "title": "Break-glass",
+      "subtitle": "Emergency elevated access for critical situations. All actions are audit-logged and all other admins are notified.",
+      "warningTitle": "Use with extreme caution",
+      "warningBody": "Break-glass grants full tenant admin permissions for 30 minutes. All actions during this window are tagged with break-glass attribution in the audit log. Other tenant admins will be notified immediately.",
+      "requestTitle": "Request break-glass access",
+      "requestDesc": "Provide a detailed reason and justification for the emergency.",
+      "reasonLabel": "Reason (min 10 chars) *",
+      "reasonPlaceholder": "Production incident requiring admin access",
+      "justificationLabel": "Justification (min 20 chars) *",
+      "justificationPlaceholder": "Detailed explanation of why break-glass is needed and what actions will be taken...",
+      "requestButton": "Request break-glass access",
+      "activeTitle": "Break-glass active",
+      "expiresLabel": "Expires:",
+      "tokenLabel": "Token:",
+      "tokenWarning": "⚠️ Store this token securely. It grants full admin access until expiry.",
+      "historyTitle": "History",
+      "historyDesc": "All break-glass events (pending review + reviewed)",
+      "historyEmpty": "No break-glass events recorded.",
+      "reviewed": "Reviewed",
+      "pendingReview": "Pending review",
+      "grantedToastTitle": "Break-glass access granted",
+      "grantedToastDesc": "Expires in 30 minutes. All actions are audit-logged."
+    },
     "dualControl": "Dual Control",
     "developer": "Developer",
     "sessions": "Sessions",
     "locales": "Locales & Translations",
     "localePrefs": "Language & Locale",
     "notificationRouting": "Notification Routing",
-    "jobs": "Background Jobs",
+    "jobs": {
+      "title": "Background Jobs",
+      "subtitle": "Monitor background job queues, retry failed jobs, and manage queue lifecycle.",
+      "live": "Live",
+      "paused": "Paused",
+      "redisUnavailableTitle": "Redis is not configured — background job queues are unavailable",
+      "redisUnavailableBody": "Jobs run in-process (fire-and-forget) without retries or dead-letter queues. Set REDIS_URL and start the worker process for production-grade job processing.",
+      "waiting": "Waiting",
+      "active": "Active",
+      "failed": "Failed",
+      "completed": "Completed",
+      "delayed": "Delayed",
+      "failedJobsTitle": "Failed Jobs",
+      "failedJobsDesc": "Retry or cancel failed jobs. Jobs are auto-retried per queue policy before appearing here.",
+      "retry": "Retry",
+      "historyTitle": "Job History",
+      "historyDesc": "Recent background jobs (OCR, webhooks, evidence, reindex)",
+      "empty": "No jobs found.",
+      "retriedToast": "Job retried",
+      "cancelledToast": "Job cancelled",
+      "attempt": "Attempt",
+      "na": "N/A"
+    },
     "billing": {
       "subtitle": "Plan, seats, storage usage, and subscription status.",
       "currentPlan": "Current plan",
@@ -438,7 +491,24 @@
       "cryptoAmount": "Crypto amount",
       "provider": "Provider",
       "invoiceStatus": "Status",
-      "date": "Date"
+      "date": "Date",
+      "paymentConfirmedToast": "Payment confirmed",
+      "paymentConfirmedDesc": "Your subscription has been activated.",
+      "twoMonthsFree": "−2 months",
+      "currentPlanBadge": "Current",
+      "seatsFeature": "✓ {seats} seats",
+      "storageFeature": "✓ {storage} storage",
+      "redirecting": "Redirecting…",
+      "pay": "Pay",
+      "stripeCustomer": "Stripe Customer",
+      "stripeSubscription": "Stripe Subscription",
+      "billingMode": "Billing mode",
+      "paymentConfirmed": "Payment confirmed",
+      "paymentFailed": "Payment failed",
+      "paymentInProgress": "Payment in progress",
+      "paymentConfirmedBannerDesc": "Your ${amount} payment has been confirmed. Subscription activated.",
+      "paymentFailedBannerDesc": "The payment has {status}. Please try again.",
+      "paymentInProgressBannerDesc": "Waiting for blockchain confirmation ({cryptoAmount} {cryptoCurrency})…"
     },
     "anomalies": {
       "subtitle": "Auto-detected suspicious patterns. Resolve after investigation.",
@@ -795,7 +865,8 @@
     "emptyHint": "Try different keywords or filters.",
     "resultCount": "{count, plural, one {# result} other {# results}}",
     "facets": {
-      "classifications": "Classifications"
+      "classifications": "Classifications",
+      "tags": "Tags"
     }
   },
   "shared": {

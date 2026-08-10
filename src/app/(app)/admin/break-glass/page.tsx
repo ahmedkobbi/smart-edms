@@ -31,8 +31,8 @@ export default function BreakGlassPage() {
     mutationFn: () => api.post('/api/admin/break-glass', { reason, justification }),
     onSuccess: (res: any) => {
       toast({
-        title: 'Break-glass access granted',
-        description: `Expires in 30 minutes. All actions are audit-logged.`,
+        title: t('admin.breakGlass.grantedToastTitle'),
+        description: t('admin.breakGlass.grantedToastDesc'),
         variant: 'destructive',
       });
       setResult(res);
@@ -40,17 +40,17 @@ export default function BreakGlassPage() {
       setReason('');
       setJustification('');
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-          <ShieldAlert className="h-6 w-6 text-red-500" /> {t('admin.breakGlass')}
+          <ShieldAlert className="h-6 w-6 text-red-500" /> {t('admin.breakGlass.title')}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Emergency elevated access for critical situations. All actions are audit-logged and all other admins are notified.
+          {t('admin.breakGlass.subtitle')}
         </p>
       </div>
 
@@ -59,10 +59,9 @@ export default function BreakGlassPage() {
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
             <div className="text-sm space-y-1">
-              <p className="font-medium text-amber-700 dark:text-amber-400">Use with extreme caution</p>
+              <p className="font-medium text-amber-700 dark:text-amber-400">{t('admin.breakGlass.warningTitle')}</p>
               <p className="text-muted-foreground">
-                Break-glass grants full tenant admin permissions for 30 minutes. All actions during this window are
-                tagged with break-glass attribution in the audit log. Other tenant admins will be notified immediately.
+                {t('admin.breakGlass.warningBody')}
               </p>
             </div>
           </div>
@@ -72,17 +71,17 @@ export default function BreakGlassPage() {
       {!result ? (
         <Card className="glass-card border-0">
           <CardHeader>
-            <CardTitle className="text-base">Request break-glass access</CardTitle>
-            <CardDescription>Provide a detailed reason and justification for the emergency.</CardDescription>
+            <CardTitle className="text-base">{t('admin.breakGlass.requestTitle')}</CardTitle>
+            <CardDescription>{t('admin.breakGlass.requestDesc')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1">
-              <Label htmlFor="reason">Reason (min 10 chars) *</Label>
-              <Input id="reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Production incident requiring admin access" />
+              <Label htmlFor="reason">{t('admin.breakGlass.reasonLabel')}</Label>
+              <Input id="reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('admin.breakGlass.reasonPlaceholder')} />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="justification">Justification (min 20 chars) *</Label>
-              <Textarea id="justification" value={justification} onChange={(e) => setJustification(e.target.value)} rows={4} placeholder="Detailed explanation of why break-glass is needed and what actions will be taken..." />
+              <Label htmlFor="justification">{t('admin.breakGlass.justificationLabel')}</Label>
+              <Textarea id="justification" value={justification} onChange={(e) => setJustification(e.target.value)} rows={4} placeholder={t('admin.breakGlass.justificationPlaceholder')} />
             </div>
             <Button
               variant="destructive"
@@ -90,7 +89,7 @@ export default function BreakGlassPage() {
               disabled={reason.length < 10 || justification.length < 20 || request.isPending}
             >
               {request.isPending ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <ShieldAlert className="me-2 h-4 w-4" />}
-              Request break-glass access
+              {t('admin.breakGlass.requestButton')}
             </Button>
           </CardContent>
         </Card>
@@ -99,37 +98,37 @@ export default function BreakGlassPage() {
           <CardContent className="p-6 space-y-3">
             <div className="flex items-center gap-2">
               <ShieldAlert className="h-5 w-5 text-red-500" />
-              <p className="font-semibold text-red-600 dark:text-red-400">Break-glass active</p>
+              <p className="font-semibold text-red-600 dark:text-red-400">{t('admin.breakGlass.activeTitle')}</p>
             </div>
             <div className="text-sm space-y-1">
-              <p><span className="text-muted-foreground">Expires:</span> {new Date(result.breakGlass.expiresAt).toLocaleString()}</p>
-              <p><span className="text-muted-foreground">Token:</span> <code className="text-xs break-all">{result.token}</code></p>
+              <p><span className="text-muted-foreground">{t('admin.breakGlass.expiresLabel')}</span> {new Date(result.breakGlass.expiresAt).toLocaleString()}</p>
+              <p><span className="text-muted-foreground">{t('admin.breakGlass.tokenLabel')}</span> <code className="text-xs break-all">{result.token}</code></p>
               <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                ⚠️ Store this token securely. It grants full admin access until expiry.
+                {t('admin.breakGlass.tokenWarning')}
               </p>
             </div>
-            <Button variant="outline" onClick={() => setResult(null)}>Dismiss</Button>
+            <Button variant="outline" onClick={() => setResult(null)}>{t('common.dismiss')}</Button>
           </CardContent>
         </Card>
       )}
 
       <Card className="glass-card border-0">
         <CardHeader>
-          <CardTitle className="text-base">History</CardTitle>
-          <CardDescription>All break-glass events (pending review + reviewed)</CardDescription>
+          <CardTitle className="text-base">{t('admin.breakGlass.historyTitle')}</CardTitle>
+          <CardDescription>{t('admin.breakGlass.historyDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : !data?.items?.length ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">No break-glass events recorded.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">{t('admin.breakGlass.historyEmpty')}</p>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-900">
               {data.items.map((bg: any) => (
                 <div key={bg.id} className="p-4">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <Badge variant={bg.reviewed ? 'secondary' : 'destructive'} className="text-xs">
-                      {bg.reviewed ? 'Reviewed' : 'Pending review'}
+                      {bg.reviewed ? t('admin.breakGlass.reviewed') : t('admin.breakGlass.pendingReview')}
                     </Badge>
                     <Badge variant="outline" className="text-xs">
                       <Clock className="me-1 h-3 w-3" />
@@ -139,7 +138,7 @@ export default function BreakGlassPage() {
                   <p className="text-sm font-medium">{bg.reason}</p>
                   <p className="text-xs text-muted-foreground mt-1">{bg.justification}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Expires: {new Date(bg.expiresAt).toLocaleString()}
+                    {t('admin.breakGlass.expiresLabel')} {new Date(bg.expiresAt).toLocaleString()}
                   </p>
                 </div>
               ))}

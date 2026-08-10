@@ -53,10 +53,10 @@ export default function AdminUsersPage() {
   const suspend = useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/users/${id}`),
     onSuccess: () => {
-      toast({ title: 'User suspended' });
+      toast({ title: t('admin.users.suspended') });
       qc.invalidateQueries({ queryKey: ['admin-users'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
@@ -65,7 +65,7 @@ export default function AdminUsersPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('admin.users.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage tenant users, roles, and access state.
+            {t('admin.users.subtitle')}
           </p>
         </div>
         <CreateUserDialog open={createOpen} onOpenChange={setCreateOpen} />
@@ -76,7 +76,7 @@ export default function AdminUsersPage() {
           <div className="relative">
             <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by email or name…"
+              placeholder={t('admin.users.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="ps-9 max-w-md"
@@ -92,7 +92,7 @@ export default function AdminUsersPage() {
           ) : !data?.items?.length ? (
             <div className="p-12 text-center">
               <UsersIcon className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
-              <p className="text-sm font-medium">No users found</p>
+              <p className="text-sm font-medium">{t('admin.users.empty')}</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-900">
@@ -162,6 +162,7 @@ export default function AdminUsersPage() {
 }
 
 function CreateUserDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [email, setEmail] = useState('');
@@ -181,53 +182,53 @@ function CreateUserDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
     }),
     onSuccess: (res: any) => {
       toast({
-        title: 'User created',
-        description: res.temporaryPassword ? `Temporary password: ${res.temporaryPassword}` : undefined,
+        title: t('admin.users.userCreatedToast'),
+        description: res.temporaryPassword ? t('admin.users.temporaryPasswordPrefix', { password: res.temporaryPassword }) : undefined,
       });
       qc.invalidateQueries({ queryKey: ['admin-users'] });
       onOpenChange(false);
       setEmail(''); setName(''); setPassword(''); setJobTitle(''); setDepartment(''); setRole('end_user');
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button size="sm">
-          <Plus className="me-2 h-4 w-4" /> New user
+          <Plus className="me-2 h-4 w-4" /> {t('admin.users.newUser')}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create user</DialogTitle>
-          <DialogDescription>If no password is set, a temporary one will be generated.</DialogDescription>
+          <DialogTitle>{t('admin.users.createUser')}</DialogTitle>
+          <DialogDescription>{t('admin.users.createUserDesc')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div className="space-y-1">
-            <Label>Email *</Label>
+            <Label>{t('admin.users.emailLabel')}</Label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div className="space-y-1">
-            <Label>Name *</Label>
+            <Label>{t('admin.users.nameLabel')}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-1">
-            <Label>Password (optional)</Label>
-            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 8 chars" />
+            <Label>{t('admin.users.passwordOptional')}</Label>
+            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('auth.passwordMinHint')} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label>Job title</Label>
+              <Label>{t('admin.users.jobTitle')}</Label>
               <Input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label>Department</Label>
+              <Label>{t('admin.users.department')}</Label>
               <Input value={department} onChange={(e) => setDepartment(e.target.value)} />
             </div>
           </div>
           <div className="space-y-1">
-            <Label>Role</Label>
+            <Label>{t('admin.users.role')}</Label>
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -237,10 +238,10 @@ function CreateUserDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
           <Button onClick={() => create.mutate()} disabled={!email || !name || create.isPending}>
             {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-            Create
+            {t('common.create')}
           </Button>
         </DialogFooter>
       </DialogContent>

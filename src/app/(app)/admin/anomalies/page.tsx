@@ -25,10 +25,10 @@ export default function AdminAnomaliesPage() {
     mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
       api.post(`/api/admin/anomalies/${id}/resolve`, { notes }),
     onSuccess: () => {
-      toast({ title: 'Anomaly resolved' });
+      toast({ title: t('admin.anomalies.resolvedToast') });
       qc.invalidateQueries({ queryKey: ['admin-anomalies'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
@@ -36,13 +36,13 @@ export default function AdminAnomaliesPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{t('nav.anomalies')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Auto-detected suspicious patterns. Resolve after investigation.
+          {t('admin.anomalies.subtitle')}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Active anomalies</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> {t('admin.anomalies.activeTitle')}</CardTitle>
           <CardDescription>Refreshed every 30s; new anomalies are detected on each load</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -51,8 +51,8 @@ export default function AdminAnomaliesPage() {
           ) : !data?.items?.length ? (
             <div className="p-12 text-center">
               <CheckCircle2 className="h-10 w-10 mx-auto text-emerald-500 mb-3" />
-              <p className="text-sm font-medium">No active anomalies</p>
-              <p className="text-xs text-muted-foreground mt-1">All clear.</p>
+              <p className="text-sm font-medium">{t('admin.anomalies.empty')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('admin.anomalies.emptySub')}</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-900">
@@ -80,7 +80,7 @@ export default function AdminAnomaliesPage() {
                     onClick={() => resolve.mutate({ id: a.id })}
                     disabled={resolve.isPending}
                   >
-                    Resolve
+                    {t('admin.anomalies.resolve')}
                   </Button>
                 </div>
               ))}

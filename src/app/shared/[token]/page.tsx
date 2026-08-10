@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Loader2, Lock, FileText, Download, Eye } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { useI18n } from '@/i18n/use-i18n';
 
 interface ShareInfo {
   share: {
@@ -31,6 +32,7 @@ interface ShareInfo {
 }
 
 export default function SharedDocumentPage() {
+  const { t } = useI18n();
   const params = useParams<{ token: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +86,7 @@ export default function SharedDocumentPage() {
         <Card className="max-w-md w-full">
           <CardContent className="p-8 text-center">
             <Lock className="h-10 w-10 mx-auto text-red-500 mb-3" />
-            <p className="font-medium">Access denied</p>
+            <p className="font-medium">{t('shared.accessDeniedTitle')}</p>
             <p className="text-sm text-muted-foreground mt-1">{error}</p>
           </CardContent>
         </Card>
@@ -115,12 +117,12 @@ export default function SharedDocumentPage() {
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center">
               <Shield className="h-4 w-4 text-white" />
             </div>
-            <span className="font-semibold text-sm">Smart EDMS — Secure Share</span>
+            <span className="font-semibold text-sm">{t('shared.secureShareHeader')}</span>
           </div>
           <div className="text-xs text-muted-foreground">
-            Mode: <span className="font-medium capitalize">{share.share.mode}</span>
+            {t('shared.modeLabel')} <span className="font-medium capitalize">{share.share.mode}</span>
             {' · '}
-            Views: {share.share.viewCount}
+            {t('shared.viewsLabel')} {share.share.viewCount}
             {share.share.maxViews && ` / ${share.share.maxViews}`}
           </div>
         </div>
@@ -145,22 +147,22 @@ export default function SharedDocumentPage() {
                 )}
               </div>
               {doc.description && <p className="text-sm text-muted-foreground">{doc.description}</p>}
-              {doc.ownerName && <p className="text-xs text-muted-foreground">Shared by {doc.ownerName}</p>}
+              {doc.ownerName && <p className="text-xs text-muted-foreground">{t('shared.sharedByPrefix')} {doc.ownerName}</p>}
               {share.share.expiresAt && (
                 <p className="text-xs text-muted-foreground">
-                  Expires: {new Date(share.share.expiresAt).toLocaleString()}
+                  {t('shared.expiresLabel')} {new Date(share.share.expiresAt).toLocaleString()}
                 </p>
               )}
               {share.share.watermark && (
                 <Alert>
                   <AlertDescription className="text-xs">
-                    A dynamic watermark identifying the viewer will be overlaid on the document.
+                    {t('shared.watermarkNotice')}
                   </AlertDescription>
                 </Alert>
               )}
               {pwRequired && (
                 <div className="space-y-1">
-                  <Label htmlFor="pw">Password</Label>
+                  <Label htmlFor="pw">{t('auth.password')}</Label>
                   <Input
                     id="pw"
                     type="password"
@@ -173,7 +175,7 @@ export default function SharedDocumentPage() {
               <Button onClick={handleView} disabled={viewing || (pwRequired && !password)} className="w-full">
                 {viewing ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> :
                   share.share.mode === 'download' ? <Download className="me-2 h-4 w-4" /> : <Eye className="me-2 h-4 w-4" />}
-                {share.share.mode === 'download' ? 'Download document' : 'View document'}
+                {share.share.mode === 'download' ? t('shared.downloadDocumentButton') : t('shared.viewDocumentButton')}
               </Button>
             </CardContent>
           </Card>
@@ -184,7 +186,7 @@ export default function SharedDocumentPage() {
 
       <footer className="glass border-t border-white/10 dark:border-white/5 py-3">
         <p className="text-center text-xs text-muted-foreground">
-          Smart EDMS — access is logged and tamper-evident. Unauthorized use is prohibited.
+          {t('shared.footer')}
         </p>
       </footer>
     </div>
@@ -192,15 +194,16 @@ export default function SharedDocumentPage() {
 }
 
 function WatermarkedDocument({ url, watermark, mode, fileName }: { url: string; watermark: string | null; mode: string; fileName: string }) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
 
   if (mode === 'download') {
     return (
       <div className="text-center">
-        <p className="text-sm text-muted-foreground mb-3">Your download should start automatically. If not, click below:</p>
+        <p className="text-sm text-muted-foreground mb-3">{t('shared.downloadStartHint')}</p>
         <a href={url}>
           <Button>
-            <Download className="me-2 h-4 w-4" /> Download {fileName}
+            <Download className="me-2 h-4 w-4" /> {t('shared.downloadDocumentButton')} {fileName}
           </Button>
         </a>
         {watermark && (

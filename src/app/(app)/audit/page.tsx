@@ -71,12 +71,12 @@ export default function AuditPage() {
     onSuccess: (res) => {
       setVerifyOpen(true);
       if (res.ok) {
-        toast({ title: 'Chain intact', description: `${res.verifiedCount} events verified` });
+        toast({ title: t('audit.chainIntact'), description: t('audit.eventsVerifiedCount', { count: res.verifiedCount }) });
       } else {
-        toast({ title: 'Chain broken!', description: `At sequence #${res.brokenAt?.sequenceNum}`, variant: 'destructive' });
+        toast({ title: t('audit.chainBroken'), description: t('audit.brokenAtSequence', { sequence: res.brokenAt?.sequenceNum }), variant: 'destructive' });
       }
     },
-    onError: (err: any) => toast({ title: 'Verify failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('audit.verifyFailedToast'), description: err?.message, variant: 'destructive' }),
   });
 
   const exportCsv = useMutation({
@@ -84,7 +84,7 @@ export default function AuditPage() {
     onSuccess: () => {
       // Browser will download via direct link
     },
-    onError: (err: any) => toast({ title: 'Export failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('audit.exportFailedToast'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
@@ -99,11 +99,11 @@ export default function AuditPage() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => verify.mutate()} disabled={verify.isPending}>
             {verify.isPending ? <Loader2 className="ms-2 h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="ms-2 h-3.5 w-3.5" />}
-            Verify integrity
+            {t('audit.verifyIntegrity')}
           </Button>
           <a href="/api/audit/export">
             <Button variant="outline" size="sm">
-              <Download className="ms-2 h-3.5 w-3.5" /> Export CSV
+              <Download className="ms-2 h-3.5 w-3.5" /> {t('audit.exportCsv')}
             </Button>
           </a>
         </div>
@@ -113,7 +113,7 @@ export default function AuditPage() {
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row gap-3">
             <Input
-              placeholder="Search by event, actor, resource…"
+              placeholder={t('audit.searchEvents')}
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className="flex-1"
@@ -121,10 +121,10 @@ export default function AuditPage() {
             <Select value={result} onValueChange={(v) => { setResult(v); setPage(1); }}>
               <SelectTrigger className="w-full md:w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All results</SelectItem>
-                <SelectItem value="allow">Allow</SelectItem>
-                <SelectItem value="deny">Deny</SelectItem>
-                <SelectItem value="error">Error</SelectItem>
+                <SelectItem value="all">{t('audit.resultFilterAll')}</SelectItem>
+                <SelectItem value="allow">{t('audit.resultFilterAllow')}</SelectItem>
+                <SelectItem value="deny">{t('audit.resultFilterDeny')}</SelectItem>
+                <SelectItem value="error">{t('audit.resultFilterError')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -134,10 +134,10 @@ export default function AuditPage() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <ScrollText className="h-4 w-4" /> Events
+            <ScrollText className="h-4 w-4" /> {t('audit.events')}
           </CardTitle>
           <CardDescription>
-            {data?.total ?? 0} total · showing page {data?.page ?? 1}
+            {t('audit.eventsPageSummary', { total: data?.total ?? 0, page: data?.page ?? 1 })}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -146,7 +146,7 @@ export default function AuditPage() {
               <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
             </div>
           ) : !data?.items?.length ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">No events match your filters.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">{t('audit.noEvents')}</p>
           ) : (
             <div className="p-4 max-h-[600px] overflow-y-auto scrollbar-premium">
               <AuditTimeline events={data.items} />
@@ -157,8 +157,8 @@ export default function AuditPage() {
 
       {data && data.total > 50 && (
         <div className="flex justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
-          <Button variant="outline" size="sm" disabled={page * 50 >= data.total} onClick={() => setPage((p) => p + 1)}>Next</Button>
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>{t('common.previous')}</Button>
+          <Button variant="outline" size="sm" disabled={page * 50 >= data.total} onClick={() => setPage((p) => p + 1)}>{t('common.next')}</Button>
         </div>
       )}
 
@@ -169,32 +169,32 @@ export default function AuditPage() {
         <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="font-mono text-base">{selected?.eventType}</DialogTitle>
-            <DialogDescription>Sequence #{selected?.sequenceNum}</DialogDescription>
+            <DialogDescription>{t('audit.sequence')} #{selected?.sequenceNum}</DialogDescription>
           </DialogHeader>
           <ScrollArea className="flex-1">
             {selected && (
               <div className="space-y-3 text-sm">
-                <Field label="Result" value={selected.result} />
-                <Field label="Actor" value={selected.actorEmail ?? 'system'} />
-                <Field label="Actor IP" value={selected.actorIp ?? '—'} />
-                <Field label="Action" value={selected.action} />
-                <Field label="Resource type" value={selected.resourceType ?? '—'} />
-                <Field label="Resource ID" value={selected.resourceId ?? '—'} />
-                <Field label="Resource name" value={selected.resourceName ?? '—'} />
-                <Field label="Reason" value={selected.reason ?? '—'} />
-                <Field label="Created at" value={new Date(selected.createdAt).toISOString()} />
+                <Field label={t('audit.result')} value={selected.result} />
+                <Field label={t('audit.actor')} value={selected.actorEmail ?? t('audit.systemActor')} />
+                <Field label={t('audit.actorIp')} value={selected.actorIp ?? '—'} />
+                <Field label={t('audit.action')} value={selected.action} />
+                <Field label={t('audit.resourceType')} value={selected.resourceType ?? '—'} />
+                <Field label={t('audit.resourceId')} value={selected.resourceId ?? '—'} />
+                <Field label={t('audit.resource')} value={selected.resourceName ?? '—'} />
+                <Field label={t('audit.reason')} value={selected.reason ?? '—'} />
+                <Field label={t('common.createdAt')} value={new Date(selected.createdAt).toISOString()} />
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Metadata</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t('audit.metadata')}</p>
                   <pre className="text-xs bg-slate-50 dark:bg-slate-900 p-3 rounded-md overflow-x-auto">
                     {JSON.stringify(JSON.parse(selected.metadata || '{}'), null, 2)}
                   </pre>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Previous hash</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t('audit.previousHash')}</p>
                   <p className="font-mono text-xs break-all bg-slate-50 dark:bg-slate-900 p-2 rounded">{selected.prevHash}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Event hash</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t('audit.eventHash')}</p>
                   <p className="font-mono text-xs break-all bg-slate-50 dark:bg-slate-900 p-2 rounded">{selected.eventHash}</p>
                 </div>
               </div>
@@ -207,8 +207,8 @@ export default function AuditPage() {
       <Dialog open={verifyOpen} onOpenChange={setVerifyOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Audit chain verification</DialogTitle>
-            <DialogDescription>Recomputes SHA-256 hashes across the entire tenant chain.</DialogDescription>
+            <DialogTitle>{t('audit.verificationDialogTitle')}</DialogTitle>
+            <DialogDescription>{t('audit.verificationDialogDesc')}</DialogDescription>
           </DialogHeader>
           {verify.data && (
             <div className="space-y-3">
@@ -216,20 +216,20 @@ export default function AuditPage() {
                 <div className="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-md">
                   <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                   <div>
-                    <p className="font-medium">Chain intact</p>
-                    <p className="text-xs text-muted-foreground">{verify.data.verifiedCount} events verified</p>
+                    <p className="font-medium">{t('audit.chainIntact')}</p>
+                    <p className="text-xs text-muted-foreground">{t('audit.eventsVerifiedCount', { count: verify.data.verifiedCount })}</p>
                   </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-950/30 rounded-md">
                   <AlertTriangle className="h-5 w-5 text-red-600" />
                   <div>
-                    <p className="font-medium">Chain broken at #{verify.data.brokenAt?.sequenceNum}</p>
+                    <p className="font-medium">{t('audit.chainBrokenAt', { sequence: verify.data.brokenAt?.sequenceNum })}</p>
                     <p className="text-xs text-muted-foreground">
-                      Expected: {truncateHash(verify.data.brokenAt?.expectedHash ?? '', 16, 12)}
+                      {t('audit.expectedLabel')} {truncateHash(verify.data.brokenAt?.expectedHash ?? '', 16, 12)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Actual: {truncateHash(verify.data.brokenAt?.actualHash ?? '', 16, 12)}
+                      {t('audit.actualLabel')} {truncateHash(verify.data.brokenAt?.actualHash ?? '', 16, 12)}
                     </p>
                   </div>
                 </div>

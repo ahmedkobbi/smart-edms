@@ -57,7 +57,7 @@ export default function SearchPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{t('common.search')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Permission-aware search across all documents in your tenant.
+          {t('search.subtitle')}
         </p>
       </div>
 
@@ -67,7 +67,7 @@ export default function SearchPage() {
             <div className="relative flex-1">
               <SearchIcon className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search title, description, tags…"
+                placeholder={t('search.placeholder')}
                 value={q}
                 onChange={(e) => { setQ(e.target.value); setPage(1); }}
                 className="ps-9"
@@ -77,23 +77,23 @@ export default function SearchPage() {
             <Select value={classificationId} onValueChange={(v) => { setClassificationId(v); setPage(1); }}>
               <SelectTrigger className="w-full md:w-48">
                 <Filter className="me-2 h-3.5 w-3.5" />
-                <SelectValue placeholder="Classification" />
+                <SelectValue placeholder={t('documents.classification')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All classifications</SelectItem>
+                <SelectItem value="all">{t('documents.allClassifications')}</SelectItem>
                 {classifications?.items.map((c) => (
                   <SelectItem key={c.id} value={c.code}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={state} onValueChange={(v) => { setState(v); setPage(1); }}>
-              <SelectTrigger className="w-full md:w-40"><SelectValue placeholder="State" /></SelectTrigger>
+              <SelectTrigger className="w-full md:w-40"><SelectValue placeholder={t('documents.state')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All states</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="record">Record</SelectItem>
-                <SelectItem value="archived">Archived</SelectItem>
+                <SelectItem value="all">{t('documents.allStates')}</SelectItem>
+                <SelectItem value="draft">{t('state.draft')}</SelectItem>
+                <SelectItem value="active">{t('state.active')}</SelectItem>
+                <SelectItem value="record">{t('state.record')}</SelectItem>
+                <SelectItem value="archived">{t('state.archived')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -113,7 +113,7 @@ export default function SearchPage() {
             <>
               <Card>
                 <CardContent className="p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Classifications</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{t('search.facets.classifications')}</p>
                   <div className="space-y-1">
                     {data.facets.classifications.map((c) => {
                       const cls = classifications?.items.find((x) => x.id === c.id);
@@ -125,7 +125,7 @@ export default function SearchPage() {
                         >
                           <span className="flex items-center gap-2">
                             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: cls?.color || '#94a3b8' }} />
-                            {cls?.name ?? 'Unknown'}
+                            {cls?.name ?? t('common.unknown')}
                           </span>
                           <span className="text-xs text-muted-foreground">{c.count}</span>
                         </button>
@@ -138,7 +138,7 @@ export default function SearchPage() {
               {data.facets.tags.length > 0 && (
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Tags</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{t('search.facets.tags')}</p>
                     <div className="flex flex-wrap gap-1">
                       {data.facets.tags.slice(0, 20).map((t) => (
                         <Badge key={t.name} variant="secondary" className="text-xs">{t.name} ({t.count})</Badge>
@@ -161,13 +161,13 @@ export default function SearchPage() {
             <Card>
               <CardContent className="p-12 text-center">
                 <SearchIcon className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
-                <p className="text-sm font-medium">No results</p>
-                <p className="text-xs text-muted-foreground mt-1">Try different keywords or filters.</p>
+                <p className="text-sm font-medium">{t('common.noResults')}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('search.emptyHint')}</p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">{data.total} result(s)</p>
+              <p className="text-xs text-muted-foreground">{t('search.resultCount', { count: data.total })}</p>
               {data.items.map((doc) => (
                 <Link
                   key={doc.id}
@@ -191,7 +191,7 @@ export default function SearchPage() {
                       </div>
                       {doc.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{doc.description}</p>}
                       <p className="text-xs text-muted-foreground mt-1">
-                        v{doc.currentVersion} · {doc.owner?.name ?? doc.owner?.email ?? 'Unknown'} · {formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true })}
+                        v{doc.currentVersion} · {doc.owner?.name ?? doc.owner?.email ?? t('common.unknown')} · {formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true })}
                       </p>
                     </div>
                   </div>
@@ -200,7 +200,7 @@ export default function SearchPage() {
               {data.total > data.pageSize && (
                 <div className="flex justify-center pt-4">
                   <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)}>
-                    Load more
+                    {t('common.loadMore')}
                   </Button>
                 </div>
               )}

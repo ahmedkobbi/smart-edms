@@ -41,6 +41,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { useState, useCallback } from 'react';
+import { useI18n } from '@/i18n/use-i18n';
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -62,18 +63,21 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   variant = 'default',
   requirePhrase,
   requirePhraseLabel,
   onConfirm,
 }: ConfirmDialogProps) {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [phrase, setPhrase] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const phraseOk = !requirePhrase || phrase === requirePhrase;
+  const resolvedConfirmLabel = confirmLabel ?? t('common.confirm');
+  const resolvedCancelLabel = cancelLabel ?? t('common.cancel');
 
   const handleConfirm = useCallback(async () => {
     setLoading(true);
@@ -83,11 +87,11 @@ export function ConfirmDialog({
       onOpenChange(false);
       setPhrase('');
     } catch (err: any) {
-      setError(err?.message || 'Operation failed');
+      setError(err?.message || t('common.operationFailed'));
     } finally {
       setLoading(false);
     }
-  }, [onConfirm, onOpenChange]);
+  }, [onConfirm, onOpenChange, t]);
 
   return (
     <AlertDialog open={open} onOpenChange={(o) => { if (!loading) { onOpenChange(o); setPhrase(''); setError(null); } }}>
@@ -115,10 +119,10 @@ export function ConfirmDialog({
               placeholder={requirePhrase}
               disabled={loading}
               autoComplete="off"
-              aria-label={requirePhraseLabel || 'Confirmation phrase'}
+              aria-label={requirePhraseLabel || t('common.confirmationPhraseAria')}
             />
             <p className="text-xs text-muted-foreground">
-              Type <code className="px-1 py-0.5 rounded bg-muted font-mono text-xs">{requirePhrase}</code> to confirm.
+              {t('common.typePhraseToConfirm', { phrase: requirePhrase })}
             </p>
           </div>
         )}
@@ -128,7 +132,7 @@ export function ConfirmDialog({
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>{cancelLabel}</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{resolvedCancelLabel}</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
@@ -140,10 +144,10 @@ export function ConfirmDialog({
             {loading ? (
               <>
                 <Loader2 className="me-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                Working…
+                {t('common.working')}
               </>
             ) : (
-              confirmLabel
+              resolvedConfirmLabel
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

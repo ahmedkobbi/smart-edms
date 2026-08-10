@@ -30,10 +30,6 @@ interface DashboardData {
   myRecentViews?: any[];
 }
 
-const STATE_LABELS: Record<string, string> = {
-  draft: 'Draft', active: 'Active', record: 'Record', archived: 'Archived', disposed: 'Disposed',
-};
-
 export default function DashboardPage() {
   const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
@@ -41,6 +37,14 @@ export default function DashboardPage() {
     refetchInterval: 60_000,
   });
   const { t } = useI18n();
+
+  const stateLabels: Record<string, string> = {
+    draft: t('state.draft'),
+    active: t('state.active'),
+    record: t('state.record'),
+    archived: t('state.archived'),
+    disposed: t('state.disposed'),
+  };
 
   if (isLoading || !data) {
     return <LoadingState message={t('common.loading')} />;
@@ -134,19 +138,19 @@ export default function DashboardPage() {
           <Card className="glass-card border-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <div>
-                <CardTitle className="text-base">Recent documents</CardTitle>
-                <CardDescription>Documents recently updated in your tenant</CardDescription>
+                <CardTitle className="text-base">{t('dashboard.recentDocuments')}</CardTitle>
+                <CardDescription>{t('dashboard.recentDocumentsDesc')}</CardDescription>
               </div>
               <Link href="/documents">
                 <Button variant="ghost" size="sm" className="text-xs">
-                  View all <ArrowRight className="ms-1 h-3 w-3" />
+                  {t('dashboard.viewAll')} <ArrowRight className="ms-1 h-3 w-3" />
                 </Button>
               </Link>
             </CardHeader>
             <CardContent>
               {data.recentDocuments.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-8 text-center">
-                  No documents yet. <Link href="/documents?action=upload" className="text-blue-600 underline">Upload your first document</Link>.
+                  {t('dashboard.noDocumentsEmpty')} <Link href="/documents?action=upload" className="text-blue-600 underline">{t('dashboard.uploadFirst')}</Link>.
                 </p>
               ) : (
                 <StaggerContainer className="space-y-2" stagger={0.04}>
@@ -163,10 +167,10 @@ export default function DashboardPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{doc.title}</p>
                           <p className="text-xs text-muted-foreground truncate">
-                            {doc.classification?.name ?? 'Unclassified'} · {doc.owner?.name ?? 'Unknown'} · {formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true })}
+                            {doc.classification?.name ?? t('documents.unclassified')} · {doc.owner?.name ?? t('common.unknown')} · {formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true })}
                           </p>
                         </div>
-                        <Badge variant="outline" className="text-xs">{STATE_LABELS[doc.state] ?? doc.state}</Badge>
+                        <Badge variant="outline" className="text-xs">{stateLabels[doc.state] ?? doc.state}</Badge>
                       </Link>
                     </StaggerItem>
                   ))}
@@ -187,12 +191,12 @@ export default function DashboardPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                By classification
+                {t('dashboard.byClassification')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {data.breakdowns.byClassification.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No data</p>
+                <p className="text-xs text-muted-foreground">{t('common.noData')}</p>
               ) : (
                 data.breakdowns.byClassification.map((b, i) => (
                   <motion.div
@@ -207,7 +211,7 @@ export default function DashboardPage() {
                         className="h-2.5 w-2.5 rounded-full"
                         style={{ backgroundColor: b.classification?.color || '#94a3b8' }}
                       />
-                      <span className="text-muted-foreground">{b.classification?.name ?? 'Unclassified'}</span>
+                      <span className="text-muted-foreground">{b.classification?.name ?? t('documents.unclassified')}</span>
                     </div>
                     <span className="font-medium tabular-nums">{b.count}</span>
                   </motion.div>
@@ -220,12 +224,12 @@ export default function DashboardPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <Activity className="h-4 w-4" />
-                By state
+                {t('dashboard.byState')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {data.breakdowns.byState.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No data</p>
+                <p className="text-xs text-muted-foreground">{t('common.noData')}</p>
               ) : (
                 data.breakdowns.byState.map((b, i) => (
                   <motion.div
@@ -235,7 +239,7 @@ export default function DashboardPage() {
                     transition={{ delay: 0.5 + i * 0.05 }}
                     className="flex items-center justify-between text-sm"
                   >
-                    <span className="text-muted-foreground">{STATE_LABELS[b.state] ?? b.state}</span>
+                    <span className="text-muted-foreground">{stateLabels[b.state] ?? b.state}</span>
                     <span className="font-medium tabular-nums">{b.count}</span>
                   </motion.div>
                 ))
@@ -256,14 +260,14 @@ export default function DashboardPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <Star className="h-4 w-4 text-amber-400" />
-                My favorites
+                {t('dashboard.myFavorites')}
               </CardTitle>
-              <CardDescription>Documents you've starred</CardDescription>
+              <CardDescription>{t('dashboard.myFavoritesDesc')}</CardDescription>
             </CardHeader>
             <CardContent>
               {!data.myFavorites || data.myFavorites.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-6 text-center">
-                  No favorites yet. Click the star icon on a document to add it.
+                  {t('dashboard.noFavoritesEmpty')}
                 </p>
               ) : (
                 <StaggerContainer className="space-y-2">
@@ -297,14 +301,14 @@ export default function DashboardPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <History className="h-4 w-4" />
-                Recently viewed
+                {t('dashboard.recentlyViewed')}
               </CardTitle>
-              <CardDescription>Your last 5 accessed documents</CardDescription>
+              <CardDescription>{t('dashboard.recentlyViewedDesc')}</CardDescription>
             </CardHeader>
             <CardContent>
               {!data.myRecentViews || data.myRecentViews.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-6 text-center">
-                  No recent views.
+                  {t('dashboard.noRecentViewsEmpty')}
                 </p>
               ) : (
                 <StaggerContainer className="space-y-2">
@@ -343,13 +347,13 @@ export default function DashboardPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Activity className="h-4 w-4" />
-              Recent activity
+              {t('dashboard.recentActivity')}
             </CardTitle>
-            <CardDescription>Latest tamper-evident audit events</CardDescription>
+            <CardDescription>{t('dashboard.recentActivityDesc')}</CardDescription>
           </CardHeader>
           <CardContent>
             {data.recentActivity.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">No activity recorded yet.</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">{t('dashboard.noActivityEmpty')}</p>
             ) : (
               <StaggerContainer className="space-y-1" stagger={0.03}>
                 {data.recentActivity.map((ev) => (

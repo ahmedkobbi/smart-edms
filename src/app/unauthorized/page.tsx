@@ -14,14 +14,16 @@ import Link from 'next/link';
 import { ShieldX, LogIn, Home } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
+import { useI18n } from '@/i18n/use-i18n';
 
 function UnauthorizedContent() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const code = searchParams.get('code') || '403';
-  const message = searchParams.get('message') || 'You do not have permission to access this page.';
+  const message = searchParams.get('message') || t('errors.unauthorized.defaultMessage');
 
   const isAuth = code === '401' || code === 'session_revoked' || code === 'session_expired';
-  const title = isAuth ? 'Session expired' : 'Access denied';
+  const title = isAuth ? t('errors.unauthorized.sessionExpired') : t('errors.unauthorized.accessDenied');
   const icon = isAuth ? <LogIn className="h-10 w-10 text-muted-foreground" /> : <ShieldX className="h-10 w-10 text-red-500" />;
 
   return (
@@ -41,7 +43,7 @@ function UnauthorizedContent() {
         </h2>
         <p className="text-sm text-muted-foreground mb-8 max-w-sm mx-auto">
           {message}
-          {isAuth && ' Please sign in again to continue.'}
+          {isAuth && t('errors.unauthorized.signInAgainSuffix')}
         </p>
 
         {/* Actions */}
@@ -52,7 +54,7 @@ function UnauthorizedContent() {
               className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-md bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 transition-all text-sm font-medium w-full sm:w-auto"
             >
               <LogIn className="h-4 w-4" />
-              Sign in
+              {t('auth.signIn')}
             </Link>
           ) : (
             <Link
@@ -60,7 +62,7 @@ function UnauthorizedContent() {
               className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-md bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 transition-all text-sm font-medium w-full sm:w-auto"
             >
               <Home className="h-4 w-4" />
-              Go to Dashboard
+              {t('common.goToDashboard')}
             </Link>
           )}
         </div>

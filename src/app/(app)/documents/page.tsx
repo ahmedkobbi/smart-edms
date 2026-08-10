@@ -48,16 +48,20 @@ interface ListResponse {
   totalPages: number;
 }
 
-const STATE_LABELS: Record<string, string> = {
-  draft: 'Draft', active: 'Active', record: 'Record', archived: 'Archived', disposed: 'Disposed',
-};
-
 export default function DocumentsPage() {
   const router = useRouter();
   const search = useSearchParams();
   const { toast } = useToast();
   const qc = useQueryClient();
   const { t } = useI18n();
+
+  const stateLabels: Record<string, string> = {
+    draft: t('state.draft'),
+    active: t('state.active'),
+    record: t('state.record'),
+    archived: t('state.archived'),
+    disposed: t('state.disposed'),
+  };
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState('');
   const [classificationId, setClassificationId] = useState<string>('all');
@@ -117,10 +121,10 @@ export default function DocumentsPage() {
             <Select value={classificationId} onValueChange={(v) => { setClassificationId(v); setPage(1); }}>
               <SelectTrigger className="w-full md:w-48">
                 <Filter className="ms-2 h-3.5 w-3.5" />
-                <SelectValue placeholder="Classification" />
+                <SelectValue placeholder={t('documents.classification')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All classifications</SelectItem>
+                <SelectItem value="all">{t('documents.allClassifications')}</SelectItem>
                 {classifications?.items.map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
@@ -128,11 +132,11 @@ export default function DocumentsPage() {
             </Select>
             <Select value={state} onValueChange={(v) => { setState(v); setPage(1); }}>
               <SelectTrigger className="w-full md:w-40">
-                <SelectValue placeholder="State" />
+                <SelectValue placeholder={t('documents.state')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All states</SelectItem>
-                {Object.entries(STATE_LABELS).map(([k, v]) => (
+                <SelectItem value="all">{t('documents.allStates')}</SelectItem>
+                {Object.entries(stateLabels).map(([k, v]) => (
                   <SelectItem key={k} value={k}>{v}</SelectItem>
                 ))}
               </SelectContent>
@@ -152,7 +156,7 @@ export default function DocumentsPage() {
               <FileText className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
               <p className="text-sm font-medium">{t('documents.noDocuments')}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Try adjusting filters or upload a new document.
+                {t('documents.noDocumentsHint')}
               </p>
             </div>
           ) : (
@@ -174,13 +178,13 @@ export default function DocumentsPage() {
                             {doc.classification.code}
                           </Badge>
                         )}
-                        <Badge variant="secondary" className="text-xs">{STATE_LABELS[doc.state] ?? doc.state}</Badge>
+                        <Badge variant="secondary" className="text-xs">{stateLabels[doc.state] ?? doc.state}</Badge>
                         {doc.isRecord && (
-                          <Badge variant="outline" className="text-xs">Record</Badge>
+                          <Badge variant="outline" className="text-xs">{t('documents.recordBadge')}</Badge>
                         )}
                         {doc.legalHold && (
                           <Badge variant="outline" className="text-xs text-red-600 border-red-300 dark:border-red-700">
-                            <FileLock className="ms-1 h-3 w-3" /> Legal hold
+                            <FileLock className="ms-1 h-3 w-3" /> {t('documents.legalHoldBadge')}
                           </Badge>
                         )}
                       </div>
@@ -190,17 +194,17 @@ export default function DocumentsPage() {
                       <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                         <span>v{doc.currentVersion}</span>
                         <span>·</span>
-                        <span>{doc._count.versions} version{doc._count.versions !== 1 ? 's' : ''}</span>
+                        <span>{t('documents.versionCount', { count: doc._count.versions })}</span>
                         {doc._count.shares > 0 && (
                           <>
                             <span>·</span>
-                            <span>{doc._count.shares} share{doc._count.shares !== 1 ? 's' : ''}</span>
+                            <span>{t('documents.shareCount', { count: doc._count.shares })}</span>
                           </>
                         )}
                         <span>·</span>
-                        <span>{doc.owner?.name ?? doc.owner?.email ?? 'Unknown'}</span>
+                        <span>{doc.owner?.name ?? doc.owner?.email ?? t('common.unknown')}</span>
                         <span>·</span>
-                        <span>Updated {formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true })}</span>
+                        <span>{t('documents.updatedPrefix')} {formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true })}</span>
                       </div>
                     </div>
                     <DropdownMenu>
@@ -211,10 +215,10 @@ export default function DocumentsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => router.push(`/documents/${doc.id}`)}>
-                          <Eye className="ms-2 h-3.5 w-3.5" /> View details
+                          <Eye className="ms-2 h-3.5 w-3.5" /> {t('documents.viewDetails')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => router.push(`/documents/${doc.id}?action=download`)}>
-                          <Download className="ms-2 h-3.5 w-3.5" /> Download
+                          <Download className="ms-2 h-3.5 w-3.5" /> {t('documents.download')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -229,7 +233,7 @@ export default function DocumentsPage() {
       {data && data.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
-            Page {data.page} of {data.totalPages} · {data.total} documents
+            {t('common.paginationSummary', { page: data.page, totalPages: data.totalPages, total: data.total })}
           </p>
           <div className="flex gap-2">
             <Button
@@ -238,7 +242,7 @@ export default function DocumentsPage() {
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
-              Previous
+              {t('common.previous')}
             </Button>
             <Button
               variant="outline"
@@ -246,7 +250,7 @@ export default function DocumentsPage() {
               disabled={page >= data.totalPages}
               onClick={() => setPage((p) => p + 1)}
             >
-              Next
+              {t('common.next')}
             </Button>
           </div>
         </div>
@@ -260,6 +264,7 @@ function UploadDialog({
 }: { open: boolean; onOpenChange: (v: boolean) => void; classifications: any[] }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { t } = useI18n();
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -270,7 +275,7 @@ function UploadDialog({
 
   const upload = useMutation({
     mutationFn: async () => {
-      if (!file) throw new Error('No file selected');
+      if (!file) throw new Error(t('documents.noFileSelected'));
       const fd = new FormData();
       fd.append('file', file);
       fd.append('title', title || file.name);
@@ -281,14 +286,14 @@ function UploadDialog({
       return uploadFile('/api/documents', fd);
     },
     onSuccess: () => {
-      toast({ title: 'Document uploaded', description: 'Version 1 stored successfully.' });
+      toast({ title: t('documents.uploadedToast'), description: t('documents.uploadedDesc') });
       qc.invalidateQueries({ queryKey: ['documents'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
       onOpenChange(false);
       reset();
     },
     onError: (err: any) => {
-      toast({ title: 'Upload failed', description: err?.message || 'Unknown error', variant: 'destructive' });
+      toast({ title: t('documents.uploadFailedToast'), description: err?.message || t('common.unknownError'), variant: 'destructive' });
     },
   });
 
@@ -302,19 +307,19 @@ function UploadDialog({
       <DialogTrigger asChild>
         <Button size="sm">
           <Upload className="ms-2 h-4 w-4" />
-          Upload document
+          {t('documents.uploadDocument')}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Upload document</DialogTitle>
+          <DialogTitle>{t('documents.uploadDocument')}</DialogTitle>
           <DialogDescription>
-            Files are validated by magic bytes, checksummed (SHA-256), and stored encrypted at rest.
+            {t('documents.uploadDescription')}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="file">File *</Label>
+            <Label htmlFor="file">{t('documents.file')} *</Label>
             <Input
               id="file"
               type="file"
@@ -326,27 +331,27 @@ function UploadDialog({
             />
             {file && (
               <p className="text-xs text-muted-foreground">
-                {file.name} · {formatBytes(file.size)} · {file.type || 'unknown type'}
+                {file.name} · {formatBytes(file.size)} · {file.type || t('documents.unknownType')}
               </p>
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
-            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Document title" />
+            <Label htmlFor="title">{t('documents.documentTitle')}</Label>
+            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('documents.documentTitlePlaceholder')} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{t('common.description')}</Label>
             <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="documentType">Document type</Label>
+              <Label htmlFor="documentType">{t('documents.documentType')}</Label>
               <Input id="documentType" value={documentType} onChange={(e) => setDocumentType(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Classification</Label>
+              <Label>{t('documents.classification')}</Label>
               <Select value={classificationId} onValueChange={setClassificationId}>
-                <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('common.selectPlaceholder')} /></SelectTrigger>
                 <SelectContent>
                   {classifications.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
@@ -356,15 +361,15 @@ function UploadDialog({
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="tags">Tags (comma-separated)</Label>
-            <Input id="tags" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="contract, q4, finance" />
+            <Label htmlFor="tags">{t('documents.tagsCommaSeparated')}</Label>
+            <Input id="tags" value={tags} onChange={(e) => setTags(e.target.value)} placeholder={t('documents.tagsPlaceholder')} />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
           <Button onClick={() => upload.mutate()} disabled={!file || upload.isPending}>
             {upload.isPending && <Loader2 className="ms-2 h-4 w-4 animate-spin" />}
-            Upload
+            {t('dashboard.upload')}
           </Button>
         </DialogFooter>
       </DialogContent>

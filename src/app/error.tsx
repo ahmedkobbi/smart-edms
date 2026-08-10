@@ -16,6 +16,7 @@
 import { useEffect } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import Link from 'next/link';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function AppError({
   error,
@@ -24,6 +25,7 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { t } = useI18n();
   useEffect(() => {
     // Log to console for dev — Sentry reporting is handled by the API
     // handler layer for server-side errors; client-side errors are caught
@@ -42,17 +44,16 @@ export default function AppError({
         {/* Error code */}
         <h1 className="text-7xl sm:text-8xl font-bold gradient-text mb-2">500</h1>
         <h2 className="text-xl font-semibold tracking-tight mb-3">
-          Something went wrong
+          {t('errors.appError.title')}
         </h2>
         <p className="text-sm text-muted-foreground mb-8 max-w-sm mx-auto">
-          An unexpected error occurred. Our team has been notified.
-          You can try again, or return to the dashboard.
+          {t('errors.appError.message')}
         </p>
 
         {/* Error digest (for support reference) */}
         {error.digest && (
           <p className="text-xs text-muted-foreground/60 font-mono mb-6">
-            Error ID: {error.digest}
+            {t('errors.appError.errorIdLabel')} {error.digest}
           </p>
         )}
 
@@ -63,14 +64,14 @@ export default function AppError({
             className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-md bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 transition-all text-sm font-medium w-full sm:w-auto"
           >
             <RefreshCw className="h-4 w-4" />
-            Try again
+            {t('common.tryAgain')}
           </button>
           <Link
             href="/dashboard"
             className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-md glass border-0 hover-lift transition-all text-sm font-medium w-full sm:w-auto"
           >
             <Home className="h-4 w-4" />
-            Go to Dashboard
+            {t('common.goToDashboard')}
           </Link>
         </div>
       </div>

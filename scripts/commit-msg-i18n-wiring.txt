@@ -1,0 +1,88 @@
+feat: replace ALL hard-coded English strings with i18n t() calls across 17 files
+
+Completes the internationalization wiring that was started in the previous
+commit (which added 281 keys to 5 locale files but only wired 2 source files).
+
+## What was done
+
+Two parallel agents patched ALL remaining hard-coded English strings across
+17 source files, replacing every user-visible string with `t()` calls that
+reference the i18n keys in `messages/{en,fr,ar,es,de}.json`.
+
+### Batch 1: Dashboard + Documents + Search + Audit (4 files)
+
+**dashboard/page.tsx** — 18 strings replaced:
+- Removed top-level `STATE_LABELS` constant; rebuilt as `stateLabels` inside
+  the component using `t('state.draft')`, `t('state.active')`, etc.
+- Card titles: Recent documents, By classification, By state, My favorites,
+  Recently viewed, Recent activity
+- Card descriptions + empty states + "View all" + "Upload your first document"
+- "Unclassified" / "Unknown" fallbacks + "No data"
+
+**documents/page.tsx** — ~30 strings replaced:
+- Removed `STATE_LABELS` constant; rebuilt inside component
+- Filter dropdowns: All classifications, State, All states
+- Badges: Record, Legal hold
+- ICU plurals: version count (`{count, plural, one {# version} other {# versions}}`),
+  share count
+- Menu items: View details, Download
+- Pagination: "Page X of Y · N documents" (ICU)
+- Upload dialog: all labels, placeholders, toast titles, buttons
+- Added `useI18n` to `UploadDialog` sub-component
+
+**search/page.tsx** — 13 strings replaced:
+- Subtitle, search placeholder, filter dropdowns, state filter options
+- Facet headers: Classifications, Tags
+- "No results" + empty hint
+- Result count (ICU plural: `{count, plural, one {# result} other {# results}}`)
+- "Load more"
+
+**audit/page.tsx** — ~30 strings replaced:
+- 4 toast titles + 2 toast descriptions
+- "Verify integrity" / "Export CSV" buttons
+- Search placeholder, 4 result-filter options
+- "Events" title + page summary (ICU)
+- Empty state + Previous/Next
+- Event detail dialog: 14 field labels (Sequence #, Result, Actor, Actor IP,
+  Action, Resource type/ID/name, Reason, Created at, Metadata, Previous hash,
+  Event hash)
+- Verify-result dialog: title, description, chain intact/broken-at, expected/actual
+
+### Batch 2: Admin + Shared + Error + Confirm-dialog (13 files)
+
+**admin/anomalies/page.tsx** — subtitle, title, empty state, Resolve button, toasts
+**admin/break-glass/page.tsx** — 20+ strings (warning, request form, status, history)
+**admin/jobs/page.tsx** — 21+ strings (header, queue metrics, failed jobs, history, filters, toasts)
+**admin/invitations/page.tsx** — subtitle, dialog titles/descriptions, labels, toasts, empty state
+**admin/users/page.tsx** — search placeholder, empty state, dialog labels, toasts
+  (added useI18n to CreateUserDialog sub-component)
+**admin/billing/page.tsx** — payment toasts, plan features, PaymentStatusBanner component
+  (added useI18n to PaymentStatusBanner)
+**shared/[token]/page.tsx** — 12 strings (access denied, header, mode/views labels,
+  shared by, expires, watermark, buttons, footer)
+  (added useI18n to both SharedDocumentPage and WatermarkedDocument components)
+**unauthorized/page.tsx** — defaultMessage, sessionExpired/accessDenied titles,
+  signInAgainSuffix, buttons
+**error.tsx** — title, message, errorIdLabel, Try again, Go to Dashboard
+**confirm-dialog.tsx** — Confirm/Cancel defaults, Operation failed, typePhraseToConfirm,
+  Working…, confirmationPhraseAria
+
+### Server components (skipped — can't use hooks)
+- `not-found.tsx` — server component, English strings left as-is
+- `offline/page.tsx` — server component, English strings left as-is
+- `loading.tsx` — server component, English string left as-is
+
+### Locale file updates
+- 3 new keys added to all 5 locales: `search.facets.tags`, `audit.eventsVerifiedCount`,
+  `audit.brokenAtSequence`
+- `admin.breakGlass` converted from string to object (preserved locale-specific title)
+- `admin.jobs` converted from string to object (preserved locale-specific title)
+- Updated `sidebar.tsx` labelKey references: `'admin.jobs'` → `'admin.jobs.title'`,
+  `'admin.breakGlass'` → `'admin.breakGlass.title'`
+- Total: 668 keys per locale (was 665)
+
+### Verification
+- TypeScript: 0 errors
+- ESLint: 0 errors (12 warnings — all pre-existing a11y)
+- Unit tests: 400/400 passing
+- Translation check: all 5 locales at 668 keys, 100% complete
