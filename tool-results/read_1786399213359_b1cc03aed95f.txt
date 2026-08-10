@@ -1,0 +1,1356 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import { useParams, useSearchParams, useRouter } from 'next/navigation';
+     6→import Link from 'next/link';
+     7→import { api, uploadFile } from '@/lib/api/client';
+     8→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+     9→import { Button } from '@/components/ui/button';
+    10→import { Badge } from '@/components/ui/badge';
+    11→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    12→import { Textarea } from '@/components/ui/textarea';
+    13→import { Input } from '@/components/ui/input';
+    14→import { Label } from '@/components/ui/label';
+    15→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+    16→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+    17→import { Alert, AlertDescription } from '@/components/ui/alert';
+    18→import {
+    19→  ArrowLeft, Download, Lock, Unlock, FileLock, Shield, History, Share2, Sparkles,
+    20→  Loader2, Eye, FileText, CheckCircle2, XCircle, AlertTriangle, Clock,
+    21→  ShieldAlert, Copy, MessageSquare, Send, Star, ShieldCheck, FolderOpen, Square,
+    22→  RotateCcw,
+    23→} from 'lucide-react';
+    24→import { useToast } from '@/hooks/use-toast';
+    25→import { useSessionData } from '@/components/providers/use-session-data';
+    26→import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions.client';
+    27→import { formatDistanceToNow } from 'date-fns';
+    28→import { formatBytes, truncateHash } from '@/lib/utils/format';
+    29→import { VersionCompare } from '@/components/documents/version-compare';
+    30→import { RedactionEditor } from '@/components/documents/redaction-editor';
+    31→import { CollaborationPanel } from '@/components/documents/collaboration-panel';
+    32→
+    33→interface DocDetail {
+    34→  document: {
+    35→    id: string;
+    36→    title: string;
+    37→    description: string | null;
+    38→    state: string;
+    39→    documentType: string;
+    40→    classification: { id: string; code: string; name: string; color: string; level: number } | null;
+    41→    owner: { id: string; name: string | null; email: string } | null;
+    42→    currentVersion: number;
+    43→    isLocked: boolean;
+    44→    lockedBy: string | null;
+    45→    lockedReason: string | null;
+    46→    lockedUntil: string | null;
+    47→    legalHold: boolean;
+    48→    legalHoldReason: string | null;
+    49→    isRecord: boolean;
+    50→    shareAllowed: boolean;
+    51→    downloadAllowed: boolean;
+    52→    watermarkEnabled: boolean;
+    53→    aiClassificationSuggested: string | null;
+    54→    aiClassificationReason: string | null;
+    55→    aiSuggestionState: string | null;
+    56→    tags: string;
+    57→    metadata: string;
+    58→    retentionSchedule: { id: string; name: string; retentionDays: number; dispositionAction: string } | null;
+    59→    retentionDisposeAfter: string | null;
+    60→    createdAt: string;
+    61→    updatedAt: string;
+    62→    versions: any[];
+    63→    _count: { shares: number; auditEvents: number; approvals: number };
+    64→  };
+    65→}
+    66→
+    67→const STATE_LABELS: Record<string, string> = {
+    68→  draft: 'Draft', active: 'Active', record: 'Record', archived: 'Archived', disposed: 'Disposed',
+    69→};
+    70→
+    71→export default function DocumentDetailPage() {
+    72→  const params = useParams<{ id: string }>();
+    73→  const search = useSearchParams();
+    74→  const router = useRouter();
+    75→  const { toast } = useToast();
+    76→  const qc = useQueryClient();
+    77→  const { session } = useSessionData();
+    78→  const perms = session?.user?.permissions ?? [];
+    79→  const [activeTab, setActiveTab] = useState('overview');
+    80→  const [newVersionFile, setNewVersionFile] = useState<File | null>(null);
+    81→  const [changeReason, setChangeReason] = useState('');
+    82→
+    83→  useEffect(() => {
+    84→    if (search.get('action') === 'download') {
+    85→      api.get<{ url: string }>(`/api/documents/${params.id}/download`)
+    86→        .then((res) => window.open(res.url, '_blank'))
+    87→        .catch((err: any) => toast({ title: 'Download failed', description: err?.message, variant: 'destructive' }))
+    88→        .finally(() => router.replace(`/documents/${params.id}`));
+    89→    }
+    90→  }, [search, params.id, router, toast]);
+    91→
+    92→  const { data, isLoading } = useQuery<DocDetail>({
+    93→    queryKey: ['document', params.id],
+    94→    queryFn: () => api.get(`/api/documents/${params.id}`),
+    95→    refetchInterval: 30_000,
+    96→  });
+    97→
+    98→  const { data: auditData } = useQuery<{ events: any[] }>({
+    99→    queryKey: ['document-audit', params.id],
+   100→    queryFn: () => api.get(`/api/documents/${params.id}/audit`),
+   101→  });
+   102→
+   103→  const { data: sharesData } = useQuery<{ shares: any[] }>({
+   104→    queryKey: ['document-shares', params.id],
+   105→    queryFn: () => api.get(`/api/documents/${params.id}/share`),
+   106→  });
+   107→
+   108→  const { data: classificationsData } = useQuery<{ items: any[] }>({
+   109→    queryKey: ['classifications'],
+   110→    queryFn: () => api.get('/api/classifications'),
+   111→  });
+   112→
+   113→  const handleDownload = () => {
+   114→    api.get<{ url: string }>(`/api/documents/${params.id}/download`)
+   115→      .then((res) => window.open(res.url, '_blank'))
+   116→      .catch((err: any) => toast({ title: 'Download failed', description: err?.message, variant: 'destructive' }));
+   117→  };
+   118→
+   119→  const lockMutation = useMutation({
+   120→    mutationFn: (lock: boolean) =>
+   121→      lock
+   122→        ? api.post(`/api/documents/${params.id}/lock`, { reason: 'Manual lock' })
+   123→        : api.delete(`/api/documents/${params.id}/lock`),
+   124→    onSuccess: () => {
+   125→      toast({ title: 'Updated', description: 'Lock state changed' });
+   126→      qc.invalidateQueries({ queryKey: ['document', params.id] });
+   127→    },
+   128→    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+   129→  });
+   130→
+   131→  const aiSuggestMutation = useMutation({
+   132→    mutationFn: () => api.post(`/api/documents/${params.id}/ai-suggest`),
+   133→    onSuccess: (res: any) => {
+   134→      toast({
+   135→        title: 'AI suggestion ready',
+   136→        description: `Suggested: ${res.suggestion.name}. Review and approve to apply.`,
+   137→      });
+   138→      qc.invalidateQueries({ queryKey: ['document', params.id] });
+   139→    },
+   140→    onError: (err: any) => toast({ title: 'AI failed', description: err?.message, variant: 'destructive' }),
+   141→  });
+   142→
+   143→  const classifyMutation = useMutation({
+   144→    mutationFn: (classificationId: string) =>
+   145→      api.patch(`/api/documents/${params.id}`, { classificationId, reason: 'Manual classification' }),
+   146→    onSuccess: () => {
+   147→      toast({ title: 'Classification updated' });
+   148→      qc.invalidateQueries({ queryKey: ['document', params.id] });
+   149→    },
+   150→    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+   151→  });
+   152→
+   153→  const uploadVersionMutation = useMutation({
+   154→    mutationFn: async () => {
+   155→      if (!newVersionFile) throw new Error('No file');
+   156→      const fd = new FormData();
+   157→      fd.append('file', newVersionFile);
+   158→      fd.append('changeReason', changeReason || 'New version upload');
+   159→      return uploadFile(`/api/documents/${params.id}/versions`, fd);
+   160→    },
+   161→    onSuccess: () => {
+   162→      toast({ title: 'Version uploaded' });
+   163→      setNewVersionFile(null);
+   164→      setChangeReason('');
+   165→      qc.invalidateQueries({ queryKey: ['document', params.id] });
+   166→    },
+   167→    onError: (err: any) => toast({ title: 'Upload failed', description: err?.message, variant: 'destructive' }),
+   168→  });
+   169→
+   170→  // Restore a previous version (creates a new forward-only version)
+   171→  const restoreVersionMutation = useMutation({
+   172→    mutationFn: ({ versionId, reason }: { versionId: string; reason: string }) =>
+   173→      api.post(`/api/documents/${params.id}/versions/${versionId}/restore`, { reason }),
+   174→    onSuccess: () => {
+   175→      toast({ title: 'Version restored', description: 'A new version was created with the restored content.' });
+   176→      qc.invalidateQueries({ queryKey: ['document', params.id] });
+   177→    },
+   178→    onError: (err: any) => toast({ title: 'Restore failed', description: err?.message, variant: 'destructive' }),
+   179→  });
+   180→
+   181→  if (isLoading || !data) {
+   182→    return (
+   183→      <div className="flex items-center justify-center py-12">
+   184→        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+   185→      </div>
+   186→    );
+   187→  }
+   188→
+   189→  const doc = data.document;
+   190→  const latestVersion = doc.versions[0];
+   191→  const tags = safeParseArray(doc.tags);
+   192→  const metadata = safeParseObject(doc.metadata);
+   193→
+   194→  return (
+   195→    <div className="space-y-6 max-w-6xl mx-auto">
+   196→      <div>
+   197→        <Link href="/documents" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-3">
+   198→          <ArrowLeft className="me-1 h-3.5 w-3.5" /> Back to documents
+   199→        </Link>
+   200→        <div className="flex items-start justify-between gap-4 flex-wrap">
+   201→          <div className="flex-1 min-w-0">
+   202→            <div className="flex items-center gap-2 flex-wrap mb-1">
+   203→              <h1 className="text-2xl font-semibold tracking-tight">{doc.title}</h1>
+   204→              {doc.classification && (
+   205→                <Badge variant="outline" className="font-mono text-xs" style={{ borderColor: doc.classification.color, color: doc.classification.color }}>
+   206→                  {doc.classification.code}
+   207→                </Badge>
+   208→              )}
+   209→              <Badge variant="secondary" className="text-xs">{STATE_LABELS[doc.state] ?? doc.state}</Badge>
+   210→              {doc.isRecord && <Badge variant="outline" className="text-xs">Record</Badge>}
+   211→              {doc.legalHold && (
+   212→                <Badge variant="outline" className="text-xs text-red-600 border-red-300">
+   213→                  <FileLock className="me-1 h-3 w-3" /> Legal hold
+   214→                </Badge>
+   215→              )}
+   216→              {doc.isLocked && (
+   217→                <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+   218→                  <Lock className="me-1 h-3 w-3" /> Locked
+   219→                </Badge>
+   220→              )}
+   221→            </div>
+   222→            {doc.description && <p className="text-sm text-muted-foreground">{doc.description}</p>}
+   223→          </div>
+   224→          <div className="flex gap-2">
+   225→            {hasPermission(perms, PERMISSIONS.DOCUMENT_DOWNLOAD) && doc.downloadAllowed && (
+   226→              <Button variant="outline" size="sm" onClick={handleDownload}>
+   227→                <Download className="me-2 h-3.5 w-3.5" /> Download
+   228→              </Button>
+   229→            )}
+   230→            <FavoriteButton docId={params.id} />
+   231→            {hasPermission(perms, PERMISSIONS.DOCUMENT_DECLARE_RECORD) && !doc.isRecord && (
+   232→              <Button
+   233→                variant="outline"
+   234→                size="sm"
+   235→                onClick={() => {
+   236→                  if (confirm('Declare this document as a record? Records are immutable and can only be disposed via retention disposition.')) {
+   237→                    api.post(`/api/documents/${params.id}/declare-record`, { reason: 'Manual declaration' })
+   238→                      .then(() => { toast({ title: 'Record declared' }); qc.invalidateQueries({ queryKey: ['document', params.id] }); })
+   239→                      .catch((err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }));
+   240→                  }
+   241→                }}
+   242→              >
+   243→                <ShieldCheck className="me-2 h-3.5 w-3.5" /> Declare Record
+   244→              </Button>
+   245→            )}
+   246→            <MoveCopyDialog docId={params.id} />
+   247→            {hasPermission(perms, PERMISSIONS.DOCUMENT_LOCK) && (
+   248→              <Button
+   249→                variant="outline"
+   250→                size="sm"
+   251→                onClick={() => lockMutation.mutate(!doc.isLocked)}
+   252→                disabled={lockMutation.isPending}
+   253→              >
+   254→                {doc.isLocked ? <Unlock className="me-2 h-3.5 w-3.5" /> : <Lock className="me-2 h-3.5 w-3.5" />}
+   255→                {doc.isLocked ? 'Unlock' : 'Lock'}
+   256→              </Button>
+   257→            )}
+   258→          </div>
+   259→        </div>
+   260→      </div>
+   261→
+   262→      {/* Classification banner */}
+   263→      {doc.classification && (
+   264→        <div
+   265→          className="px-4 py-2 rounded-md text-sm font-medium text-white flex items-center gap-2"
+   266→          style={{ backgroundColor: doc.classification.color }}
+   267→        >
+   268→          <Shield className="h-4 w-4" />
+   269→          Classification: {doc.classification.name} — {(doc.classification as any).description ?? 'Sensitive document'}
+   270→        </div>
+   271→      )}
+   272→
+   273→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+   274→        <TabsList className="grid w-full grid-cols-2 md:grid-cols-7 lg:w-fit">
+   275→          <TabsTrigger value="overview">Overview</TabsTrigger>
+   276→          <TabsTrigger value="preview">Preview</TabsTrigger>
+   277→          <TabsTrigger value="versions">Versions</TabsTrigger>
+   278→          <TabsTrigger value="comments">Comments</TabsTrigger>
+   279→          <TabsTrigger value="audit">Audit</TabsTrigger>
+   280→          <TabsTrigger value="share">Share</TabsTrigger>
+   281→          <TabsTrigger value="collab">Collab</TabsTrigger>
+   282→          <TabsTrigger value="ai">AI</TabsTrigger>
+   283→        </TabsList>
+   284→
+   285→        {/* Overview */}
+   286→        <TabsContent value="overview" className="space-y-4">
+   287→          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+   288→            <Card>
+   289→              <CardHeader className="pb-2"><CardTitle className="text-sm">Owner</CardTitle></CardHeader>
+   290→              <CardContent className="text-sm">{doc.owner?.name ?? doc.owner?.email ?? 'Unknown'}</CardContent>
+   291→            </Card>
+   292→            <Card>
+   293→              <CardHeader className="pb-2"><CardTitle className="text-sm">Type</CardTitle></CardHeader>
+   294→              <CardContent className="text-sm font-mono">{doc.documentType}</CardContent>
+   295→            </Card>
+   296→            <Card>
+   297→              <CardHeader className="pb-2"><CardTitle className="text-sm">Created</CardTitle></CardHeader>
+   298→              <CardContent className="text-sm">{formatDistanceToNow(new Date(doc.createdAt), { addSuffix: true })}</CardContent>
+   299→            </Card>
+   300→          </div>
+   301→
+   302→          {latestVersion && (
+   303→            <Card>
+   304→              <CardHeader><CardTitle className="text-base">Current version (v{latestVersion.versionNumber})</CardTitle></CardHeader>
+   305→              <CardContent className="space-y-3">
+   306→                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+   307→                  <div>
+   308→                    <p className="text-xs text-muted-foreground">File name</p>
+   309→                    <p className="font-medium truncate">{latestVersion.fileName}</p>
+   310→                  </div>
+   311→                  <div>
+   312→                    <p className="text-xs text-muted-foreground">Size</p>
+   313→                    <p className="font-medium">{formatBytes(latestVersion.sizeBytes)}</p>
+   314→                  </div>
+   315→                  <div>
+   316→                    <p className="text-xs text-muted-foreground">MIME type</p>
+   317→                    <p className="font-medium font-mono text-xs">{latestVersion.mimeType}</p>
+   318→                  </div>
+   319→                  <div>
+   320→                    <p className="text-xs text-muted-foreground">SHA-256</p>
+   321→                    <p className="font-mono text-xs">{truncateHash(latestVersion.checksumSha256, 12, 8)}</p>
+   322→                  </div>
+   323→                </div>
+   324→                {latestVersion.changeReason && (
+   325→                  <div>
+   326→                    <p className="text-xs text-muted-foreground">Change reason</p>
+   327→                    <p className="text-sm">{latestVersion.changeReason}</p>
+   328→                  </div>
+   329→                )}
+   330→              </CardContent>
+   331→            </Card>
+   332→          )}
+   333→
+   334→          {tags.length > 0 && (
+   335→            <Card>
+   336→              <CardHeader><CardTitle className="text-base">Tags</CardTitle></CardHeader>
+   337→              <CardContent>
+   338→                <div className="flex flex-wrap gap-2">
+   339→                  {tags.map((t: string) => <Badge key={t} variant="secondary">{t}</Badge>)}
+   340→                </div>
+   341→              </CardContent>
+   342→            </Card>
+   343→          )}
+   344→
+   345→          {Object.keys(metadata).length > 0 && (
+   346→            <Card>
+   347→              <CardHeader><CardTitle className="text-base">Metadata</CardTitle></CardHeader>
+   348→              <CardContent>
+   349→                <dl className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+   350→                  {Object.entries(metadata).map(([k, v]) => (
+   351→                    <div key={k}>
+   352→                      <dt className="text-xs text-muted-foreground">{k}</dt>
+   353→                      <dd className="font-medium">{String(v)}</dd>
+   354→                    </div>
+   355→                  ))}
+   356→                </dl>
+   357→              </CardContent>
+   358→            </Card>
+   359→          )}
+   360→
+   361→          {doc.retentionSchedule && (
+   362→            <Card>
+   363→              <CardHeader><CardTitle className="text-base">Retention</CardTitle></CardHeader>
+   364→              <CardContent className="text-sm space-y-1">
+   365→                <p><span className="text-muted-foreground">Schedule:</span> {doc.retentionSchedule.name}</p>
+   366→                <p><span className="text-muted-foreground">Retention:</span> {doc.retentionSchedule.retentionDays} days</p>
+   367→                <p><span className="text-muted-foreground">Disposition:</span> {doc.retentionSchedule.dispositionAction}</p>
+   368→                {doc.retentionDisposeAfter && (
+   369→                  <p><span className="text-muted-foreground">Dispose after:</span> {new Date(doc.retentionDisposeAfter).toLocaleDateString()}</p>
+   370→                )}
+   371→              </CardContent>
+   372→            </Card>
+   373→          )}
+   374→
+   375→          {hasPermission(perms, PERMISSIONS.DOCUMENT_CLASSIFY) && classificationsData && (
+   376→            <Card>
+   377→              <CardHeader>
+   378→                <CardTitle className="text-base">Classification</CardTitle>
+   379→                <CardDescription>Change with audit; downgrades require elevated permission and are blocked under legal hold.</CardDescription>
+   380→              </CardHeader>
+   381→              <CardContent>
+   382→                <Select
+   383→                  value={doc.classification?.id ?? ''}
+   384→                  onValueChange={(v) => classifyMutation.mutate(v)}
+   385→                >
+   386→                  <SelectTrigger className="w-full md:w-72"><SelectValue placeholder="Select classification" /></SelectTrigger>
+   387→                  <SelectContent>
+   388→                    {classificationsData.items.map((c) => (
+   389→                      <SelectItem key={c.id} value={c.id}>
+   390→                        <span className="inline-flex items-center gap-2">
+   391→                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />
+   392→                          {c.name}
+   393→                        </span>
+   394→                      </SelectItem>
+   395→                    ))}
+   396→                  </SelectContent>
+   397→                </Select>
+   398→              </CardContent>
+   399→            </Card>
+   400→          )}
+   401→        </TabsContent>
+   402→
+   403→        {/* Versions */}
+   404→        <TabsContent value="versions" className="space-y-4">
+   405→          <VersionCompare docId={params.id} versions={doc.versions} />
+   406→          <Card className="glass-card border-0">
+   407→            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+   408→              <div>
+   409→                <CardTitle className="text-base">Version history</CardTitle>
+   410→                <CardDescription>{doc.versions.length} version(s)</CardDescription>
+   411→              </div>
+   412→              {hasPermission(perms, PERMISSIONS.DOCUMENT_UPDATE) && !doc.isLocked && (
+   413→                <Dialog>
+   414→                  <DialogTrigger asChild>
+   415→                    <Button variant="outline" size="sm">
+   416→                      <History className="me-2 h-3.5 w-3.5" /> Upload new version
+   417→                    </Button>
+   418→                  </DialogTrigger>
+   419→                  <DialogContent>
+   420→                    <DialogHeader>
+   421→                      <DialogTitle>Upload new version</DialogTitle>
+   422→                      <DialogDescription>The previous version is preserved immutably.</DialogDescription>
+   423→                    </DialogHeader>
+   424→                    <div className="space-y-3 py-2">
+   425→                      <Input type="file" onChange={(e) => setNewVersionFile(e.target.files?.[0] ?? null)} />
+   426→                      <div className="space-y-1">
+   427→                        <Label htmlFor="reason">Change reason</Label>
+   428→                        <Textarea id="reason" value={changeReason} onChange={(e) => setChangeReason(e.target.value)} rows={2} />
+   429→                      </div>
+   430→                    </div>
+   431→                    <DialogFooter>
+   432→                      <Button onClick={() => uploadVersionMutation.mutate()} disabled={!newVersionFile || uploadVersionMutation.isPending}>
+   433→                        {uploadVersionMutation.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
+   434→                        Upload
+   435→                      </Button>
+   436→                    </DialogFooter>
+   437→                  </DialogContent>
+   438→                </Dialog>
+   439→              )}
+   440→            </CardHeader>
+   441→            <CardContent className="p-0">
+   442→              <div className="divide-y divide-slate-100 dark:divide-slate-900">
+   443→                {doc.versions.map((v: any) => (
+   444→                  <div key={v.id} className="p-4 flex items-start gap-3">
+   445→                    <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center text-xs font-medium">
+   446→                      v{v.versionNumber}
+   447→                    </div>
+   448→                    <div className="flex-1 min-w-0">
+   449→                      <p className="text-sm font-medium truncate">{v.fileName}</p>
+   450→                      <p className="text-xs text-muted-foreground">
+   451→                        {formatBytes(v.sizeBytes)} · {v.mimeType} · {v.uploader?.name ?? v.uploader?.email ?? 'Unknown'} · {formatDistanceToNow(new Date(v.createdAt), { addSuffix: true })}
+   452→                      </p>
+   453→                      {v.changeReason && <p className="text-xs mt-1 italic text-muted-foreground">"{v.changeReason}"</p>}
+   454→                      <p className="text-[10px] font-mono text-muted-foreground mt-1">sha256:{truncateHash(v.checksumSha256, 16, 12)}</p>
+   455→                    </div>
+   456→                    <div className="flex items-center gap-2">
+   457→                      {v.versionNumber !== doc.currentVersion && hasPermission(perms, PERMISSIONS.DOCUMENT_VERSION_RESTORE) && (
+   458→                        <Button
+   459→                          size="sm"
+   460→                          variant="outline"
+   461→                          disabled={restoreVersionMutation.isPending}
+   462→                          onClick={() => {
+   463→                            const reason = window.prompt(`Restore version ${v.versionNumber}? This creates a NEW version with the old content (the current version is preserved). Enter a reason:`);
+   464→                            if (reason) {
+   465→                              restoreVersionMutation.mutate({ versionId: v.id, reason });
+   466→                            }
+   467→                          }}
+   468→                        >
+   469→                          <RotateCcw className="me-1 h-3 w-3" /> Restore
+   470→                        </Button>
+   471→                      )}
+   472→                      {v.versionNumber === doc.currentVersion && (
+   473→                        <Badge variant="secondary" className="text-xs">Current</Badge>
+   474→                      )}
+   475→                    </div>
+   476→                  </div>
+   477→                ))}
+   478→              </div>
+   479→            </CardContent>
+   480→          </Card>
+   481→        </TabsContent>
+   482→
+   483→        {/* Audit */}
+   484→        <TabsContent value="audit" className="space-y-4">
+   485→          <Card>
+   486→            <CardHeader>
+   487→              <CardTitle className="text-base">Audit timeline</CardTitle>
+   488→              <CardDescription>Tamper-evident, hash-chained events for this document.</CardDescription>
+   489→            </CardHeader>
+   490→            <CardContent className="p-0">
+   491→              {auditData?.events?.length ? (
+   492→                <div className="divide-y divide-slate-100 dark:divide-slate-900">
+   493→                  {auditData.events.map((ev: any) => (
+   494→                    <div key={ev.id} className="p-3 flex items-start gap-3 text-sm">
+   495→                      <span className={`mt-1 h-1.5 w-1.5 rounded-full flex-shrink-0 ${
+   496→                        ev.result === 'allow' ? 'bg-emerald-500' : ev.result === 'deny' ? 'bg-red-500' : 'bg-amber-500'
+   497→                      }`} />
+   498→                      <div className="flex-1 min-w-0">
+   499→                        <p className="font-mono text-xs">{ev.eventType}</p>
+   500→                        <p className="text-xs text-muted-foreground">
+   501→                          {ev.actorEmail ?? 'system'} · {formatDistanceToNow(new Date(ev.createdAt), { addSuffix: true })}
+   502→                          {ev.reason && ` · ${ev.reason}`}
+   503→                        </p>
+   504→                      </div>
+   505→                      <span className="text-[10px] font-mono text-muted-foreground">#{ev.sequenceNum}</span>
+   506→                    </div>
+   507→                  ))}
+   508→                </div>
+   509→              ) : (
+   510→                <p className="p-6 text-center text-sm text-muted-foreground">No audit events yet.</p>
+   511→              )}
+   512→            </CardContent>
+   513→          </Card>
+   514→        </TabsContent>
+   515→
+   516→        {/* Share */}
+   517→        <TabsContent value="share" className="space-y-4">
+   518→          <ShareManager docId={params.id} shares={sharesData?.shares ?? []} classifications={[]} doc={doc} />
+   519→        </TabsContent>
+   520→
+   521→        {/* Collaboration */}
+   522→        <TabsContent value="collab" className="space-y-4">
+   523→          {hasPermission(perms, PERMISSIONS.DOCUMENT_UPDATE) && !doc.isLocked ? (
+   524→            <CollaborationPanel docId={params.id} tenantId={session?.user?.tenantId || ''} />
+   525→          ) : (
+   526→            <Card className="glass-card border-0">
+   527→              <CardContent className="p-6 text-center">
+   528→                <Lock className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+   529→                <p className="text-sm font-medium">
+   530→                  {doc.isLocked ? 'Document is locked' : 'No permission to edit'}
+   531→                </p>
+   532→              </CardContent>
+   533→            </Card>
+   534→          )}
+   535→        </TabsContent>
+   536→
+   537→        {/* Preview */}
+   538→        <TabsContent value="preview" className="space-y-4">
+   539→          <DocumentPreview docId={params.id} doc={doc} />
+   540→          {hasPermission(perms, PERMISSIONS.DOCUMENT_REDACT) && !doc.legalHold && (
+   541→            <RedactionEntry docId={params.id} doc={doc} />
+   542→          )}
+   543→        </TabsContent>
+   544→
+   545→        {/* Comments */}
+   546→        <TabsContent value="comments" className="space-y-4">
+   547→          <CommentsPanel docId={params.id} />
+   548→        </TabsContent>
+   549→
+   550→        {/* AI */}
+   551→        <TabsContent value="ai" className="space-y-4">
+   552→          <Card>
+   553→            <CardHeader>
+   554→              <CardTitle className="text-base flex items-center gap-2">
+   555→                <Sparkles className="h-4 w-4" /> AI-assisted classification
+   556→              </CardTitle>
+   557→              <CardDescription>
+   558→                AI suggestions are advisory only. Applying them requires human approval.
+   559→                AI never performs downgrades, deletions, or legal-hold changes silently.
+   560→              </CardDescription>
+   561→            </CardHeader>
+   562→            <CardContent className="space-y-4">
+   563→              {doc.aiClassificationSuggested ? (
+   564→                <Alert>
+   565→                  <Sparkles className="h-4 w-4" />
+   566→                  <AlertDescription>
+   567→                    <div className="space-y-1">
+   568→                      <p><strong>Suggested:</strong> {doc.aiClassificationSuggested}</p>
+   569→                      {doc.aiClassificationReason && <p className="text-sm">{doc.aiClassificationReason}</p>}
+   570→                      <p className="text-xs text-muted-foreground">Status: {doc.aiSuggestionState}</p>
+   571→                    </div>
+   572→                  </AlertDescription>
+   573→                </Alert>
+   574→              ) : (
+   575→                <p className="text-sm text-muted-foreground">No AI suggestion yet. Click below to request one.</p>
+   576→              )}
+   577→              {hasPermission(perms, PERMISSIONS.AI_SUGGESTION_REQUEST) && (
+   578→                <Button variant="outline" size="sm" onClick={() => aiSuggestMutation.mutate()} disabled={aiSuggestMutation.isPending}>
+   579→                  {aiSuggestMutation.isPending ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="me-2 h-3.5 w-3.5" />}
+   580→                  Request suggestion
+   581→                </Button>
+   582→              )}
+   583→            </CardContent>
+   584→          </Card>
+   585→
+   586→          {/* PII Detection */}
+   587→          <Card>
+   588→            <CardHeader>
+   589→              <CardTitle className="text-base flex items-center gap-2">
+   590→                <Shield className="h-4 w-4" /> PII detection
+   591→              </CardTitle>
+   592→              <CardDescription>Heuristic regex-based scan for personal data (email, phone, SSN, credit card, IBAN, IP, passport).</CardDescription>
+   593→            </CardHeader>
+   594→            <CardContent>
+   595→              <PiiScanner docId={params.id} />
+   596→            </CardContent>
+   597→          </Card>
+   598→
+   599→          {/* Summarization */}
+   600→          <Card>
+   601→            <CardHeader>
+   602→              <CardTitle className="text-base flex items-center gap-2">
+   603→                <Sparkles className="h-4 w-4" /> Document summary
+   604→              </CardTitle>
+   605→              <CardDescription>LLM-powered summary (falls back to heuristic when no AI key configured).</CardDescription>
+   606→            </CardHeader>
+   607→            <CardContent>
+   608→              <Summarizer docId={params.id} />
+   609→            </CardContent>
+   610→          </Card>
+   611→
+   612→          {/* Policy Risk */}
+   613→          <Card>
+   614→            <CardHeader>
+   615→              <CardTitle className="text-base flex items-center gap-2">
+   616→                <ShieldAlert className="h-4 w-4" /> Policy risk analysis
+   617→              </CardTitle>
+   618→              <CardDescription>Identifies policy violations, mis-classifications, and compliance gaps.</CardDescription>
+   619→            </CardHeader>
+   620→            <CardContent>
+   621→              <PolicyRiskAnalyzer docId={params.id} />
+   622→            </CardContent>
+   623→          </Card>
+   624→
+   625→          {/* Duplicate Detection */}
+   626→          <Card>
+   627→            <CardHeader>
+   628→              <CardTitle className="text-base flex items-center gap-2">
+   629→                <Copy className="h-4 w-4" /> Duplicate detection
+   630→              </CardTitle>
+   631→              <CardDescription>Finds exact (SHA-256) and near (same name + size) duplicates in your tenant.</CardDescription>
+   632→            </CardHeader>
+   633→            <CardContent>
+   634→              <DuplicateChecker docId={params.id} />
+   635→            </CardContent>
+   636→          </Card>
+   637→        </TabsContent>
+   638→      </Tabs>
+   639→    </div>
+   640→  );
+   641→}
+   642→
+   643→function ShareManager({ docId, shares, doc }: { docId: string; shares: any[]; doc: any; classifications: any[] }) {
+   644→  const { toast } = useToast();
+   645→  const qc = useQueryClient();
+   646→  const [recipientEmail, setRecipientEmail] = useState('');
+   647→  const [mode, setMode] = useState('view');
+   648→  const [expiresInDays, setExpiresInDays] = useState('7');
+   649→  const [password, setPassword] = useState('');
+   650→  const [watermark, setWatermark] = useState(true);
+   651→
+   652→  const createShare = useMutation({
+   653→    mutationFn: () => {
+   654→      const expiresAt = new Date();
+   655→      expiresAt.setDate(expiresAt.getDate() + parseInt(expiresInDays, 10));
+   656→      return api.post(`/api/documents/${docId}/share`, {
+   657→        recipientEmail: recipientEmail || undefined,
+   658→        mode,
+   659→        expiresAt: expiresAt.toISOString(),
+   660→        password: password || undefined,
+   661→        watermark,
+   662→      });
+   663→    },
+   664→    onSuccess: (res: any) => {
+   665→      toast({
+   666→        title: 'Share link created',
+   667→        description: 'The link has been generated and audit-logged.',
+   668→      });
+   669→      qc.invalidateQueries({ queryKey: ['document-shares', docId] });
+   670→      setRecipientEmail(''); setPassword('');
+   671→    },
+   672→    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+   673→  });
+   674→
+   675→  if (!doc.shareAllowed) {
+   676→    return (
+   677→      <Card>
+   678→        <CardContent className="p-6 text-center">
+   679→          <AlertTriangle className="h-8 w-8 mx-auto text-amber-500 mb-2" />
+   680→          <p className="text-sm font-medium">Sharing is disabled for this document</p>
+   681→          <p className="text-xs text-muted-foreground mt-1">
+   682→            This is enforced by classification policy or document settings.
+   683→          </p>
+   684→        </CardContent>
+   685→      </Card>
+   686→    );
+   687→  }
+   688→
+   689→  return (
+   690→    <Card>
+   691→      <CardHeader>
+   692→        <CardTitle className="text-base">Sharing</CardTitle>
+   693→        <CardDescription>Create time-limited, optionally password-protected share links.</CardDescription>
+   694→      </CardHeader>
+   695→      <CardContent className="space-y-4">
+   696→        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+   697→          <div className="space-y-1">
+   698→            <Label>Recipient email (optional)</Label>
+   699→            <Input type="email" value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)} placeholder="recipient@example.com" />
+   700→          </div>
+   701→          <div className="space-y-1">
+   702→            <Label>Mode</Label>
+   703→            <Select value={mode} onValueChange={setMode}>
+   704→              <SelectTrigger><SelectValue /></SelectTrigger>
+   705→              <SelectContent>
+   706→                <SelectItem value="view">View only</SelectItem>
+   707→                <SelectItem value="download">View + download</SelectItem>
+   708→                <SelectItem value="review">Review workflow</SelectItem>
+   709→              </SelectContent>
+   710→            </Select>
+   711→          </div>
+   712→          <div className="space-y-1">
+   713→            <Label>Expires in</Label>
+   714→            <Select value={expiresInDays} onValueChange={setExpiresInDays}>
+   715→              <SelectTrigger><SelectValue /></SelectTrigger>
+   716→              <SelectContent>
+   717→                <SelectItem value="1">1 day</SelectItem>
+   718→                <SelectItem value="7">7 days</SelectItem>
+   719→                <SelectItem value="30">30 days</SelectItem>
+   720→                <SelectItem value="90">90 days</SelectItem>
+   721→              </SelectContent>
+   722→            </Select>
+   723→          </div>
+   724→          <div className="space-y-1">
+   725→            <Label>Password (optional)</Label>
+   726→            <Input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 8 chars" />
+   727→          </div>
+   728→        </div>
+   729→        <Button size="sm" onClick={() => createShare.mutate()} disabled={createShare.isPending}>
+   730→          {createShare.isPending && <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" />}
+   731→          Create share link
+   732→        </Button>
+   733→
+   734→        {shares.length > 0 && (
+   735→          <div className="mt-6 space-y-2">
+   736→            <p className="text-sm font-medium">Active shares ({shares.length})</p>
+   737→            <div className="divide-y divide-slate-100 dark:divide-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">
+   738→              {shares.map((s: any) => (
+   739→                <div key={s.id} className="p-3 flex items-center gap-3 text-sm">
+   740→                  <div className="flex-1 min-w-0">
+   741→                    <p className="font-mono text-xs truncate">{s.token.slice(0, 16)}…</p>
+   742→                    <p className="text-xs text-muted-foreground">
+   743→                      {s.recipientEmail ?? 'Anonymous'} · {s.mode} · expires {s.expiresAt ? formatDistanceToNow(new Date(s.expiresAt), { addSuffix: true }) : 'never'} · {s.viewCount} view(s)
+   744→                    </p>
+   745→                  </div>
+   746→                  <a href={`/shared/${s.token}`} target="_blank" rel="noreferrer">
+   747→                    <Button variant="ghost" size="sm" className="text-xs">
+   748→                      <Eye className="me-1 h-3 w-3" /> Open
+   749→                    </Button>
+   750→                  </a>
+   751→                </div>
+   752→              ))}
+   753→            </div>
+   754→          </div>
+   755→        )}
+   756→      </CardContent>
+   757→    </Card>
+   758→  );
+   759→}
+   760→
+   761→function safeParseArray(s: string | null | undefined): any[] {
+   762→  if (!s) return [];
+   763→  try { const v = JSON.parse(s); return Array.isArray(v) ? v : []; } catch { return []; }
+   764→}
+   765→function safeParseObject(s: string | null | undefined): Record<string, unknown> {
+   766→  if (!s) return {};
+   767→  try { const v = JSON.parse(s); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch { return {}; }
+   768→}
+   769→
+   770→// ---------------------------------------------------------------------------
+   771→//  Document Preview component
+   772→// ---------------------------------------------------------------------------
+   773→
+   774→function DocumentPreview({ docId, doc }: { docId: string; doc: any }) {
+   775→  const { toast } = useToast();
+   776→  const [preview, setPreview] = useState<any | null>(null);
+   777→  const [loading, setLoading] = useState(false);
+   778→
+   779→  async function loadPreview() {
+   780→    setLoading(true);
+   781→    try {
+   782→      const res = await api.get<{ url: string; watermark: boolean; watermarkText: string | null; fileName: string; mimeType: string }>(`/api/documents/${docId}/preview`);
+   783→      setPreview(res);
+   784→    } catch (err: any) {
+   785→      toast({ title: 'Preview failed', description: err?.message, variant: 'destructive' });
+   786→    } finally {
+   787→      setLoading(false);
+   788→    }
+   789→  }
+   790→
+   791→  if (!doc.previewAllowed) {
+   792→    return (
+   793→      <Card>
+   794→        <CardContent className="p-6 text-center">
+   795→          <AlertTriangle className="h-8 w-8 mx-auto text-amber-500 mb-2" />
+   796→          <p className="text-sm font-medium">Preview disabled</p>
+   797→          <p className="text-xs text-muted-foreground mt-1">Preview is disabled for this document by policy.</p>
+   798→        </CardContent>
+   799→      </Card>
+   800→    );
+   801→  }
+   802→
+   803→  return (
+   804→    <Card>
+   805→      <CardHeader>
+   806→        <CardTitle className="text-base flex items-center gap-2">
+   807→          <Eye className="h-4 w-4" /> In-browser preview
+   808→        </CardTitle>
+   809→        <CardDescription>
+   810→          {doc.watermarkEnabled ? 'Dynamic watermark enabled — viewer identity is overlaid on the document.' : 'No watermark.'}
+   811→        </CardDescription>
+   812→      </CardHeader>
+   813→      <CardContent className="space-y-3">
+   814→        {!preview ? (
+   815→          <Button onClick={loadPreview} disabled={loading}>
+   816→            {loading && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
+   817→            <Eye className="me-2 h-4 w-4" /> Load preview
+   818→          </Button>
+   819→        ) : (
+   820→          <div className="space-y-3">
+   821→            {preview.watermark && preview.watermarkText && (
+   822→              <Alert>
+   823→                <AlertDescription className="text-xs">
+   824→                  <strong>Watermark:</strong> <span className="font-mono">{preview.watermarkText}</span>
+   825→                </AlertDescription>
+   826→              </Alert>
+   827→            )}
+   828→            <div className="border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden">
+   829→              {preview.mimeType.startsWith('image/') ? (
+   830→                <img src={preview.url} alt={preview.fileName} className="max-w-full h-auto" />
+   831→              ) : preview.mimeType === 'application/pdf' ? (
+   832→                <iframe src={preview.url} className="w-full h-[70vh]" title={preview.fileName} />
+   833→              ) : preview.mimeType.startsWith('text/') ? (
+   834→                <iframe src={preview.url} className="w-full h-[70vh] bg-white" title={preview.fileName} />
+   835→              ) : (
+   836→                <div className="p-8 text-center">
+   837→                  <FileText className="h-10 w-10 mx-auto text-muted-foreground/50 mb-2" />
+   838→                  <p className="text-sm">Preview not available for {preview.mimeType}</p>
+   839→                  <a href={preview.url} target="_blank" rel="noreferrer">
+   840→                    <Button variant="outline" size="sm" className="mt-2">
+   841→                      <Download className="me-2 h-3.5 w-3.5" /> Download instead
+   842→                    </Button>
+   843→                  </a>
+   844→                </div>
+   845→              )}
+   846→            </div>
+   847→            <p className="text-xs text-muted-foreground">URL expires in 60 seconds. Click "Load preview" again to refresh.</p>
+   848→          </div>
+   849→        )}
+   850→      </CardContent>
+   851→    </Card>
+   852→  );
+   853→}
+   854→
+   855→// ---------------------------------------------------------------------------
+   856→//  Comments panel
+   857→// ---------------------------------------------------------------------------
+   858→
+   859→function CommentsPanel({ docId }: { docId: string }) {
+   860→  const { toast } = useToast();
+   861→  const qc = useQueryClient();
+   862→  const [body, setBody] = useState('');
+   863→
+   864→  const { data, isLoading } = useQuery<{ comments: any[] }>({
+   865→    queryKey: ['document-comments', docId],
+   866→    queryFn: () => api.get(`/api/documents/${docId}/comments`),
+   867→  });
+   868→
+   869→  const add = useMutation({
+   870→    mutationFn: () => api.post(`/api/documents/${docId}/comments`, { body }),
+   871→    onSuccess: () => {
+   872→      qc.invalidateQueries({ queryKey: ['document-comments', docId] });
+   873→      setBody('');
+   874→    },
+   875→    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+   876→  });
+   877→
+   878→  const resolve = useMutation({
+   879→    mutationFn: (id: string) => api.patch(`/api/documents/${docId}/comments/${id}`, { resolved: true }),
+   880→    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-comments', docId] }),
+   881→  });
+   882→
+   883→  return (
+   884→    <Card>
+   885→      <CardHeader>
+   886→        <CardTitle className="text-base flex items-center gap-2">
+   887→          <MessageSquare className="h-4 w-4" /> Comments
+   888→        </CardTitle>
+   889→        <CardDescription>Threaded discussion on this document</CardDescription>
+   890→      </CardHeader>
+   891→      <CardContent className="space-y-4">
+   892→        <div className="flex gap-2">
+   893→          <Textarea
+   894→            value={body}
+   895→            onChange={(e) => setBody(e.target.value)}
+   896→            placeholder="Add a comment…"
+   897→            rows={2}
+   898→          />
+   899→          <Button size="sm" onClick={() => add.mutate()} disabled={!body.trim() || add.isPending} className="self-end">
+   900→            <Send className="h-4 w-4" />
+   901→          </Button>
+   902→        </div>
+   903→
+   904→        {isLoading ? (
+   905→          <div className="text-center py-4"><Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" /></div>
+   906→        ) : !data?.comments?.length ? (
+   907→          <p className="text-center text-sm text-muted-foreground py-6">No comments yet.</p>
+   908→        ) : (
+   909→          <div className="space-y-3">
+   910→            {data.comments.map((c: any) => (
+   911→              <div key={c.id} className={`p-3 rounded-md border ${c.resolvedAt ? 'opacity-60 bg-slate-50 dark:bg-slate-900' : 'border-slate-200 dark:border-slate-800'}`}>
+   912→                <div className="flex items-center gap-2 mb-1">
+   913→                  <span className="font-medium text-sm">{c.author?.name ?? c.author?.email ?? 'Unknown'}</span>
+   914→                  <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}</span>
+   915→                  {c.resolvedAt && <Badge variant="secondary" className="text-[10px]">Resolved</Badge>}
+   916→                </div>
+   917→                <p className="text-sm">{c.body}</p>
+   918→                {!c.resolvedAt && (
+   919→                  <Button variant="ghost" size="sm" className="mt-2 h-6 text-xs" onClick={() => resolve.mutate(c.id)}>
+   920→                    Resolve
+   921→                  </Button>
+   922→                )}
+   923→              </div>
+   924→            ))}
+   925→          </div>
+   926→        )}
+   927→      </CardContent>
+   928→    </Card>
+   929→  );
+   930→}
+   931→
+   932→// ---------------------------------------------------------------------------
+   933→//  PII Scanner
+   934→// ---------------------------------------------------------------------------
+   935→
+   936→function PiiScanner({ docId }: { docId: string }) {
+   937→  const { toast } = useToast();
+   938→  const [result, setResult] = useState<any | null>(null);
+   939→  const [loading, setLoading] = useState(false);
+   940→
+   941→  async function scan() {
+   942→    setLoading(true);
+   943→    try {
+   944→      const res = await api.post(`/api/documents/${docId}/analyze-pii`);
+   945→      setResult(res);
+   946→    } catch (err: any) {
+   947→      toast({ title: 'Scan failed', description: err?.message, variant: 'destructive' });
+   948→    } finally {
+   949→      setLoading(false);
+   950→    }
+   951→  }
+   952→
+   953→  return (
+   954→    <div className="space-y-3">
+   955→      <Button variant="outline" size="sm" onClick={scan} disabled={loading}>
+   956→        {loading ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <Shield className="me-2 h-3.5 w-3.5" />}
+   957→        Scan for PII
+   958→      </Button>
+   959→      {result && (
+   960→        <div className="space-y-2">
+   961→          {result.totalMatches === 0 ? (
+   962→            <Alert>
+   963→              <CheckCircle2 className="h-4 w-4" />
+   964→              <AlertDescription>No PII detected.</AlertDescription>
+   965→            </Alert>
+   966→          ) : (
+   967→            <>
+   968→              <Alert variant="default">
+   969→                <AlertTriangle className="h-4 w-4" />
+   970→                <AlertDescription>
+   971→                  <strong>{result.totalMatches}</strong> PII match(es) found ({result.source}).
+   972→                </AlertDescription>
+   973→              </Alert>
+   974→              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+   975→                {Object.entries(result.byType).map(([type, count]: any) => (
+   976→                  <div key={type} className="p-2 border border-slate-200 dark:border-slate-800 rounded">
+   977→                    <p className="text-xs text-muted-foreground">{type}</p>
+   978→                    <p className="font-semibold">{count}</p>
+   979→                  </div>
+   980→                ))}
+   981→              </div>
+   982→              <details className="text-xs">
+   983→                <summary className="cursor-pointer text-muted-foreground">View masked findings</summary>
+   984→                <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+   985→                  {result.findings.slice(0, 30).map((f: any, i: number) => (
+   986→                    <div key={i} className="font-mono text-[10px] text-muted-foreground">
+   987→                      {f.type}: {f.value}
+   988→                    </div>
+   989→                  ))}
+   990→                </div>
+   991→              </details>
+   992→            </>
+   993→          )}
+   994→        </div>
+   995→      )}
+   996→    </div>
+   997→  );
+   998→}
+   999→
+  1000→// ---------------------------------------------------------------------------
+  1001→//  Summarizer
+  1002→// ---------------------------------------------------------------------------
+  1003→
+  1004→function Summarizer({ docId }: { docId: string }) {
+  1005→  const { toast } = useToast();
+  1006→  const [result, setResult] = useState<any | null>(null);
+  1007→  const [loading, setLoading] = useState(false);
+  1008→
+  1009→  async function summarize() {
+  1010→    setLoading(true);
+  1011→    try {
+  1012→      const res = await api.post(`/api/documents/${docId}/summarize`);
+  1013→      setResult(res);
+  1014→    } catch (err: any) {
+  1015→      toast({ title: 'Failed', description: err?.message, variant: 'destructive' });
+  1016→    } finally {
+  1017→      setLoading(false);
+  1018→    }
+  1019→  }
+  1020→
+  1021→  return (
+  1022→    <div className="space-y-3">
+  1023→      <Button variant="outline" size="sm" onClick={summarize} disabled={loading}>
+  1024→        {loading ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="me-2 h-3.5 w-3.5" />}
+  1025→        Generate summary
+  1026→      </Button>
+  1027→      {result && (
+  1028→        <div className="space-y-2">
+  1029→          <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-md">
+  1030→            <p className="text-sm">{result.summary}</p>
+  1031→          </div>
+  1032→          {result.keyPoints?.length > 0 && (
+  1033→            <div>
+  1034→              <p className="text-xs font-semibold text-muted-foreground mb-1">Key points</p>
+  1035→              <ul className="space-y-1">
+  1036→                {result.keyPoints.map((p: string, i: number) => (
+  1037→                  <li key={i} className="text-sm flex items-start gap-2">
+  1038→                    <span className="text-muted-foreground">•</span>
+  1039→                    <span>{p}</span>
+  1040→                  </li>
+  1041→                ))}
+  1042→              </ul>
+  1043→            </div>
+  1044→          )}
+  1045→          <Badge variant="outline" className="text-xs">Source: {result.source}</Badge>
+  1046→        </div>
+  1047→      )}
+  1048→    </div>
+  1049→  );
+  1050→}
+  1051→
+  1052→// ---------------------------------------------------------------------------
+  1053→//  Policy Risk Analyzer
+  1054→// ---------------------------------------------------------------------------
+  1055→
+  1056→function PolicyRiskAnalyzer({ docId }: { docId: string }) {
+  1057→  const { toast } = useToast();
+  1058→  const [result, setResult] = useState<any | null>(null);
+  1059→  const [loading, setLoading] = useState(false);
+  1060→
+  1061→  async function analyze() {
+  1062→    setLoading(true);
+  1063→    try {
+  1064→      const res = await api.post(`/api/documents/${docId}/policy-risk`);
+  1065→      setResult(res);
+  1066→    } catch (err: any) {
+  1067→      toast({ title: 'Failed', description: err?.message, variant: 'destructive' });
+  1068→    } finally {
+  1069→      setLoading(false);
+  1070→    }
+  1071→  }
+  1072→
+  1073→  const severityColor: Record<string, string> = {
+  1074→    critical: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900',
+  1075→    high: 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-900',
+  1076→    medium: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900',
+  1077→    low: 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900',
+  1078→  };
+  1079→
+  1080→  return (
+  1081→    <div className="space-y-3">
+  1082→      <Button variant="outline" size="sm" onClick={analyze} disabled={loading}>
+  1083→        {loading ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <ShieldAlert className="me-2 h-3.5 w-3.5" />}
+  1084→        Analyze risks
+  1085→      </Button>
+  1086→      {result && (
+  1087→        <div className="space-y-3">
+  1088→          <div className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-800 rounded-md">
+  1089→            <span className="text-sm font-medium">Overall risk</span>
+  1090→            <Badge variant={result.overallRisk === 'critical' || result.overallRisk === 'high' ? 'destructive' : 'secondary'} className="capitalize">
+  1091→              {result.overallRisk}
+  1092→            </Badge>
+  1093→          </div>
+  1094→          {result.risks?.length === 0 ? (
+  1095→            <Alert>
+  1096→              <CheckCircle2 className="h-4 w-4" />
+  1097→              <AlertDescription>No risks detected. Document is compliant.</AlertDescription>
+  1098→            </Alert>
+  1099→          ) : (
+  1100→            <div className="space-y-2">
+  1101→              {result.risks.map((r: any, i: number) => (
+  1102→                <div key={i} className={`p-3 border rounded-md ${severityColor[r.severity] || ''}`}>
+  1103→                  <div className="flex items-center gap-2 mb-1">
+  1104→                    <Badge variant={r.severity === 'critical' || r.severity === 'high' ? 'destructive' : 'secondary'} className="text-xs capitalize">
+  1105→                      {r.severity}
+  1106→                    </Badge>
+  1107→                    <span className="text-xs font-mono text-muted-foreground">{r.category}</span>
+  1108→                  </div>
+  1109→                  <p className="text-sm">{r.description}</p>
+  1110→                  <p className="text-xs text-muted-foreground mt-1">→ {r.recommendation}</p>
+  1111→                </div>
+  1112→              ))}
+  1113→            </div>
+  1114→          )}
+  1115→          {result.requiresHumanReview && (
+  1116→            <Alert variant="default">
+  1117→              <AlertTriangle className="h-4 w-4" />
+  1118→              <AlertDescription className="text-xs">
+  1119→                This document requires human review due to high/critical risk findings.
+  1120→              </AlertDescription>
+  1121→            </Alert>
+  1122→          )}
+  1123→        </div>
+  1124→      )}
+  1125→    </div>
+  1126→  );
+  1127→}
+  1128→
+  1129→// ---------------------------------------------------------------------------
+  1130→//  Duplicate Checker
+  1131→// ---------------------------------------------------------------------------
+  1132→
+  1133→function DuplicateChecker({ docId }: { docId: string }) {
+  1134→  const { data, isLoading } = useQuery<{ exactDuplicates: any[]; nearDuplicates: any[] }>({
+  1135→    queryKey: ['document-duplicates', docId],
+  1136→    queryFn: () => api.get(`/api/documents/${docId}/duplicate-check`),
+  1137→  });
+  1138→
+  1139→  if (isLoading) {
+  1140→    return <div className="text-center py-4"><Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" /></div>;
+  1141→  }
+  1142→
+  1143→  if (!data) return null;
+  1144→
+  1145→  if (data.exactDuplicates.length === 0 && data.nearDuplicates.length === 0) {
+  1146→    return (
+  1147→      <Alert>
+  1148→        <CheckCircle2 className="h-4 w-4" />
+  1149→        <AlertDescription>No duplicates found. This document is unique in your tenant.</AlertDescription>
+  1150→      </Alert>
+  1151→    );
+  1152→  }
+  1153→
+  1154→  return (
+  1155→    <div className="space-y-3">
+  1156→      {data.exactDuplicates.length > 0 && (
+  1157→        <div>
+  1158→          <p className="text-sm font-medium text-red-600 mb-2">Exact duplicates ({data.exactDuplicates.length})</p>
+  1159→          <div className="space-y-1">
+  1160→            {data.exactDuplicates.map((d: any) => (
+  1161→              <Link key={d.documentId} href={`/documents/${d.documentId}`} className="block p-2 border border-red-200 dark:border-red-900 rounded text-sm hover:bg-red-50 dark:hover:bg-red-950/30">
+  1162→                <p className="font-medium">{d.documentTitle}</p>
+  1163→                <p className="text-xs text-muted-foreground">v{d.versionNumber} · {d.classification?.code ?? 'unclassified'} · {d.owner?.email}</p>
+  1164→              </Link>
+  1165→            ))}
+  1166→          </div>
+  1167→        </div>
+  1168→      )}
+  1169→      {data.nearDuplicates.length > 0 && (
+  1170→        <div>
+  1171→          <p className="text-sm font-medium text-amber-600 mb-2">Near duplicates ({data.nearDuplicates.length})</p>
+  1172→          <div className="space-y-1">
+  1173→            {data.nearDuplicates.map((d: any) => (
+  1174→              <Link key={d.documentId} href={`/documents/${d.documentId}`} className="block p-2 border border-amber-200 dark:border-amber-900 rounded text-sm hover:bg-amber-50 dark:hover:bg-amber-950/30">
+  1175→                <p className="font-medium">{d.documentTitle}</p>
+  1176→                <p className="text-xs text-muted-foreground">v{d.versionNumber} · size diff: {d.sizeDiff} bytes</p>
+  1177→              </Link>
+  1178→            ))}
+  1179→          </div>
+  1180→        </div>
+  1181→      )}
+  1182→    </div>
+  1183→  );
+  1184→}
+  1185→
+  1186→// ---------------------------------------------------------------------------
+  1187→//  Favorite Button
+  1188→// ---------------------------------------------------------------------------
+  1189→
+  1190→function FavoriteButton({ docId }: { docId: string }) {
+  1191→  const qc = useQueryClient();
+  1192→  const { data: favorites } = useQuery<{ items: any[] }>({
+  1193→    queryKey: ['me-favorites'],
+  1194→    queryFn: () => api.get('/api/me/favorites'),
+  1195→  });
+  1196→  const isFavorited = favorites?.items?.some((d: any) => d.id === docId) ?? false;
+  1197→
+  1198→  const toggle = useMutation({
+  1199→    mutationFn: () => isFavorited ? api.delete(`/api/documents/${docId}/favorite`) : api.post(`/api/documents/${docId}/favorite`),
+  1200→    onSuccess: () => {
+  1201→      qc.invalidateQueries({ queryKey: ['me-favorites'] });
+  1202→    },
+  1203→  });
+  1204→
+  1205→  return (
+  1206→    <Button
+  1207→      variant="outline"
+  1208→      size="sm"
+  1209→      onClick={() => toggle.mutate()}
+  1210→      disabled={toggle.isPending}
+  1211→    >
+  1212→      <Star className={`h-3.5 w-3.5 ${isFavorited ? 'fill-amber-400 text-amber-400' : ''}`} />
+  1213→    </Button>
+  1214→  );
+  1215→}
+  1216→
+  1217→// ---------------------------------------------------------------------------
+  1218→//  Move / Copy Dialog
+  1219→// ---------------------------------------------------------------------------
+  1220→
+  1221→function MoveCopyDialog({ docId }: { docId: string }) {
+  1222→  const { toast } = useToast();
+  1223→  const qc = useQueryClient();
+  1224→  const [open, setOpen] = useState(false);
+  1225→  const [mode, setMode] = useState<'move' | 'copy'>('move');
+  1226→  const [folderId, setFolderId] = useState<string>('');
+  1227→
+  1228→  const { data: folders } = useQuery<{ items: any[] }>({
+  1229→    queryKey: ['folders-root'],
+  1230→    queryFn: () => api.get('/api/folders'),
+  1231→    enabled: open,
+  1232→  });
+  1233→
+  1234→  const execute = useMutation({
+  1235→    mutationFn: () => {
+  1236→      if (mode === 'move') {
+  1237→        return api.post(`/api/documents/${docId}/move`, { folderId: folderId || null });
+  1238→      } else {
+  1239→        return api.post(`/api/documents/${docId}/copy`, { folderId: folderId || null });
+  1240→      }
+  1241→    },
+  1242→    onSuccess: () => {
+  1243→      toast({ title: mode === 'move' ? 'Document moved' : 'Document copied' });
+  1244→      qc.invalidateQueries({ queryKey: ['document', docId] });
+  1245→      setOpen(false);
+  1246→    },
+  1247→    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+  1248→  });
+  1249→
+  1250→  return (
+  1251→    <Dialog open={open} onOpenChange={setOpen}>
+  1252→      <DialogTrigger asChild>
+  1253→        <Button variant="outline" size="sm">
+  1254→          <FolderOpen className="me-2 h-3.5 w-3.5" /> Move/Copy
+  1255→        </Button>
+  1256→      </DialogTrigger>
+  1257→      <DialogContent>
+  1258→        <DialogHeader>
+  1259→          <DialogTitle>Move or copy document</DialogTitle>
+  1260→          <DialogDescription>Select a destination folder (or root if none selected).</DialogDescription>
+  1261→        </DialogHeader>
+  1262→        <div className="space-y-3 py-2">
+  1263→          <div className="flex gap-2">
+  1264→            <Button
+  1265→              variant={mode === 'move' ? 'default' : 'outline'}
+  1266→              size="sm"
+  1267→              onClick={() => setMode('move')}
+  1268→              className="flex-1"
+  1269→            >
+  1270→              Move
+  1271→            </Button>
+  1272→            <Button
+  1273→              variant={mode === 'copy' ? 'default' : 'outline'}
+  1274→              size="sm"
+  1275→              onClick={() => setMode('copy')}
+  1276→              className="flex-1"
+  1277→            >
+  1278→              Copy
+  1279→            </Button>
+  1280→          </div>
+  1281→          <div className="space-y-1">
+  1282→            <Label>Destination folder</Label>
+  1283→            <Select value={folderId} onValueChange={setFolderId}>
+  1284→              <SelectTrigger><SelectValue placeholder="Root (no folder)" /></SelectTrigger>
+  1285→              <SelectContent>
+  1286→                <SelectItem value="">Root (no folder)</SelectItem>
+  1287→                {folders?.items?.map((f) => (
+  1288→                  <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+  1289→                ))}
+  1290→              </SelectContent>
+  1291→            </Select>
+  1292→          </div>
+  1293→        </div>
+  1294→        <DialogFooter>
+  1295→          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+  1296→          <Button onClick={() => execute.mutate()} disabled={execute.isPending}>
+  1297→            {execute.isPending && <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" />}
+  1298→            {mode === 'move' ? 'Move' : 'Copy'}
+  1299→          </Button>
+  1300→        </DialogFooter>
+  1301→      </DialogContent>
+  1302→    </Dialog>
+  1303→  );
+  1304→}
+  1305→
+  1306→// ---------------------------------------------------------------------------
+  1307→//  Redaction Entry (triggers RedactionEditor)
+  1308→// ---------------------------------------------------------------------------
+  1309→
+  1310→function RedactionEntry({ docId, doc }: { docId: string; doc: any }) {
+  1311→  const [editing, setEditing] = useState(false);
+  1312→  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  1313→  const [loading, setLoading] = useState(false);
+  1314→  const { toast } = useToast();
+  1315→
+  1316→  async function startRedaction() {
+  1317→    setLoading(true);
+  1318→    try {
+  1319→      const res = await api.get<{ url: string; mimeType: string }>(`/api/documents/${docId}/preview`);
+  1320→      setPreviewUrl(res.url);
+  1321→      setEditing(true);
+  1322→    } catch (err: any) {
+  1323→      toast({ title: 'Failed to load preview', description: err?.message, variant: 'destructive' });
+  1324→    } finally {
+  1325→      setLoading(false);
+  1326→    }
+  1327→  }
+  1328→
+  1329→  if (editing && previewUrl) {
+  1330→    const latestVersion = doc.versions?.[0];
+  1331→    return (
+  1332→      <RedactionEditor
+  1333→        docId={docId}
+  1334→        previewUrl={previewUrl}
+  1335→        mimeType={latestVersion?.mimeType || 'application/octet-stream'}
+  1336→        onClose={() => { setEditing(false); setPreviewUrl(null); }}
+  1337→      />
+  1338→    );
+  1339→  }
+  1340→
+  1341→  return (
+  1342→    <Card className="glass-card border-0">
+  1343→      <CardContent className="p-4 flex items-center justify-between">
+  1344→        <div>
+  1345→          <p className="text-sm font-medium">Redact sensitive content</p>
+  1346→          <p className="text-xs text-muted-foreground">Select regions to black out. Creates a new derivative version.</p>
+  1347→        </div>
+  1348→        <Button variant="outline" size="sm" onClick={startRedaction} disabled={loading || !doc.previewAllowed}>
+  1349→          {loading ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <Square className="me-2 h-3.5 w-3.5" />}
+  1350→          Start redaction
+  1351→        </Button>
+  1352→      </CardContent>
+  1353→    </Card>
+  1354→  );
+  1355→}
+  1356→

@@ -1,0 +1,104 @@
+feat: i18n keys (281 added) + premium billing dashboard with crypto checkout UI
+
+Two major deliverables:
+
+## #1: Internationalization — 281 missing keys added to all 5 locale files
+
+### Problem
+The audit identified ~280 hard-coded English strings across the dashboard,
+settings, admin pages, error pages, toasts, and shared document viewer.
+Two email template groups (`emails.newDevice.*` and
+`emails.passwordChanged.*`) were actively referenced by `email.ts` but
+didn't exist in any locale file — emails would render the raw key path
+("emails.newDevice.subject") in production.
+
+### Fix
+Created `scripts/add-missing-i18n-keys.py` — a Python script that deep-
+merges 281 new keys into all 5 locale files (en, fr, ar, es, de).
+
+Key categories added:
+- `emails.newDevice.*` (6 keys) — new-device login alert email template
+- `emails.passwordChanged.*` (5 keys) — password-change notification email
+- `common.*` (15 keys) — shared strings: failed, unknown, tryAgain,
+  goToDashboard, searchDocuments, done, dismiss, paginationSummary, etc.
+- `errors.*` (20 keys) — not-found, app-error, offline, unauthorized pages
+- `dashboard.*` (10 keys) — section descriptions + empty states
+- `documents.*` (60 keys) — tabs, labels, toasts, empty states, AI panel,
+  sharing, preview, comments, redaction, version management
+- `search.*` (8 keys) — subtitle, placeholder, facets, result count
+- `audit.*` (12 keys) — chain verification, event labels, filter options
+- `admin.*` (80 keys) — billing, anomalies, break-glass, jobs, invitations,
+  users (all subtitles, descriptions, labels, toasts, empty states)
+- `shared.*` (12 keys) — shared document viewer labels
+- `nav.notifications` (5 keys) — bottom nav label
+
+English values are real translations; other locales get English as
+placeholder (the app falls back to English when a key is missing).
+
+### Source code changes
+- `bottom-nav.tsx` — added `useI18n` import + `t()` calls for nav labels
+  + `t('common.mobileNavAria')` for aria-label
+- `billing/page.tsx` — all hard-coded strings replaced with `t()` calls
+
+## #2: Premium billing dashboard with NowPayments crypto checkout
+
+### New billing page (`admin/billing/page.tsx`)
+
+Complete rewrite with premium glassmorphism design:
+
+**Current plan card** (GlassCard):
+- Plan name + status badge
+- Billing period (start → end dates)
+- Usage stats grid: seats, documents, storage (with progress bars)
+- UsageStat sub-component with icon + label + value + progress
+
+**Upgrade section** (GlassCard):
+- Billing cycle toggle (Monthly / Annual with "−2 months" badge)
+- 3 plan cards (Starter $29/$290, Business $99/$990, Enterprise $499/$4990)
+  with feature list (seats + storage), "Current" badge on active plan,
+  selection ring on chosen plan
+- Crypto currency picker: 6 options (BTC, ETH, USDT-TRC20, USDT-ERC20,
+  USDC, LTC) as toggle buttons
+- "Continue to payment" button — generates idempotency key (UUID),
+  calls POST /api/billing/checkout, redirects to NowPayments invoice URL
+
+**Payment status polling** (AnimatePresence motion div):
+- After returning from NowPayments, automatically polls
+  GET /api/billing/status/:invoiceId every 3 seconds
+- Shows a premium status banner with:
+  - ✅ Confirmed (green): "Payment confirmed — subscription activated"
+  - ⏳ Pending (amber, pulsing): "Waiting for blockchain confirmation…"
+  - ❌ Failed (red): "Payment failed/expired — please try again"
+- Stops polling on terminal status (confirmed/failed/expired)
+- Fires success toast + refetches billing data on confirmation
+- Uses `useRef` guard to prevent double-toast
+
+**Invoice history** (GlassCard):
+- Paginated list of all payment invoices
+- Each row: plan name, status badge, amount (USD + crypto), date
+- "Pay" button on waiting invoices (links to NowPayments invoice URL)
+
+**Plan details** (Card):
+- Plan, status, seats included, storage limit
+- Stripe customer/subscription IDs (if configured)
+- Billing mode badge (stripe/manual)
+
+### New API endpoint: `GET /api/billing/invoices`
+Returns paginated invoice history for the current tenant.
+- Permission: `ADMIN_TENANT_MANAGE`
+- Rate limited: 30/min
+- Response: `{ items, page, pageSize, total, totalPages }`
+
+### Design details
+- All cards use `GlassCard` (glassmorphism) — consistent with dashboard
+- Plan cards use `glass-card hover-lift` for non-selected, ring-2 for selected
+- Crypto buttons use compact 3-col / 6-col grid with symbol + name
+- Payment status banner uses colored glass-card (green/amber/red variants)
+- Loading state: `Loader2` spinner
+- All strings use `t()` calls from the new i18n keys
+- Responsive: grids collapse to 1-col on mobile, 3-col on desktop
+
+## Test results
+- TypeScript: 0 errors
+- ESLint: 0 errors (7 pre-existing a11y warnings)
+- Unit tests: 349/349 passing
