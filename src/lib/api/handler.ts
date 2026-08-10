@@ -66,6 +66,77 @@ function jsonError(status: number, code: string, message: string, extra: Record<
 }
 
 /**
+ * Parse Accept-Language header and return the best matching locale.
+ * Falls back to 'en'.
+ */
+function negotiateLocale(req: NextRequest): string {
+  const acceptLang = req.headers.get('accept-language');
+  if (!acceptLang) return 'en';
+
+  const supported = ['ar', 'en', 'fr', 'es', 'de'];
+  const requested = acceptLang
+    .split(',')
+    .map((l) => {
+      const [lang, q] = l.trim().split(';q=');
+      return { lang: lang.split('-')[0].toLowerCase(), q: q ? parseFloat(q) : 1 };
+    })
+    .sort((a, b) => b.q - a.q);
+
+  for (const r of requested) {
+    if (supported.includes(r.lang)) return r.lang;
+  }
+  return 'en';
+}
+
+/**
+ * Localized error messages for common API errors.
+ */
+const LOCALIZED_ERRORS: Record<string, Record<string, string>> = {
+  unauthenticated: {
+    en: 'Authentication required',
+    ar: 'مطلوب مصادقة',
+    fr: 'Authentification requise',
+    es: 'Se requiere autenticación',
+    de: 'Authentifizierung erforderlich',
+  },
+  forbidden: {
+    en: 'Access denied',
+    ar: 'تم رفض الوصول',
+    fr: 'Accès refusé',
+    es: 'Acceso denegado',
+    de: 'Zugriff verweigert',
+  },
+  rate_limited: {
+    en: 'Too many requests',
+    ar: 'طلبات كثيرة جداً',
+    fr: 'Trop de requêtes',
+    es: 'Demasiadas solicitudes',
+    de: 'Zu viele Anfragen',
+  },
+  not_found: {
+    en: 'Resource not found',
+    ar: 'المورد غير موجود',
+    fr: 'Ressource introuvable',
+    es: 'Recurso no encontrado',
+    de: 'Ressource nicht gefunden',
+  },
+  step_up_required: {
+    en: 'This action requires step-up authentication',
+    ar: 'يتطلب هذا الإجراء مصادقة معززة',
+    fr: 'Cette action nécessite une authentification renforcée',
+    es: 'Esta acción requiere autenticación de paso',
+    de: 'Diese Aktion erfordert Step-up-Authentifizierung',
+  },
+  csrf_missing: {
+    en: 'Missing required header for state-changing request',
+    ar: 'رأس مطلوب مفقود لطلب تغيير الحالة',
+    fr: 'En-tête requis manquant pour une demande de changement d\'état',
+    es: 'Falta el encabezado requerido para una solicitud de cambio de estado',
+    de: 'Erforderlicher Header für zustandsändernde Anfrage fehlt',
+  },
+};
+
+/**
  * Authenticate via API key or service account.
  * Returns a synthetic session if the key is valid.
  */
@@ -207,8 +278,16 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
     const correlationId = req.headers.get('x-correlation-id') || randomUUID();
     const ip = getClientIp(req);
     const userAgent = req.headers.get('user-agent') || 'unknown';
+    const locale = negotiateLocale(req);
 
     setRequestContext({ correlationId, ip, userAgent });
+
+    // Helper for localized errors
+    const localizedError = (status: number, code: string, fallbackMsg: string, extra: Record<string, unknown> = {}) => {
+      const messages = LOCALIZED_ERRORS[code];
+      const message = messages?.[locale] || messages?.['en'] || fallbackMsg;
+      return jsonError(status, code, message, extra);
+    };
 
     // Request body size check
     const contentType = req.headers.get('content-type') || '';
@@ -216,7 +295,7 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
       const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
       if (contentLength > MAX_REQUEST_BODY_SIZE) {
         logger.warn('api.request_too_large', { contentLength, limit: MAX_REQUEST_BODY_SIZE, path: req.nextUrl.pathname });
-        return jsonError(413, 'request_too_large', `Request body exceeds ${MAX_REQUEST_BODY_SIZE} bytes`);
+        return localizedError(413, 'request_too_large', `Request body exceeds ${MAX_REQUEST_BODY_SIZE} bytes`);
       }
     }
 
@@ -244,7 +323,7 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
     }
 
     if (!session?.user) {
-      return jsonError(401, 'unauthenticated', 'Authentication required');
+      return localizedError(401, 'unauthenticated', 'Authentication required');
     }
 
     setRequestContext({ tenantId: session.user.tenantId, userId: session.user.id });
@@ -333,7 +412,7 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
         reason: `missing:${opts.requiredPermission}`,
         metadata: { path: req.nextUrl.pathname, method: req.method },
       });
-      return jsonError(403, 'forbidden', `Missing permission: ${opts.requiredPermission}`);
+      return localizedError(403, 'forbidden', `Missing permission: ${opts.requiredPermission}`, { permission: opts.requiredPermission });
     }
 
     try {

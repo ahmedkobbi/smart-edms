@@ -220,8 +220,19 @@ export async function sendBreakGlassAlert(
   userEmail: string,
   reason: string,
   expiresAt: Date,
+  locale: string = 'en',
 ): Promise<void> {
-  const html = wrapTemplate('⚠️ Break-glass access granted', `
+  const ar = locale === 'ar';
+  const html = wrapTemplate(ar ? '⚠️ تم منح الوصول الطارئ' : '⚠️ Break-glass access granted', ar ? `
+    <h1 dir="rtl">تم منح الوصول الإداري الطارئ</h1>
+    <div class="alert alert-danger">
+      تم منح <strong>${userEmail}</strong> وصولاً إدارياً طارئاً.
+    </div>
+    <p dir="rtl"><strong>المستخدم:</strong> ${userName} (${userEmail})</p>
+    <p dir="rtl"><strong>السبب:</strong> ${reason}</p>
+    <p dir="rtl"><strong>ينتهي:</strong> ${expiresAt.toISOString()}</p>
+    <p dir="rtl">جميع الإجراءات المتخذة خلال هذه الجلسة مسجلة في سجل التدقيق. يرجى مراجعة سجل التدقيق بعد انتهاء الجلسة.</p>
+  ` : `
     <h1>Break-glass emergency access granted</h1>
     <div class="alert alert-danger">
       <strong>${userEmail}</strong> was granted emergency administrative access.
@@ -231,8 +242,8 @@ export async function sendBreakGlassAlert(
     <p><strong>Expires:</strong> ${expiresAt.toISOString()}</p>
     <p>All actions taken during this session are audit-logged with break-glass attribution. Please review the audit trail after the session expires.</p>
   `);
-  const text = `Break-glass access granted to ${userEmail}. Reason: ${reason}. Expires: ${expiresAt.toISOString()}. Review audit trail.`;
-  await sendEmail({ to, subject: `[Smart EDMS] ⚠️ Break-glass access by ${userEmail}`, html, text });
+  const text = ar ? `تم منح وصول طارئ لـ ${userEmail}. السبب: ${reason}. ينتهي: ${expiresAt.toISOString()}. راجع سجل التدقيق.` : `Break-glass access granted to ${userEmail}. Reason: ${reason}. Expires: ${expiresAt.toISOString()}. Review audit trail.`;
+  await sendEmail({ to, subject: ar ? `[Smart EDMS] ⚠️ وصول طارئ بواسطة ${userEmail}` : `[Smart EDMS] ⚠️ Break-glass access by ${userEmail}`, html, text });
 }
 
 export async function sendWorkflowAssignedEmail(
@@ -240,16 +251,24 @@ export async function sendWorkflowAssignedEmail(
   documentTitle: string,
   workflowName: string,
   workflowUrl: string,
+  locale: string = 'en',
 ): Promise<void> {
-  const html = wrapTemplate('Approval requested', `
+  const ar = locale === 'ar';
+  const html = wrapTemplate(ar ? 'طلب موافقة' : 'Approval requested', ar ? `
+    <h1 dir="rtl">لديك مستند للموافقة عليه</h1>
+    <p dir="rtl">تم تعيين موافقة لك في Smart EDMS.</p>
+    <p dir="rtl"><strong>المستند:</strong> ${documentTitle}</p>
+    <p dir="rtl"><strong>سير العمل:</strong> ${workflowName}</p>
+    <a href="${workflowUrl}" class="btn">مراجعة وموافقة</a>
+  ` : `
     <h1>You have a document to approve</h1>
     <p>An approval has been assigned to you in Smart EDMS.</p>
     <p><strong>Document:</strong> ${documentTitle}</p>
     <p><strong>Workflow:</strong> ${workflowName}</p>
     <a href="${workflowUrl}" class="btn">Review &amp; approve</a>
   `);
-  const text = `Approval requested for "${documentTitle}" (${workflowName}).\n\nReview: ${workflowUrl}`;
-  await sendEmail({ to, subject: `[Smart EDMS] Approval requested: ${documentTitle}`, html, text });
+  const text = ar ? `طلب موافقة على "${documentTitle}" (${workflowName}).\n\nمراجعة: ${workflowUrl}` : `Approval requested for "${documentTitle}" (${workflowName}).\n\nReview: ${workflowUrl}`;
+  await sendEmail({ to, subject: ar ? `[Smart EDMS] طلب موافقة: ${documentTitle}` : `[Smart EDMS] Approval requested: ${documentTitle}`, html, text });
 }
 
 export async function sendShareNotificationEmail(
@@ -257,15 +276,22 @@ export async function sendShareNotificationEmail(
   documentTitle: string,
   sharedBy: string,
   shareUrl: string,
+  locale: string = 'en',
 ): Promise<void> {
-  const html = wrapTemplate('Document shared with you', `
+  const ar = locale === 'ar';
+  const html = wrapTemplate(ar ? 'تمت مشاركة مستند معك' : 'Document shared with you', ar ? `
+    <h1 dir="rtl">تمت مشاركة مستند معك</h1>
+    <p dir="rtl">شارك <strong>${sharedBy}</strong> مستنداً معك على Smart EDMS.</p>
+    <p dir="rtl"><strong>المستند:</strong> ${documentTitle}</p>
+    <a href="${shareUrl}" class="btn">عرض المستند</a>
+  ` : `
     <h1>A document has been shared with you</h1>
     <p><strong>${sharedBy}</strong> shared a document with you on Smart EDMS.</p>
     <p><strong>Document:</strong> ${documentTitle}</p>
     <a href="${shareUrl}" class="btn">View document</a>
   `);
-  const text = `${sharedBy} shared "${documentTitle}" with you.\n\nView: ${shareUrl}`;
-  await sendEmail({ to, subject: `[Smart EDMS] Document shared: ${documentTitle}`, html, text });
+  const text = ar ? `شارك ${sharedBy} "${documentTitle}" معك.\n\nعرض: ${shareUrl}` : `${sharedBy} shared "${documentTitle}" with you.\n\nView: ${shareUrl}`;
+  await sendEmail({ to, subject: ar ? `[Smart EDMS] مستند مشترك: ${documentTitle}` : `[Smart EDMS] Document shared: ${documentTitle}`, html, text });
 }
 
 export async function sendDispositionApprovalEmail(
@@ -273,8 +299,18 @@ export async function sendDispositionApprovalEmail(
   documentTitle: string,
   action: string,
   url: string,
+  locale: string = 'en',
 ): Promise<void> {
-  const html = wrapTemplate('Disposition approval required', `
+  const ar = locale === 'ar';
+  const actionAr = action === 'delete' ? 'حذف' : action === 'archive' ? 'أرشفة' : 'مراجعة';
+  const html = wrapTemplate(ar ? 'مطلوب موافقة على التصرف' : 'Disposition approval required', ar ? `
+    <h1 dir="rtl">مطلوب موافقة على التصرف</h1>
+    <div class="alert alert-warning">
+      مستند في انتظار تصرف <strong>${actionAr}</strong> ويتطلب موافقتك.
+    </div>
+    <p dir="rtl"><strong>المستند:</strong> ${documentTitle}</p>
+    <a href="${url}" class="btn">مراجعة التصرف</a>
+  ` : `
     <h1>Disposition approval required</h1>
     <div class="alert alert-warning">
       A document is pending <strong>${action}</strong> disposition and requires your approval.
@@ -282,8 +318,8 @@ export async function sendDispositionApprovalEmail(
     <p><strong>Document:</strong> ${documentTitle}</p>
     <a href="${url}" class="btn">Review disposition</a>
   `);
-  const text = `Disposition approval required for "${documentTitle}" (action: ${action}).\n\nReview: ${url}`;
-  await sendEmail({ to, subject: `[Smart EDMS] Disposition approval: ${documentTitle}`, html, text });
+  const text = ar ? `مطلوب موافقة على التصرف لـ "${documentTitle}" (إجراء: ${actionAr}).\n\nمراجعة: ${url}` : `Disposition approval required for "${documentTitle}" (action: ${action}).\n\nReview: ${url}`;
+  await sendEmail({ to, subject: ar ? `[Smart EDMS] موافقة على التصرف: ${documentTitle}` : `[Smart EDMS] Disposition approval: ${documentTitle}`, html, text });
 }
 
 export async function sendPasswordResetEmail(
