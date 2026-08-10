@@ -41,7 +41,9 @@ const createSchema = z.object({
 
 export const POST = createApiHandler(
   {
-    requiredPermission: PERMISSIONS.ADMIN_TENANT_MANAGE,
+    // SECURITY FIX (C4): Tenant creation requires the platform-level
+    // permission, NOT the regular ADMIN_TENANT_MANAGE (which tenant_admin has).
+    requiredPermission: PERMISSIONS.ADMIN_PLATFORM_TENANT_CREATE,
     requireStepUp: true,
     audit: { eventType: 'admin.tenant.create', action: 'create', resourceType: 'tenant', alwaysAudit: true },
   },

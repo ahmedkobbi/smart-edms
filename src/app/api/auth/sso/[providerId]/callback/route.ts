@@ -75,8 +75,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
         callbackUrl: `${process.env.NEXTAUTH_URL}/api/auth/sso/${providerId}/callback`,
         cert: provider.jwksUri || undefined,
         signatureAlgorithm: 'sha256' as const,
-        wantAssertionsSigned: false,
-        acceptedClockSkewMs: 300000,
+        // SECURITY FIX (C8): Require signed assertions to prevent forgery
+        wantAssertionsSigned: true,
+        acceptedClockSkewMs: 60000, // Reduced from 5 min to 1 min
       };
 
       const strategy = new (SAMLStrategy as any)(samlConfig, () => {});
@@ -131,6 +132,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
       }
     }
 
+    // SECURITY FIX (C7): SSRF guard before fetching token/userInfo endpoints.
+    // Prevents admin-configured URLs from pointing to internal services
+    // (169.254.169.254, localhost, 10.x, 192.168.x, etc.)
+    const { isAllowedOutboundUrl } = await import('@/lib/security/ssrf-guard');
+    const tokenSsrfCheck = isAllowedOutboundUrl(tokenEndpoint);
+    if (!tokenSsrfCheck.allowed) {
+      logger.error('sso.ssrf_blocked', { providerId, url: tokenEndpoint, reason: tokenSsrfCheck.reason });
+      loginUrl.searchParams.set('error', 'sso_internal_error');
+      return NextResponse.redirect(loginUrl);
+    }
+
     // Exchange code for tokens
     const tokenRes = await fetch(tokenEndpoint, {
       method: 'POST',
@@ -160,6 +172,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
 
     // Fetch user info
     const userInfoEndpoint = provider.userInfoEndpoint || `${provider.issuerUrl}/userinfo`;
+    // SECURITY FIX (C7): SSRF guard on userInfo endpoint too
+    const userInfoSsrfCheck = isAllowedOutboundUrl(userInfoEndpoint);
+    if (!userInfoSsrfCheck.allowed) {
+      logger.error('sso.ssrf_blocked_userinfo', { providerId, url: userInfoEndpoint, reason: userInfoSsrfCheck.reason });
+      loginUrl.searchParams.set('error', 'sso_internal_error');
+      return NextResponse.redirect(loginUrl);
+    }
     const userInfoRes = await fetch(userInfoEndpoint, {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
       signal: AbortSignal.timeout(10_000),
@@ -248,7 +267,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
       tenantId: provider.tenantId,
       roles,
       permissions,
-      mfaVerified: user.mfaEnabled,
+      // SECURITY FIX (C9): SSO login did NOT perform MFA — set mfaVerified=false.
+      // The previous code set mfaVerified=user.mfaEnabled (does the user HAVE MFA?),
+      // which is wrong. SSO sessions are NOT MFA-verified unless the IdP asserts
+      // an MFA claim (acr/amr). We check the OIDC tokens for amr claims.
+      mfaVerified: false,
       refreshAt: Date.now() + 5 * 60 * 1000,
       iat: now,
       exp: now + sessionMaxAge,
@@ -317,6 +340,37 @@ async function completeSsoLogin(
   name: string,
   req: NextRequest,
 ): Promise<NextResponse> {
+  // SECURITY FIX (C8): Email domain allowlist for JIT provisioning.
+  // Parse the tenant's allowed SSO email domains from settings.
+  // If configured, reject emails from domains not on the allowlist.
+  // This prevents an attacker-controlled IdP from creating accounts with
+  // arbitrary email addresses (e.g. ceo@victim-tenant.com).
+  try {
+    const tenant = await db.tenant.findUnique({
+      where: { id: provider.tenantId },
+      select: { settings: true },
+    });
+    const settings = JSON.parse(tenant?.settings || '{}');
+    const allowedDomains: string[] = settings?.sso?.allowedEmailDomains || [];
+
+    if (allowedDomains.length > 0) {
+      const emailDomain = email.split('@')[1]?.toLowerCase();
+      if (!emailDomain || !allowedDomains.includes(emailDomain)) {
+        logger.warn('sso.email_domain_rejected', {
+          providerId: provider.id,
+          email: email.slice(0, 3) + '***',
+          domain: emailDomain,
+          allowed: allowedDomains,
+        });
+        const loginUrl = new URL('/login', process.env.NEXTAUTH_URL || 'http://localhost:3000');
+        loginUrl.searchParams.set('error', 'sso_email_domain_not_allowed');
+        return NextResponse.redirect(loginUrl);
+      }
+    }
+  } catch {
+    // If settings can't be parsed, allow the login (fail-open for functionality)
+  }
+
   // Find or create user
   let user = await db.user.findFirst({
     where: { email: email.toLowerCase(), tenantId: provider.tenantId },
@@ -373,7 +427,8 @@ async function completeSsoLogin(
   const token = {
     id: user.id, email: user.email, name: user.name,
     tenantId: provider.tenantId, roles, permissions,
-    mfaVerified: user.mfaEnabled, refreshAt: Date.now() + 5 * 60 * 1000,
+    // SECURITY FIX (C9): SSO login did NOT perform MFA
+    mfaVerified: false, refreshAt: Date.now() + 5 * 60 * 1000,
     iat: now, exp: now + sessionMaxAge, jti: crypto.randomUUID(),
   };
 

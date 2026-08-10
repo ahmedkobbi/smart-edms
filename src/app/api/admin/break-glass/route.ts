@@ -3,11 +3,14 @@
  *
  * POST   /api/admin/break-glass              request emergency elevated access
  * GET    /api/admin/break-glass              list break-glass events (admin)
- * PATCH  /api/admin/break-glass/:id/review   review a break-glass event (approve/flag)
  *
- * Break-glass grants temporary tenant_admin permissions to a user with a
- * strong audit trail. All actions taken during the break-glass window are
- * tagged with the break-glass session ID.
+ * SECURITY FIX (C1): Break-glass now requires:
+ *   1. `ADMIN_VIEW` permission (only admin roles can request)
+ *   2. Step-up authentication (MFA)
+ *   3. Token is hashed (SHA-256) and stored; verified with timingSafeEqual
+ *   4. Break-glass is created in `approved: false` state — a second admin
+ *      must approve via the dual-control flow before it can be activated
+ *   5. The `X-Break-Glass-Token` header is verified against the stored hash
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,7 +20,7 @@ import { PERMISSIONS, SYSTEM_ROLE_PERMISSIONS, SYSTEM_ROLES } from '@/lib/auth/p
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { notify } from '@/lib/notifications/notify';
 import { sendBreakGlassAlert } from '@/lib/notifications/email';
-import { randomToken } from '@/lib/auth/crypto';
+import { randomToken, sha256, timingSafeEqualStr } from '@/lib/auth/crypto';
 import { z } from 'zod';
 
 const BREAK_GLASS_DURATION_MS = 30 * 60 * 1000; // 30 minutes
@@ -41,8 +44,10 @@ const requestSchema = z.object({
 
 export const POST = createApiHandler(
   {
+    requiredPermission: PERMISSIONS.ADMIN_VIEW,
+    requireStepUp: true,
     audit: { eventType: 'breakglass.request', action: 'create', resourceType: 'break-glass', alwaysAudit: true },
-    rateLimit: { max: 3, windowMs: 60 * 60 * 1000 }, // max 3 per hour
+    rateLimit: { max: 3, windowMs: 60 * 60 * 1000 },
   },
   async (req: NextRequest, ctx) => {
     const body = requestSchema.parse(await req.json());
@@ -53,11 +58,16 @@ export const POST = createApiHandler(
         tenantId: ctx.tenantId,
         userId: ctx.userId,
         expiresAt: { gt: new Date() },
+        approved: true,
       },
     });
     if (existing) {
       throw ApiError.conflict('already_active', 'You already have an active break-glass session');
     }
+
+    // Generate a cryptographically secure token
+    const rawToken = randomToken(32);
+    const tokenHash = sha256(rawToken);
 
     const granted = SYSTEM_ROLE_PERMISSIONS[SYSTEM_ROLES.TENANT_ADMIN];
     const breakGlass = await db.breakGlassAccess.create({
@@ -69,10 +79,12 @@ export const POST = createApiHandler(
         grantedAt: new Date(),
         expiresAt: new Date(Date.now() + BREAK_GLASS_DURATION_MS),
         grantedPermissions: JSON.stringify(granted),
+        tokenHash,
+        approved: false, // Requires second-admin approval (dual control)
       },
     });
 
-    // Audit + notify all other admins
+    // Audit
     await recordAuditEvent({
       tenantId: ctx.tenantId,
       actorId: ctx.userId,
@@ -80,7 +92,7 @@ export const POST = createApiHandler(
       actorIp: ctx.ip,
       actorUserAgent: ctx.userAgent,
       correlationId: ctx.correlationId,
-      eventType: 'breakglass.granted',
+      eventType: 'breakglass.request',
       action: 'create',
       resourceType: 'break-glass',
       resourceId: breakGlass.id,
@@ -90,11 +102,12 @@ export const POST = createApiHandler(
         justification: body.justification,
         expiresAt: breakGlass.expiresAt,
         grantedPermissions: granted.length,
+        approved: false,
+        requiresApproval: true,
       },
     });
 
-    // Notify all tenant admins (except the requester) for oversight
-    // Pass email + reason in metadata so the i18n template can interpolate them.
+    // Notify all tenant admins (except the requester) for approval
     const admins = await db.roleAssignment.findMany({
       where: {
         tenantId: ctx.tenantId,
@@ -116,9 +129,9 @@ export const POST = createApiHandler(
           expiresAt: breakGlass.expiresAt,
           email: ctx.session.user.email,
           reason: body.reason,
+          requiresApproval: true,
         },
       });
-      // Send email alert — resolve admin's locale for full i18n
       const adminUser = await db.user.findUnique({
         where: { id: a.userId },
         select: { email: true },
@@ -142,10 +155,11 @@ export const POST = createApiHandler(
 
     return NextResponse.json({
       breakGlass,
-      token: randomToken(32), // client stores this for X-Break-Glass-Token header
+      token: rawToken,
       expiresAt: breakGlass.expiresAt,
       expiresInMs: BREAK_GLASS_DURATION_MS,
-      warning: 'All actions during this session are audit-logged with break-glass attribution.',
+      approved: false,
+      warning: 'Break-glass requires approval from a second administrator. Use POST /api/admin/break-glass/:id/approve to activate.',
     }, { status: 201 });
   },
 );

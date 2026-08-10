@@ -22,7 +22,12 @@ import { logger } from '@/lib/config/logger';
 export async function GET(req: NextRequest) {
   const key = req.nextUrl.searchParams.get('key');
   const expected = process.env.CRON_SECRET;
-  if (!expected || key !== expected) {
+  // SECURITY FIX (M8): Use constant-time comparison for secret
+  if (!expected || !key || key.length !== expected.length) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+  const { timingSafeEqualStr } = await import('@/lib/auth/crypto');
+  if (!timingSafeEqualStr(key, expected)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 

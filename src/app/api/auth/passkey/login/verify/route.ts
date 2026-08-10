@@ -139,7 +139,12 @@ export async function POST(req: NextRequest) {
       tenantId: user.tenantId,
       roles,
       permissions,
-      mfaVerified: user.mfaEnabled,
+      // SECURITY FIX (C9): Passkey login did NOT perform TOTP MFA.
+      // Set mfaVerified=false — the user must perform step-up auth for
+      // MFA-gated operations. WebAuthn user-verification is checked separately
+      // (but only counts as MFA if userVerified=true AND the credential is
+      // hardware-backed — which we check in hardware-key-enforcement.ts).
+      mfaVerified: false,
       refreshAt: Date.now() + 5 * 60 * 1000,
       iat: now,
       exp: now + sessionMaxAge,

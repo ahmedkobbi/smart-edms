@@ -226,19 +226,23 @@ async function authenticateWithApiKey(req: NextRequest): Promise<SmartEdmsSessio
  * Verify step-up authentication token.
  */
 async function verifyStepUpToken(tenantId: string, userId: string, token: string): Promise<boolean> {
-  const su = await db.stepUpSession.findFirst({
-    where: { token, tenantId, userId },
-  });
-  if (!su) return false;
-  if (su.usedAt) return false;
-  if (su.expiresAt < new Date()) return false;
-
-  // Mark as used (single-use)
-  await db.stepUpSession.update({
-    where: { id: su.id },
+  // SECURITY FIX (C5): Use atomic conditional update to prevent race
+  // condition where two concurrent requests both pass the "usedAt is null"
+  // check before either marks it as used.
+  //
+  // The updateMany with WHERE usedAt=null + expiresAt > now ensures only
+  // ONE concurrent request can "win" the token — the others get count=0.
+  const result = await db.stepUpSession.updateMany({
+    where: {
+      token,
+      tenantId,
+      userId,
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+    },
     data: { usedAt: new Date() },
   });
-  return true;
+  return result.count === 1;
 }
 
 /**
@@ -251,20 +255,29 @@ async function getBreakGlassContext(tenantId: string, userId: string, token: str
 } | null> {
   if (!token) return null;
 
-  // Find active break-glass by user (not by token — token is returned to client)
-  // The client sends X-Break-Glass-Token header
+  // Find active, APPROVED break-glass for this user
   const bg = await db.breakGlassAccess.findFirst({
     where: {
       tenantId,
       userId,
       expiresAt: { gt: new Date() },
+      approved: true,
     },
     orderBy: { grantedAt: 'desc' },
   });
 
   if (!bg) return null;
 
-  // Verify the token matches (simple comparison — in production, use HMAC)
+  // SECURITY FIX (C1): Verify the token hash using constant-time comparison.
+  // The raw token is never stored — only its SHA-256 hash.
+  if (!bg.tokenHash) return null;
+  const providedHash = sha256(token);
+  if (!timingSafeEqualStr(providedHash, bg.tokenHash)) {
+    // Token mismatch — log and reject
+    logger.warn('breakglass.token_mismatch', { tenantId, userId, breakGlassId: bg.id });
+    return null;
+  }
+
   const permissions: string[] = JSON.parse(bg.grantedPermissions || '[]');
   return {
     active: true,

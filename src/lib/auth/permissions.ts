@@ -51,6 +51,9 @@ export const PERMISSIONS = {
   ADMIN_CLASSIFICATIONS_MANAGE: 'admin:classifications.manage',
   ADMIN_RETENTION_MANAGE: 'admin:retention.manage',
   ADMIN_TENANT_MANAGE: 'admin:tenant.manage',
+  // SECURITY FIX (C4): New permission for creating new tenants.
+  // Only platform-level admins should have this, NOT tenant_admin.
+  ADMIN_PLATFORM_TENANT_CREATE: 'admin:platform.tenant.create',
   ADMIN_API_KEYS_MANAGE: 'admin:apikeys.manage',
   ADMIN_WEBHOOKS_MANAGE: 'admin:webhooks.manage',
   ADMIN_INTEGRATIONS_MANAGE: 'admin:integrations.manage',

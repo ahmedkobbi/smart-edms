@@ -57,6 +57,12 @@ export async function POST(req: NextRequest) {
     await tx.verificationToken.delete({ where: { id: token.id } });
   });
 
+  // SECURITY FIX (H14): Revoke ALL existing sessions for this user so
+  // that any attacker who obtained a reset token cannot retain access
+  // via previously-issued JWTs after the password is reset.
+  const { revokeAllUserSessions } = await import('@/lib/auth/session-revocation');
+  await revokeAllUserSessions(user.id, 'password_reset');
+
   logger.info('auth.password_reset', { userId: user.id, ip });
 
   await recordAuditEvent({

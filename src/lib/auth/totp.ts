@@ -36,8 +36,19 @@ export async function decryptTotpSecret(encrypted: string): Promise<string> {
   return decryptString(blob);
 }
 
-export function verifyTotp(base32Secret: string, token: string, window = 1): boolean {
-  if (!/^\d{6}$/.test(token)) return false;
+/**
+ * Verify a TOTP token against the secret.
+ *
+ * SECURITY FIX (C6): Returns the timestep delta (not just boolean) so the
+ * caller can persist it as `mfaLastTimestep` for replay protection per
+ * RFC 6238 §5.2. The caller MUST reject if the returned delta is <= the
+ * stored last-used timestep.
+ *
+ * @returns The timestep delta (0 = current period, ±1 = adjacent periods),
+ *          or null if the token is invalid.
+ */
+export function verifyTotp(base32Secret: string, token: string, window = 1): number | null {
+  if (!/^\d{6}$/.test(token)) return null;
   const totp = new OTPAuth.TOTP({
     issuer: ISSUER,
     algorithm: 'SHA1',
@@ -46,7 +57,48 @@ export function verifyTotp(base32Secret: string, token: string, window = 1): boo
     secret: OTPAuth.Secret.fromBase32(base32Secret),
   });
   const delta = totp.validate({ token, window });
-  return delta !== null;
+  return delta; // null if invalid, number (timestep offset) if valid
+}
+
+/**
+ * Compute the current TOTP timestep (epoch seconds / 30).
+ * Used to persist the last-used timestep for replay protection.
+ */
+export function getCurrentTimestep(): number {
+  return Math.floor(Date.now() / 1000 / 30);
+}
+
+/**
+ * Verify a TOTP token with replay protection.
+ *
+ * SECURITY FIX (C6): Rejects tokens whose timestep is <= the last-used
+ * timestep. This prevents replaying the same code within the ±30s window.
+ *
+ * @param base32Secret The decrypted TOTP secret
+ * @param token The 6-digit code from the user's authenticator
+ * @param lastUsedTimestep The last successfully verified timestep (from DB)
+ * @param window The time window (default 1 = ±30s)
+ * @returns The new timestep to persist, or null if verification failed
+ */
+export function verifyTotpWithReplay(
+  base32Secret: string,
+  token: string,
+  lastUsedTimestep: number | null,
+  window = 1,
+): number | null {
+  const delta = verifyTotp(base32Secret, token, window);
+  if (delta === null) return null;
+
+  // Compute the absolute timestep of this verification
+  const currentTimestep = getCurrentTimestep();
+  const usedTimestep = currentTimestep + delta;
+
+  // Replay protection: reject if this timestep was already used
+  if (lastUsedTimestep !== null && usedTimestep <= lastUsedTimestep) {
+    return null; // Replay attempt — same or older timestep
+  }
+
+  return usedTimestep;
 }
 
 /**

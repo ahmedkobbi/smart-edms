@@ -53,7 +53,10 @@ export function generatePasskeyRegistrationOptions(
     })),
     authenticatorSelection: {
       residentKey: 'preferred',
-      userVerification: 'preferred',
+      // SECURITY FIX (C9): Require user verification (biometric/PIN) for all
+      // passkey operations. This ensures the authenticator verified user
+      // presence before creating/signing the credential.
+      userVerification: 'required',
     },
   });
 }
@@ -86,7 +89,8 @@ export function generatePasskeyAuthOptions(
       type: 'public-key' as const,
       transports: cred.transports as AuthenticatorTransport[],
     })),
-    userVerification: 'preferred',
+    // SECURITY FIX (C9): Require user verification for authentication too
+    userVerification: 'required',
   });
 }
 

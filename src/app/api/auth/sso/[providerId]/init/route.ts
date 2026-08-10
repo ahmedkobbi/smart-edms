@@ -32,8 +32,9 @@ export async function GET(req: NextRequest, { params: routeParams }: { params: P
       callbackUrl: `${process.env.NEXTAUTH_URL}/api/auth/sso/${providerId}/callback`,
       cert: provider.jwksUri || undefined,
       signatureAlgorithm: 'sha256' as const,
-      wantAssertionsSigned: false,
-      acceptedClockSkewMs: 300000,
+      // SECURITY FIX (C8): Require signed assertions to prevent forgery
+      wantAssertionsSigned: true,
+      acceptedClockSkewMs: 60000, // Reduced from 5 min to 1 min (C8 replay window)
     };
 
     const strategy = new (SAMLStrategy as any)(samlConfig, () => {});

@@ -57,23 +57,51 @@ export const POST = createApiHandler(
     if (!sourceVersion) throw ApiError.badRequest('no_version', 'No version to redact');
 
     const storage = getFileStorage();
-    const buf = await storage.get(sourceVersion.storageKey);
+    const encryptedBuf = await storage.get(sourceVersion.storageKey);
+
+    // SECURITY FIX (C3): Decrypt the source content before redacting.
+    // The previous code operated on ciphertext, causing redaction to always
+    // fail silently and produce a "redacted" version identical to the original.
+    let buf = encryptedBuf;
+    const dek = await getDocumentDek(ctx.tenantId, doc.id);
+    if (dek) {
+      try {
+        const { decryptWithDek } = await import('@/lib/storage/envelope-encryption');
+        // Read the IV from the version metadata (stored during upload)
+        // The encryption metadata is stored on the DocumentEncryptionKey
+        const encKey = await db.documentEncryptionKey.findFirst({
+          where: { documentId: doc.id, tenantId: ctx.tenantId },
+        });
+        if (encKey) {
+          buf = decryptWithDek(dek, encryptedBuf.toString('base64'), encKey.iv);
+        }
+      } catch (err) {
+        // If decryption fails, the content might not be encrypted (legacy upload)
+        // Log but continue with the raw buffer
+        console.warn('[redact] decryption failed, using raw buffer:', err);
+      }
+    }
 
     // Apply redaction for supported types (PDF/image)
-    let redactedBuf = buf;
+    // SECURITY FIX (C3): ABORT on redaction error — never fall back to the
+    // original buffer. This prevents creating a "redacted" version that
+    // contains the original unredacted content.
+    let redactedBuf: Buffer;
     if (sourceVersion.mimeType === 'application/pdf') {
-      try {
-        redactedBuf = await redactPdf(buf, body.regions);
-      } catch (err) {
-        console.warn('[redact:pdf] failed, falling back to overlay:', err);
-        redactedBuf = buf;
-      }
+      redactedBuf = await redactPdf(buf, body.regions);
     } else if (sourceVersion.mimeType.startsWith('image/')) {
-      try {
-        redactedBuf = await redactImage(buf, body.regions, sourceVersion.mimeType);
-      } catch (err) {
-        console.warn('[redact:image] failed, falling back to overlay:', err);
-      }
+      redactedBuf = await redactImage(buf, body.regions, sourceVersion.mimeType);
+    } else {
+      throw ApiError.badRequest('unsupported_type', 'Redaction is only supported for PDF and image files');
+    }
+
+    // SECURITY FIX (C3): Verify the redacted content differs from the original.
+    // If they're identical, the redaction was a no-op — refuse to create a
+    // false sense of security.
+    const originalChecksum = sha256(buf);
+    const redactedChecksum = sha256(redactedBuf);
+    if (originalChecksum === redactedChecksum) {
+      throw ApiError.badRequest('redaction_noop', 'Redaction produced no changes — the redacted version is identical to the original. Verify the redaction regions are correct.');
     }
 
     const result = await db.$transaction(async (tx) => {

@@ -12,8 +12,8 @@ import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { getServerSession as nextAuthGetServerSession } from 'next-auth';
 import { db } from '@/lib/db';
-import { verifyPassword, sha256 } from './crypto';
-import { decryptTotpSecret, verifyTotp } from './totp';
+import { verifyPassword, sha256, randomBase64Url } from './crypto';
+import { decryptTotpSecret, verifyTotpWithReplay } from './totp';
 import { SYSTEM_ROLE_PERMISSIONS, SYSTEM_ROLES } from './permissions';
 import { authRateLimiter } from '@/lib/security/rate-limit';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
@@ -272,9 +272,13 @@ export const authOptions: NextAuthOptions = {
               throw new Error('A 6-digit MFA code is required.');
             }
             const secret = await decryptTotpSecret(user.mfaSecretEnc);
-            if (!verifyTotp(secret, credentials.mfaToken)) {
+            // SECURITY FIX (C6): Use verifyTotpWithReplay for replay protection
+            const newTimestep = verifyTotpWithReplay(secret, credentials.mfaToken, user.mfaLastTimestep ?? null);
+            if (newTimestep === null) {
               throw new Error('Invalid MFA code.');
             }
+            // Persist the new timestep to prevent replay
+            await db.user.update({ where: { id: user.id }, data: { mfaLastTimestep: newTimestep } });
             mfaPendingStore.delete(credentials.mfaPendingToken);
           } else if (!credentials.mfaToken) {
             // Issue a pending token; client must resubmit with MFA
@@ -286,9 +290,13 @@ export const authOptions: NextAuthOptions = {
             throw new Error(`MFA_REQUIRED:${pendingToken}`);
           } else {
             const secret = await decryptTotpSecret(user.mfaSecretEnc);
-            if (!verifyTotp(secret, credentials.mfaToken)) {
+            // SECURITY FIX (C6): Use verifyTotpWithReplay for replay protection
+            const newTimestep = verifyTotpWithReplay(secret, credentials.mfaToken, user.mfaLastTimestep ?? null);
+            if (newTimestep === null) {
               throw new Error('Invalid MFA code.');
             }
+            // Persist the new timestep to prevent replay
+            await db.user.update({ where: { id: user.id }, data: { mfaLastTimestep: newTimestep } });
           }
         }
 
@@ -475,8 +483,9 @@ interface MfaPending {
 }
 const mfaPendingStore = new Map<string, MfaPending>();
 
+// SECURITY FIX (H8): Use CSPRNG instead of Math.random()
 function randomPendingToken(): string {
-  return Buffer.from(Math.random().toString(36).slice(2) + Date.now().toString(36)).toString('base64url');
+  return randomBase64Url(32);
 }
 
 // Periodically clean expired entries (best-effort)

@@ -34,7 +34,9 @@ import path from 'path';
 const MAX_TUS_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
 
 const completeSchema = z.object({
-  uploadId: z.string().min(1),
+  // SECURITY FIX (C2): Strict validation of uploadId — only alphanumeric,
+  // hyphens, and underscores allowed. No path traversal characters.
+  uploadId: z.string().min(16).max(128).regex(/^[A-Za-z0-9_-]+$/, 'uploadId must be alphanumeric with - or _ only'),
   fileName: z.string().min(1).max(255),
   mimeType: z.string().min(1),
   title: z.string().min(1).max(255).optional(),
@@ -60,6 +62,14 @@ export const POST = createApiHandler(
     // --- 1. Read the uploaded file from TUS store ---
     const tusDataDir = process.env.TUS_DATA_DIR || path.join(process.cwd(), '.tus-uploads');
     const tusFilePath = path.join(tusDataDir, body.uploadId);
+
+    // SECURITY FIX (C2): Secondary path containment check — ensure the
+    // resolved path is within the TUS data directory.
+    const resolvedTusDir = path.resolve(tusDataDir);
+    const resolvedFilePath = path.resolve(tusFilePath);
+    if (!resolvedFilePath.startsWith(resolvedTusDir + path.sep) && resolvedFilePath !== resolvedTusDir) {
+      throw ApiError.badRequest('invalid_upload_id', 'Invalid upload ID');
+    }
 
     // Check file exists
     try {

@@ -96,6 +96,9 @@ model User {
   mfaEnabled        Boolean  @default(false)
   mfaSecretEnc      String?  // encrypted TOTP secret
   mfaBackupCodesEnc String?  // encrypted JSON array of backup codes
+  // Last successfully used TOTP timestep (for replay protection per RFC 6238 §5.2).
+  // Any TOTP with a timestep <= this value is rejected.
+  mfaLastTimestep   Int?
   passkeyCredentials String  @default("[]") // JSON array of WebAuthn credential descriptors
   lastLoginAt       DateTime?
   lastLoginIp       String?
@@ -1157,11 +1160,21 @@ model BreakGlassAccess {
   reviewNotes String?
   // The escalated permissions granted
   grantedPermissions String @default("[]") // JSON
+  // Hashed token for verifying the X-Break-Glass-Token header.
+  // The raw token is returned ONCE at creation; only the SHA-256 hash
+  // is stored. Verification uses timingSafeEqual.
+  tokenHash   String?
+  // Whether this break-glass has been approved by a second admin (dual control).
+  // If false, the break-glass is PENDING and cannot be activated.
+  approved    Boolean  @default(false)
+  approvedBy  String?
+  approvedAt  DateTime?
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, reviewed])
   @@index([tenantId, userId])
+  @@index([tenantId, approved])
 }
 
 // ============================================================================
