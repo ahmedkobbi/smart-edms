@@ -36,7 +36,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
   //     blowback against legitimate users).
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
   const { authRateLimiter } = await import('@/lib/security/rate-limit');
-  const rl = authRateLimiter.check(`sso-cb:${ip}`, 10, 60_000);
+  const rl = await authRateLimiter.check(`sso-cb:${ip}`, 10, 60_000);
   if (!rl.allowed) {
     loginUrl.searchParams.set('error', 'sso_rate_limited');
     return NextResponse.redirect(loginUrl);
@@ -160,24 +160,38 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
       return NextResponse.redirect(loginUrl);
     }
 
+    // SECURITY FIX (L-INFRA-7): Use ssrfSafeFetch for DNS pinning to
+    // defeat DNS rebinding between the SSRF check and the actual fetch.
+    const { ssrfSafeFetch, SsrfError } = await import('@/lib/security/ssrf-safe-fetch');
+
     // Exchange code for tokens
-    const tokenRes = await fetch(tokenEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: redirectUri,
-        client_id: provider.clientId,
-        ...(clientSecret ? { client_secret: clientSecret } : {}),
-        // SECURITY FIX (M-AUTH-12): Send the PKCE code verifier so the IdP
-        // can bind the authorization code to this server's init request.
-        // Without it, an attacker who intercepted the code (e.g. via a
-        // browser extension) could replay it at the token endpoint.
-        ...(stored.codeVerifier ? { code_verifier: stored.codeVerifier } : {}),
-      }),
-      signal: AbortSignal.timeout(15_000),
-    });
+    let tokenRes: any;
+    try {
+      tokenRes = await ssrfSafeFetch(tokenEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: redirectUri,
+          client_id: provider.clientId,
+          ...(clientSecret ? { client_secret: clientSecret } : {}),
+          // SECURITY FIX (M-AUTH-12): Send the PKCE code verifier so the IdP
+          // can bind the authorization code to this server's init request.
+          // Without it, an attacker who intercepted the code (e.g. via a
+          // browser extension) could replay it at the token endpoint.
+          ...(stored.codeVerifier ? { code_verifier: stored.codeVerifier } : {}),
+        }).toString(),
+        signal: AbortSignal.timeout(15_000),
+      } as any);
+    } catch (err: any) {
+      if (err instanceof SsrfError) {
+        logger.error('sso.ssrf_blocked_dns', { providerId, url: tokenEndpoint, reason: err.message });
+        loginUrl.searchParams.set('error', 'sso_internal_error');
+        return NextResponse.redirect(loginUrl);
+      }
+      throw err;
+    }
 
     if (!tokenRes.ok) {
       const errBody = await tokenRes.text().catch(() => '');
@@ -201,10 +215,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
       loginUrl.searchParams.set('error', 'sso_internal_error');
       return NextResponse.redirect(loginUrl);
     }
-    const userInfoRes = await fetch(userInfoEndpoint, {
-      headers: { Authorization: `Bearer ${tokens.access_token}` },
-      signal: AbortSignal.timeout(10_000),
-    });
+    // SECURITY FIX (L-INFRA-7): Use ssrfSafeFetch for the userInfo endpoint
+    // too — same DNS-rebinding concern as the token endpoint.
+    let userInfoRes: any;
+    try {
+      userInfoRes = await ssrfSafeFetch(userInfoEndpoint, {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+        signal: AbortSignal.timeout(10_000),
+      } as any);
+    } catch (err: any) {
+      if (err instanceof SsrfError) {
+        logger.error('sso.ssrf_blocked_userinfo_dns', { providerId, url: userInfoEndpoint, reason: err.message });
+        loginUrl.searchParams.set('error', 'sso_internal_error');
+        return NextResponse.redirect(loginUrl);
+      }
+      throw err;
+    }
 
     if (!userInfoRes.ok) {
       logger.error('sso.userinfo_failed', { status: userInfoRes.status, providerId });

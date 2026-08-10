@@ -23,7 +23,7 @@ import { logger } from '@/lib/config/logger';
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-  const rl = authRateLimiter.check(`passkey-verify:${ip}`, 10, 60_000);
+  const rl = await authRateLimiter.check(`passkey-verify:${ip}`, 10, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: { code: 'rate_limited' } }, { status: 429 });
   }

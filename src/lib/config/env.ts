@@ -121,6 +121,21 @@ const ENV_VARS: EnvVar[] = [
     validator: (v) => v.length >= 32,
     errorMessage: 'Must be at least 32 characters',
   },
+  // SECURITY FIX (L-ADM-6): Validate Stripe env vars when set.
+  {
+    name: 'STRIPE_SECRET_KEY',
+    required: false,
+    description: 'Stripe secret key (enables Stripe-backed billing)',
+    validator: (v) => v.startsWith('sk_live_') || v.startsWith('sk_test_'),
+    errorMessage: 'Must start with sk_live_ or sk_test_',
+  },
+  {
+    name: 'STRIPE_WEBHOOK_SECRET',
+    required: false,
+    description: 'Stripe webhook signing secret',
+    validator: (v) => v.startsWith('whsec_'),
+    errorMessage: 'Must start with whsec_',
+  },
 ];
 
 export interface EnvValidationResult {

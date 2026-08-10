@@ -54,6 +54,10 @@ export const PERMISSIONS = {
   // SECURITY FIX (C4): New permission for creating new tenants.
   // Only platform-level admins should have this, NOT tenant_admin.
   ADMIN_PLATFORM_TENANT_CREATE: 'admin:platform.tenant.create',
+  // SECURITY FIX (L-ADM-6): New permission for direct billing changes.
+  // Only platform-level admins can bypass Stripe and change plans/seats/storage
+  // directly. tenant_admin can view billing but cannot self-upgrade.
+  ADMIN_PLATFORM_BILLING_MANAGE: 'admin:platform.billing.manage',
   ADMIN_API_KEYS_MANAGE: 'admin:apikeys.manage',
   ADMIN_WEBHOOKS_MANAGE: 'admin:webhooks.manage',
   ADMIN_INTEGRATIONS_MANAGE: 'admin:integrations.manage',

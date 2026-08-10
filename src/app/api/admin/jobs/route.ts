@@ -28,17 +28,34 @@ export const GET = createApiHandler(
     // Get queue metrics from Redis (BullMQ)
     const queueMetrics = await getQueueMetrics();
 
-    // Get recent job records from Prisma (for history)
-    const jobs = await db.job.findMany({
-      where: { tenantId: ctx.tenantId },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
+    // SECURITY FIX (L-ADM-4): Add proper pagination for job history.
+    // Previously the route used `take: 100` with no `page`/`skip` — for
+    // tenants with >100 historical jobs, older records were invisible.
+    const page = Math.max(1, parseInt(req.nextUrl.searchParams.get('page') || '1', 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.nextUrl.searchParams.get('pageSize') || '50', 10) || 50));
+    const status = req.nextUrl.searchParams.get('status'); // 'completed' | 'failed' | 'active' | undefined
+    const queueName = req.nextUrl.searchParams.get('queue'); // 'ocr' | 'webhook' | etc.
+
+    const where = {
+      tenantId: ctx.tenantId,
+      ...(status ? { status } : {}),
+      ...(queueName ? { queueName } : {}),
+    };
+
+    const [jobs, total] = await Promise.all([
+      db.job.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      db.job.count({ where }),
+    ]);
 
     // Get failed jobs from each queue (for retry UI)
     const failedJobsByQueue: Record<string, any[]> = {};
-    for (const queueName of Object.keys(QUEUE_NAMES) as QueueName[]) {
-      failedJobsByQueue[queueName] = await getFailedJobs(queueName, 0, 20);
+    for (const qn of Object.keys(QUEUE_NAMES) as QueueName[]) {
+      failedJobsByQueue[qn] = await getFailedJobs(qn, 0, 20);
     }
 
     return NextResponse.json({
@@ -48,6 +65,12 @@ export const GET = createApiHandler(
         result: j.result ? JSON.parse(j.result) : null,
       })),
       failedJobs: failedJobsByQueue,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
     });
   },
 );

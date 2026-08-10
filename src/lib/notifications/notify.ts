@@ -398,17 +398,36 @@ export async function fireWebhook(
             return;
           }
 
-          const res = await fetch(w.url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Smart-EDMS-Event': event,
-              'X-Smart-EDMS-Signature': signature,
-              'X-Smart-EDMS-Attempt': String(attempt + 1),
-            },
-            body,
-            signal: AbortSignal.timeout(10_000),
-          });
+          // SECURITY FIX (L-INFRA-7): Use ssrfSafeFetch which DNS-pins
+          // the connection to the verified IP — defeats DNS rebinding
+          // TOCTOU between the isSafeOutboundUrl check and the actual
+          // fetch. The previous bare fetch() used the original hostname,
+          // allowing an attacker to re-bind DNS to 127.0.0.1 after the
+          // check passed.
+          const { ssrfSafeFetch, SsrfError } = await import('@/lib/security/ssrf-safe-fetch');
+          let res: any;
+          try {
+            res = await ssrfSafeFetch(w.url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Smart-EDMS-Event': event,
+                'X-Smart-EDMS-Signature': signature,
+                'X-Smart-EDMS-Attempt': String(attempt + 1),
+              },
+              body,
+              signal: AbortSignal.timeout(10_000),
+            });
+          } catch (err: any) {
+            if (err instanceof SsrfError) {
+              await db.webhook.update({
+                where: { id: w.id },
+                data: { lastStatus: 'blocked_ssrf', lastSentAt: new Date() },
+              });
+              return;
+            }
+            throw err;
+          }
 
           if (res.ok || res.status < 500) {
             // Success or client error (4xx) — don't retry

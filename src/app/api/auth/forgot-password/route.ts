@@ -19,7 +19,7 @@ const schema = z.object({ email: z.string().email() });
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-  const rl = authRateLimiter.check(`forgot-pw:${ip}`, 5, 60_000);
+  const rl = await authRateLimiter.check(`forgot-pw:${ip}`, 5, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: { code: 'rate_limited', message: 'Too many requests' } }, { status: 429 });
   }

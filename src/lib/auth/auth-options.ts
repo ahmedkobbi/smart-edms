@@ -147,7 +147,7 @@ export const authOptions: NextAuthOptions = {
 
         // Rate-limit by IP+email to mitigate brute force
         const rlKey = `login:${ip}:${credentials.email.toLowerCase()}`;
-        const rl = authRateLimiter.check(rlKey, 10, 60_000);
+        const rl = await authRateLimiter.check(rlKey, 10, 60_000);
         if (!rl.allowed) {
           throw new Error('Too many login attempts. Try again later.');
         }
@@ -160,7 +160,7 @@ export const authOptions: NextAuthOptions = {
         // makes large-scale credential stuffing infeasible without
         // sacrificing too many legitimate users sharing an IP.
         const emailRlKey = `login-email:${credentials.email.toLowerCase()}`;
-        const emailRl = authRateLimiter.check(emailRlKey, 20, 60 * 60 * 1000);
+        const emailRl = await authRateLimiter.check(emailRlKey, 20, 60 * 60 * 1000);
         if (!emailRl.allowed) {
           throw new Error('Too many login attempts for this account. Try again later.');
         }

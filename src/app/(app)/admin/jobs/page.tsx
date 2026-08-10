@@ -19,7 +19,7 @@ import { api } from '@/lib/api/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCw, Play, Pause, RotateCcw, XCircle, AlertCircle, CheckCircle2, Clock, Activity } from 'lucide-react';
+import { Loader2, RefreshCw, Play, Pause, RotateCcw, XCircle, AlertCircle, CheckCircle2, Clock, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
@@ -67,14 +67,24 @@ export default function AdminJobsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [autoRefresh, setAutoRefresh] = useState(true);
+  // SECURITY FIX (L-ADM-4): Pagination state for job history.
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [queueFilter, setQueueFilter] = useState('');
 
   const { data, isLoading, refetch } = useQuery<{
     queues: QueueMetrics[];
     jobs: JobRecord[];
     failedJobs: Record<string, any[]>;
+    pagination?: { page: number; pageSize: number; total: number; totalPages: number };
   }>({
-    queryKey: ['admin-jobs'],
-    queryFn: () => api.get('/api/admin/jobs'),
+    queryKey: ['admin-jobs', page, statusFilter, queueFilter],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: String(page), pageSize: '50' });
+      if (statusFilter) params.set('status', statusFilter);
+      if (queueFilter) params.set('queue', queueFilter);
+      return api.get(`/api/admin/jobs?${params.toString()}`);
+    },
     refetchInterval: autoRefresh ? 10_000 : false,
   });
 
@@ -233,41 +243,98 @@ export default function AdminJobsPage() {
       {/* Recent job history (from Prisma) */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Clock className="h-4 w-4" /> Job History
-          </CardTitle>
-          <CardDescription>Recent background jobs (OCR, webhooks, evidence, reindex)</CardDescription>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Clock className="h-4 w-4" /> Job History
+              </CardTitle>
+              <CardDescription>Recent background jobs (OCR, webhooks, evidence, reindex)</CardDescription>
+            </div>
+            {/* SECURITY FIX (L-ADM-4): Filters for job history */}
+            <div className="flex items-center gap-2 text-xs">
+              <select
+                className="text-xs border rounded px-2 py-1 bg-background"
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+              >
+                <option value="">All status</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+                <option value="running">Running</option>
+                <option value="pending">Pending</option>
+              </select>
+              <select
+                className="text-xs border rounded px-2 py-1 bg-background"
+                value={queueFilter}
+                onChange={(e) => { setQueueFilter(e.target.value); setPage(1); }}
+              >
+                <option value="">All queues</option>
+                <option value="ocr">OCR</option>
+                <option value="webhook">Webhook</option>
+                <option value="evidence">Evidence</option>
+                <option value="reindex">Reindex</option>
+              </select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : !data?.jobs?.length ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">No jobs recorded yet.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">No jobs found.</p>
           ) : (
-            <div className="divide-y divide-slate-100 dark:divide-slate-900">
-              {data.jobs.slice(0, 30).map((job) => (
-                <div key={job.id} className="p-4 flex items-start gap-3">
-                  <Badge variant={(STATUS_COLORS[job.status] as any) || 'secondary'} className="mt-0.5 text-xs capitalize">
-                    {job.status}
-                  </Badge>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium">{job.type}</p>
-                      {job.progress > 0 && job.progress < 100 && (
-                        <span className="text-xs text-muted-foreground">{job.progress}%</span>
+            <>
+              <div className="divide-y divide-slate-100 dark:divide-slate-900">
+                {data.jobs.map((job) => (
+                  <div key={job.id} className="p-4 flex items-start gap-3">
+                    <Badge variant={(STATUS_COLORS[job.status] as any) || 'secondary'} className="mt-0.5 text-xs capitalize">
+                      {job.status}
+                    </Badge>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium">{job.type}</p>
+                        {job.progress > 0 && job.progress < 100 && (
+                          <span className="text-xs text-muted-foreground">{job.progress}%</span>
+                        )}
+                      </div>
+                      {job.error && (
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-0.5 truncate">{job.error}</p>
                       )}
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
+                        {job.completedAt && ` · completed ${formatDistanceToNow(new Date(job.completedAt), { addSuffix: true })}`}
+                      </p>
                     </div>
-                    {job.error && (
-                      <p className="text-xs text-red-600 dark:text-red-400 mt-0.5 truncate">{job.error}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
-                      {job.completedAt && ` · completed ${formatDistanceToNow(new Date(job.completedAt), { addSuffix: true })}`}
-                    </p>
+                  </div>
+                ))}
+              </div>
+              {/* SECURITY FIX (L-ADM-4): Pagination controls */}
+              {data.pagination && data.pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between p-4 border-t">
+                  <p className="text-xs text-muted-foreground">
+                    Page {data.pagination.page} of {data.pagination.totalPages} · {data.pagination.total} total
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={data.pagination.page <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={data.pagination.page >= data.pagination.totalPages}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

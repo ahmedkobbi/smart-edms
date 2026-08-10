@@ -33,7 +33,7 @@ export async function GET(req: NextRequest, { params: routeParams }: { params: P
   // SECURITY FIX (M-AUTH-15): Rate-limit the unauthenticated SSO init.
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
   const { authRateLimiter } = await import('@/lib/security/rate-limit');
-  const rl = authRateLimiter.check(`sso-init:${ip}`, 10, 60_000);
+  const rl = await authRateLimiter.check(`sso-init:${ip}`, 10, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: { code: 'rate_limited', message: 'Too many SSO requests' } }, { status: 429 });
   }

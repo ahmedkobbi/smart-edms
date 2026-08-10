@@ -1283,6 +1283,12 @@ model Subscription {
   storageBytes BigInt   @default(1073741824) // 1GB default
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
+  // SECURITY FIX (L-ADM-6): Stripe identifiers for webhook reconciliation.
+  // When Stripe is the source of truth for billing, the webhook uses these
+  // to match events to tenants. Set when the customer first subscribes via
+  // Stripe Checkout; null for trial / manually-managed subscriptions.
+  stripeCustomerId       String?
+  stripeSubscriptionId   String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

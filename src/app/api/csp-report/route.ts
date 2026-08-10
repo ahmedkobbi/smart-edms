@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
   // Rate-limit: 30 reports/min/IP — high enough to capture real violations,
   // low enough to prevent flooding.
-  const rl = authRateLimiter.check(`csp-report:${ip}`, 30, 60_000);
+  const rl = await authRateLimiter.check(`csp-report:${ip}`, 30, 60_000);
   if (!rl.allowed) {
     return new NextResponse(null, { status: 204 });
   }

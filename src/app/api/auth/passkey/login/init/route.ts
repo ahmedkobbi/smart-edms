@@ -21,7 +21,7 @@ const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-  const rl = authRateLimiter.check(`passkey-init:${ip}`, 10, 60_000);
+  const rl = await authRateLimiter.check(`passkey-init:${ip}`, 10, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: { code: 'rate_limited' } }, { status: 429 });
   }

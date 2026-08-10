@@ -378,7 +378,7 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
     // Rate limit
     if (opts.rateLimit) {
       const rlKey = `${session.user.tenantId}:${session.user.id}:${req.method}:${req.nextUrl.pathname}`;
-      const rl = apiRateLimiter.check(rlKey, opts.rateLimit.max, opts.rateLimit.windowMs);
+      const rl = await apiRateLimiter.check(rlKey, opts.rateLimit.max, opts.rateLimit.windowMs);
       if (!rl.allowed) {
         return NextResponse.json(
           { error: { code: 'rate_limited', message: 'Too many requests', retryAfterMs: rl.retryAfterMs } },

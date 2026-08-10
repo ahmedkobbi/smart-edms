@@ -18,12 +18,36 @@ import { z } from 'zod';
 export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.ADMIN_USERS_MANAGE },
   async (req: NextRequest, ctx) => {
-    const items = await db.invitation.findMany({
-      where: { tenantId: ctx.tenantId },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
+    // SECURITY FIX (L-ADM-3): Add proper pagination. Previously the route
+    // used `take: 100` with no `page`/`skip` — for tenants with >100
+    // historical invitations, the oldest were silently invisible. Admins
+    // could not audit older invitations.
+    const page = Math.max(1, parseInt(req.nextUrl.searchParams.get('page') || '1', 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.nextUrl.searchParams.get('pageSize') || '50', 10) || 50));
+    const status = req.nextUrl.searchParams.get('status'); // 'pending' | 'accepted' | 'expired' | undefined
+
+    const where = {
+      tenantId: ctx.tenantId,
+      ...(status ? { status } : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      db.invitation.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      db.invitation.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      items,
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
     });
-    return NextResponse.json({ items });
   },
 );
 

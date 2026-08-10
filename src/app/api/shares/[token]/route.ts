@@ -103,14 +103,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   //   2. Per-IP: max 30 attempts per minute across all tokens (catches
   //      attackers rotating across many share links).
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-  const ipRl = authRateLimiter.check(`share-pw-ip:${ip}`, 30, 60_000);
+  const ipRl = await authRateLimiter.check(`share-pw-ip:${ip}`, 30, 60_000);
   if (!ipRl.allowed) {
     return NextResponse.json({ error: { code: 'rate_limited', message: 'Too many share requests' } }, { status: 429 });
   }
   // The token-specific limiter uses a longer window — if exceeded, we LOCK the
   // share by setting revokedAt (defence-in-depth, alerts the sharer).
   const tokenRlKey = `share-pw:${token}`;
-  const tokenRl = authRateLimiter.check(tokenRlKey, 10, 10 * 60_000);
+  const tokenRl = await authRateLimiter.check(tokenRlKey, 10, 10 * 60_000);
   if (!tokenRl.allowed) {
     // Lock the share to protect against continued brute-force
     await db.share.update({

@@ -8,13 +8,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-import { Mail, Loader2, Plus, Copy } from 'lucide-react';
+import { Mail, Loader2, Plus, Copy, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { useI18n } from '@/i18n/use-i18n';
 
 const SYSTEM_ROLES = ['tenant_admin', 'records_manager', 'security_officer', 'compliance_auditor', 'end_user', 'viewer'];
+
+interface PaginatedInvitations {
+  items: any[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
 
 export default function AdminInvitationsPage() {
   const { t } = useI18n();
@@ -23,10 +31,19 @@ export default function AdminInvitationsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [form, setForm] = useState({ email: '', roleNames: ['end_user'] });
+  // SECURITY FIX (L-ADM-3): Client-side pagination state for the admin
+  // invitations list. Previously the UI only rendered the first 100 items
+  // returned by the API; admins could not page through older invitations.
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<string>('');
 
-  const { data, isLoading } = useQuery<{ items: any[] }>({
-    queryKey: ['admin-invitations'],
-    queryFn: () => api.get('/api/admin/invitations'),
+  const { data, isLoading } = useQuery<PaginatedInvitations>({
+    queryKey: ['admin-invitations', page, statusFilter],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: String(page), pageSize: '50' });
+      if (statusFilter) params.set('status', statusFilter);
+      return api.get(`/api/admin/invitations?${params.toString()}`);
+    },
   });
 
   const create = useMutation({
@@ -113,36 +130,82 @@ export default function AdminInvitationsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Mail className="h-4 w-4" /> Invitations</CardTitle>
-          <CardDescription>Pending, accepted, and expired</CardDescription>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2"><Mail className="h-4 w-4" /> Invitations</CardTitle>
+              <CardDescription>Pending, accepted, and expired</CardDescription>
+            </div>
+            {/* SECURITY FIX (L-ADM-3): Status filter */}
+            <div className="flex items-center gap-2 text-xs">
+              <Label className="text-xs">Filter:</Label>
+              <select
+                className="text-xs border rounded px-2 py-1 bg-background"
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+              >
+                <option value="">All</option>
+                <option value="pending">Pending</option>
+                <option value="accepted">Accepted</option>
+                <option value="expired">Expired</option>
+              </select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : !data?.items?.length ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">No invitations sent.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">No invitations found.</p>
           ) : (
-            <div className="divide-y divide-slate-100 dark:divide-slate-900">
-              {data.items.map((inv: any) => (
-                <div key={inv.id} className="p-4 flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium">{inv.email}</p>
-                      <Badge variant={inv.status === 'accepted' ? 'default' : inv.status === 'pending' ? 'secondary' : 'outline'} className="text-xs">{inv.status}</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Invited {formatDistanceToNow(new Date(inv.createdAt), { addSuffix: true })}
-                      {inv.expiresAt && ` · expires ${formatDistanceToNow(new Date(inv.expiresAt), { addSuffix: true })}`}
-                    </p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {JSON.parse(inv.roleNames || '[]').map((r: string) => (
-                        <Badge key={r} variant="outline" className="text-[10px] py-0 font-mono">{r}</Badge>
-                      ))}
+            <>
+              <div className="divide-y divide-slate-100 dark:divide-slate-900">
+                {data.items.map((inv: any) => (
+                  <div key={inv.id} className="p-4 flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium">{inv.email}</p>
+                        <Badge variant={inv.status === 'accepted' ? 'default' : inv.status === 'pending' ? 'secondary' : 'outline'} className="text-xs">{inv.status}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Invited {formatDistanceToNow(new Date(inv.createdAt), { addSuffix: true })}
+                        {inv.expiresAt && ` · expires ${formatDistanceToNow(new Date(inv.expiresAt), { addSuffix: true })}`}
+                      </p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {JSON.parse(inv.roleNames || '[]').map((r: string) => (
+                          <Badge key={r} variant="outline" className="text-[10px] py-0 font-mono">{r}</Badge>
+                        ))}
+                      </div>
                     </div>
                   </div>
+                ))}
+              </div>
+              {/* SECURITY FIX (L-ADM-3): Pagination controls */}
+              {data.totalPages > 1 && (
+                <div className="flex items-center justify-between p-4 border-t">
+                  <p className="text-xs text-muted-foreground">
+                    Page {data.page} of {data.totalPages} · {data.total} total
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={data.page <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={data.page >= data.totalPages}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

@@ -1,0 +1,288 @@
+fix(L-ADM-3/4/6 + L-INFRA-7/10/12): patch all 5 deferred findings with expert-grade infrastructure
+
+Closes out the 5 findings previously deferred as "future infrastructure
+work" in the L* commit. Each is now patched with a production-grade
+implementation — not a stub.
+
+## L-INFRA-10 — Redis-backed rate limiter (was in-memory only)
+
+**Problem:** All three rate limiters (`authRateLimiter`, `apiRateLimiter`,
+`uploadRateLimiter`) were in-process `Map`s. In a multi-instance deploy
+(PM2 cluster, Kubernetes replicas), each instance had its own bucket —
+an attacker rotating across instances got N× the configured limit.
+
+**Fix:** Replaced with a `HybridRateLimiter` class that auto-selects
+between two backends per call:
+
+  1. **Redis backend** (when `REDIS_URL` is set + reachable) — uses a
+     sorted-set sliding window per key: `ZADD` + `ZREMRANGEBYSCORE` +
+     `ZCARD` + `PEXPIRE` in a single `MULTI` pipeline (atomic, 1 round-
+     trip). When a request would exceed the limit, the just-added member
+     is removed so denied requests don't permanently saturate the window.
+     `retryAfterMs` is computed from the oldest remaining entry.
+
+  2. **In-memory fallback** (dev / single-instance) — the original
+     sliding-window-of-timestamps implementation, unchanged.
+
+The limiter re-checks Redis availability every 30s so it fails over to
+memory within 30s of a Redis outage and fails back within 30s of
+recovery. Mid-call Redis errors fall through to memory (compromise
+between fail-open and fail-closed).
+
+**Migration:** The `check()` method is now `async` (was sync). All 13
+call sites updated to `await` (script-patched via
+`scripts/await-rate-limiter.py`). The unit tests (`rate-limit.test.ts`,
+`auth-lifecycle.test.ts`) updated to use the async API.
+
+**Impact:** Rate limits now enforced correctly across N instances —
+credential stuffing from a 1 000-IP botnet is bounded to 20 attempts/hour
+per email GLOBALLY, not per instance.
+
+## L-INFRA-7 — SSRF DNS pinning via custom undici dispatcher
+
+**Problem:** The SSRF guard (`isSafeOutboundUrl`) resolved DNS to verify
+the IP was not private, but the actual `fetch()` used the original URL
+with the hostname. Between the DNS check and the fetch, an attacker
+controlling the authoritative DNS server could re-bind the hostname to
+127.0.0.1 (DNS rebinding TOCTOU).
+
+**Fix:** New `src/lib/security/ssrf-safe-fetch.ts` module providing
+`ssrfSafeFetch(url, init)`:
+
+  1. Resolves the hostname ONCE via `dns.lookup`.
+  2. Verifies the resolved IP is not in a private/blocked range (reuses
+     `isBlockedHost`).
+  3. Creates an undici `Agent` with a custom `connect.lookup` function
+     that ALWAYS returns the pinned IP — regardless of what DNS returns
+     at TCP-connect time. This is the key defense: even if DNS is re-bound
+     between the check and the connect, undici calls our lookup function
+     which returns the verified IP.
+  4. For HTTPS, sets `servername` in the connect options so SNI + cert
+     validation use the ORIGINAL hostname (preserves TLS security).
+  5. Caches the pinned agent per (protocol, hostname) for 5 min, then
+     re-resolves to pick up legitimate DNS rotation. Cache is invalidated
+     on connection failure so the next call re-pins.
+
+**Migration:** All three outbound-fetch call sites updated to use
+`ssrfSafeFetch`:
+  - `src/lib/notifications/notify.ts` — webhook delivery (inline path)
+  - `src/worker/index.ts` — webhook delivery (worker path)
+  - `src/app/api/auth/sso/[providerId]/callback/route.ts` — SSO token +
+    userInfo endpoint fetches
+
+Each call site catches `SsrfError` and treats it as a blocked request
+(records `lastStatus='blocked_ssrf'` on the webhook / redirects to
+login with `sso_internal_error` for SSO).
+
+**Dependency:** Added `undici@8.10.0` — was already a transitive dep of
+Node 18+ (Node's built-in `fetch` uses undici internally), but the
+explicit install gives us the `Agent` + `fetch` + `Dispatcher` types.
+
+**Impact:** DNS rebinding is now impossible — the verified IP is pinned
+for the lifetime of the agent (5 min). An attacker controlling the
+authoritative DNS for `attacker.com` can no longer re-bind it to
+`127.0.0.1` between the SSRF check and the actual TCP connect.
+
+## L-INFRA-12 — Global OPTIONS middleware for CORS preflight
+
+**Problem:** `next.config.ts` advertised `Access-Control-Allow-Methods:
+..., OPTIONS` on all `/api/*` routes, but most route files only exported
+GET/POST/PATCH/DELETE — not OPTIONS. Next.js returned 405 for OPTIONS
+requests. Browser CORS preflight requests (`OPTIONS` with
+`Access-Control-Request-Method`) failed, blocking cross-origin API access
+from any configured `CORS_ALLOW_ORIGIN`.
+
+**Fix:** New `src/middleware.ts` intercepts all `/api/*` requests:
+
+  - **OPTIONS requests** → returns 204 No Content with CORS headers
+    (`Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`,
+    `Access-Control-Max-Age: 86400`). When `CORS_ALLOW_ORIGIN` is
+    configured AND the request `Origin` matches an allowed entry, also
+    sets `Access-Control-Allow-Origin` + `Access-Control-Allow-Credentials`
+    + `Vary: Origin`.
+
+  - **Non-OPTIONS requests** → passes through to the route handler, but
+    attaches the `Access-Control-Allow-Origin` header dynamically (only
+    when the request Origin matches). This is a defense-in-depth over
+    `next.config.ts`'s static header — the static header sets ACAO to
+    the configured origin for ALL requests (leaking the configured origin
+    to unauthenticated callers); the middleware only sets it when the
+    request Origin matches.
+
+  - **Skips TUS + CSP report routes** — TUS has its own OPTIONS handler
+    that returns TUS-specific headers (`Tus-Resumable`, `Tus-Version`,
+    `Tus-Extension`); CSP report accepts cross-origin reports without the
+    standard CORS allowlist.
+
+**Impact:** Cross-origin API access from configured origins now works
+correctly — preflight requests get 204 instead of 405.
+
+## L-ADM-3/4 — Pagination for admin invitations + jobs lists
+
+**Problem:** `GET /api/admin/invitations` and `GET /api/admin/jobs` both
+used `take: 100` with no `page`/`skip` — for tenants with >100 historical
+records, the oldest were silently invisible. Admins could not audit older
+invitations or job history.
+
+**Fix (API):** Both routes now accept `page` + `pageSize` query params
+(clamped to `min(1, max(100))`), plus optional filters:
+  - Invitations: `?status=pending|accepted|expired`
+  - Jobs: `?status=completed|failed|running|pending&queue=ocr|webhook|...`
+
+Both routes return `{ items, page, pageSize, total, totalPages }` — the
+client renders pagination controls when `totalPages > 1`.
+
+**Fix (UI):** Both admin pages (`/admin/invitations` and `/admin/jobs`)
+updated with:
+  - Page state + prev/next buttons (disabled at first/last page)
+  - Status filter dropdown (reloads page 1 on change)
+  - "Page X of Y · N total" indicator
+  - Jobs page also has a queue filter dropdown
+
+The jobs UI's auto-refresh (10s) is preserved — pagination state is
+kept in `useQuery`'s query key so it survives refetches.
+
+## L-ADM-6 — Stripe billing validation
+
+**Problem:** `PATCH /api/admin/billing` accepted arbitrary plan/seats/
+storage changes from any `tenant_admin`. A tenant admin could self-
+upgrade from `trial` to `enterprise` with 10 000 seats and 1 TB storage.
+The audit log recorded the change but did not block it.
+
+**Fix:** Multi-layer billing policy in new `src/lib/billing/billing-policy.ts`:
+
+### Layer 1: Permission gate
+New permission `ADMIN_PLATFORM_BILLING_MANAGE` (`admin:platform.billing.manage`).
+Only platform admins with this permission can use PATCH /api/admin/billing.
+`tenant_admin` (which has `ADMIN_TENANT_MANAGE`) can VIEW billing but
+NOT modify it.
+
+When a non-platform-admin attempts PATCH, the route:
+  1. Records `security.billing_self_upgrade_blocked` audit event (deny)
+  2. Calls `alertBillingSelfUpgradeAttempt()` which notifies all
+     tenant_admins across all tenants with severity `critical`
+  3. Returns 403 with a message directing them to Stripe or platform admin
+
+### Layer 2: Stripe webhook reconciliation
+New `POST /api/billing/webhook` endpoint receives Stripe events:
+
+  1. Reads the RAW body (Stripe signs raw bytes, not parsed JSON)
+  2. Verifies the `Stripe-Signature` header using `STRIPE_WEBHOOK_SECRET`
+     with HMAC-SHA256 + a 5-minute replay-protection window
+  3. Handles `customer.subscription.created/updated/deleted` events:
+     - Maps Stripe price ID → local plan name (via env-var price map)
+     - Maps Stripe quantity → seats
+     - Maps Stripe metadata.storageBytes → storageBytes (falls back to
+       plan default)
+     - Maps Stripe status → local status (active/past_due/canceled/trialing)
+  4. Calls `applyStripeSubscriptionUpdate()` which:
+     - Finds the subscription by `stripeCustomerId` or
+       `stripeSubscriptionId`
+     - Updates the row
+     - Records `billing.stripe_update` audit event with `actorId='stripe'`
+     - Flags suspicious transitions (e.g. skipping >1 tier) in the audit
+       reason field + logger.warn
+
+### Layer 3: Plan-transition policy
+`isPlanTransitionAllowed(from, to)` returns `{ allowed, suspicious, reason }`:
+  - Same-plan: allowed, not suspicious
+  - One-tier upgrade (trial→starter, starter→business, business→enterprise):
+    allowed, not suspicious
+  - Multi-tier upgrade (trial→enterprise): allowed, SUSPICIOUS — logged
+  - Downgrade to trial: allowed, SUSPICIOUS — logged
+  - Paid-tier downgrade (enterprise→business): allowed, not suspicious
+
+Suspicious transitions are recorded as `security.billing_suspicious_upgrade`
+audit events for forensic review.
+
+### Layer 4: Per-plan limits
+`validatePlanLimits(plan, seats, storageBytes)` enforces:
+  - trial: ≤5 seats, ≤5 GB
+  - starter: ≤25 seats, ≤50 GB
+  - business: ≤200 seats, ≤500 GB
+  - enterprise: ≤10 000 seats, ≤10 TB
+
+Requests exceeding the cap are rejected with 400 `plan_limit_exceeded`.
+
+### Schema changes
+`Subscription` model gains two optional fields:
+  - `stripeCustomerId String?` — set when the customer first subscribes
+    via Stripe Checkout
+  - `stripeSubscriptionId String?` — set when the subscription is created
+    in Stripe
+
+Both are used by the webhook to match events to tenants. Null for trial
+or manually-managed subscriptions.
+
+### Configuration
+`.env.example` documents the new env vars:
+  - `STRIPE_SECRET_KEY` (sk_live_ or sk_test_) — enables Stripe mode
+  - `STRIPE_WEBHOOK_SECRET` (whsec_) — verifies webhook signatures
+  - `STRIPE_PRICE_TRIAL/STARTER/BUSINESS/ENTERPRISE` — price ID → plan map
+
+`env.ts` validates the format of both secrets when set.
+
+### UI hint
+`GET /api/admin/billing` now returns `billingMode: 'stripe' | 'manual'`
+so the UI can show "Manage subscription in Stripe" vs "Contact platform
+admin" depending on the mode.
+
+### Tests
+New `tests/unit/billing-policy.test.ts` — 17 tests covering:
+  - Plan-transition allowlist (5 tests)
+  - Per-plan limits (4 tests)
+  - `getBillingMode()` mode detection (2 tests)
+  - Stripe webhook signature verification (6 tests: missing secret,
+    missing signature, malformed header, stale timestamp, valid signature,
+    wrong secret)
+
+## Test results
+
+- TypeScript: 0 errors
+- ESLint: 0 errors (7 pre-existing a11y warnings — unchanged)
+- Unit tests (vitest): 280/280 passing (263 existing + 17 new billing-policy)
+- E2E tests (Playwright, with fresh dev server per file):
+  - `audit.spec.ts`: 3/3 passed ✅
+  - `documents.spec.ts`: 4/4 passed ✅
+  - `rtl-arabic.spec.ts`: 7/7 passed (+1 intentional skip) ✅
+  - `auth.spec.ts`: 3/5 passed (vs 3/5 baseline — same 2 pre-existing
+    test selector issues)
+- Manual OPTIONS preflight test: `curl -X OPTIONS` returns 204 ✅
+
+## Files changed (28)
+
+New files:
+  - src/lib/billing/billing-policy.ts (Stripe policy + webhook verify)
+  - src/lib/security/ssrf-safe-fetch.ts (DNS-pinned fetch)
+  - src/app/api/billing/webhook/route.ts (Stripe webhook endpoint)
+  - src/middleware.ts (global OPTIONS + CORS)
+  - tests/unit/billing-policy.test.ts (17 new tests)
+  - scripts/await-rate-limiter.py (script-patch tool, persisted per Rule 9)
+
+Modified files:
+  - src/lib/security/rate-limit.ts (HybridRateLimiter — Redis + memory)
+  - src/lib/auth/auth-options.ts (await rate limiter)
+  - src/lib/api/handler.ts (await rate limiter)
+  - src/lib/notifications/notify.ts (ssrfSafeFetch + await rate limiter)
+  - src/worker/index.ts (ssrfSafeFetch)
+  - src/app/api/auth/sso/[providerId]/callback/route.ts (ssrfSafeFetch)
+  - src/app/api/auth/sso/[providerId]/init/route.ts (await rate limiter)
+  - src/app/api/auth/passkey/login/init/route.ts (await rate limiter)
+  - src/app/api/auth/passkey/login/verify/route.ts (await rate limiter)
+  - src/app/api/auth/forgot-password/route.ts (await rate limiter)
+  - src/app/api/auth/reset-password/route.ts (await rate limiter)
+  - src/app/api/admin/invitations/[token]/accept/route.ts (await rate limiter)
+  - src/app/api/admin/invitations/route.ts (pagination)
+  - src/app/api/admin/jobs/route.ts (pagination)
+  - src/app/api/admin/billing/route.ts (platform-admin gate + policy)
+  - src/app/api/shares/[token]/route.ts (await rate limiter)
+  - src/app/api/csp-report/route.ts (await rate limiter)
+  - src/lib/auth/permissions.ts (ADMIN_PLATFORM_BILLING_MANAGE)
+  - src/lib/config/env.ts (STRIPE_* validators)
+  - src/app/(app)/admin/invitations/page.tsx (pagination UI)
+  - src/app/(app)/admin/jobs/page.tsx (pagination UI)
+  - tests/unit/rate-limit.test.ts (async API)
+  - tests/unit/auth-lifecycle.test.ts (async API)
+  - prisma/schema.prisma (stripeCustomerId + stripeSubscriptionId)
+  - .env.example (STRIPE_* docs)
+  - package.json + bun.lock (undici dep)

@@ -24,7 +24,7 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-  const rl = authRateLimiter.check(`reset-pw:${ip}`, 5, 60_000);
+  const rl = await authRateLimiter.check(`reset-pw:${ip}`, 5, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: { code: 'rate_limited' } }, { status: 429 });
   }

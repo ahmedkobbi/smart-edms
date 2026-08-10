@@ -12,34 +12,36 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { authRateLimiter } from '@/lib/security/rate-limit';
 
 describe('Auth Lifecycle', () => {
-  beforeEach(() => {
-    authRateLimiter.reset('test:login:lockout@example.com');
+  beforeEach(async () => {
+    await authRateLimiter.reset('test:login:lockout@example.com');
+    await authRateLimiter.reset('test:login:userA@example.com');
+    await authRateLimiter.reset('test:login:userB@example.com');
   });
 
   describe('Rate Limiting (simulates lockout)', () => {
-    it('allows 10 login attempts within window', () => {
+    it('allows 10 login attempts within window', async () => {
       for (let i = 0; i < 10; i++) {
-        const result = authRateLimiter.check('test:login:lockout@example.com', 10, 60_000);
+        const result = await authRateLimiter.check('test:login:lockout@example.com', 10, 60_000);
         expect(result.allowed).toBe(true);
       }
     });
 
-    it('blocks 11th attempt (rate limit exceeded)', () => {
+    it('blocks 11th attempt (rate limit exceeded)', async () => {
       for (let i = 0; i < 10; i++) {
-        authRateLimiter.check('test:login:lockout@example.com', 10, 60_000);
+        await authRateLimiter.check('test:login:lockout@example.com', 10, 60_000);
       }
-      const result = authRateLimiter.check('test:login:lockout@example.com', 10, 60_000);
+      const result = await authRateLimiter.check('test:login:lockout@example.com', 10, 60_000);
       expect(result.allowed).toBe(false);
       expect(result.retryAfterMs).toBeGreaterThan(0);
     });
 
-    it('different IP+email combinations are rate-limited independently', () => {
+    it('different IP+email combinations are rate-limited independently', async () => {
       // Exhaust user A
       for (let i = 0; i < 10; i++) {
-        authRateLimiter.check('test:login:userA@example.com', 10, 60_000);
+        await authRateLimiter.check('test:login:userA@example.com', 10, 60_000);
       }
       // User B should still be allowed
-      const result = authRateLimiter.check('test:login:userB@example.com', 10, 60_000);
+      const result = await authRateLimiter.check('test:login:userB@example.com', 10, 60_000);
       expect(result.allowed).toBe(true);
     });
   });

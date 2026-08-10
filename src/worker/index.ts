@@ -140,18 +140,33 @@ async function handleWebhookJob(job: Job): Promise<void> {
     throw new Error(`SSRF blocked: ${webhookUrl}`);
   }
 
-  // Send
-  const res = await fetch(webhookUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Smart-EDMS-Event': event,
-      'X-Smart-EDMS-Signature': signature,
-      'X-Smart-EDMS-Attempt': String(job.attemptsMade + 1),
-    },
-    body,
-    signal: AbortSignal.timeout(10_000),
-  });
+  // SECURITY FIX (L-INFRA-7): Use ssrfSafeFetch which DNS-pins the
+  // connection to the verified IP — defeats DNS rebinding TOCTOU between
+  // the isSafeOutboundUrl check and the actual fetch.
+  const { ssrfSafeFetch, SsrfError } = await import('../lib/security/ssrf-safe-fetch');
+  let res: any;
+  try {
+    res = await ssrfSafeFetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Smart-EDMS-Event': event,
+        'X-Smart-EDMS-Signature': signature,
+        'X-Smart-EDMS-Attempt': String(job.attemptsMade + 1),
+      },
+      body,
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch (err: any) {
+    if (err instanceof SsrfError) {
+      await db.webhook.update({
+        where: { id: webhookId },
+        data: { lastStatus: 'blocked_ssrf' },
+      }).catch(() => {});
+      throw new Error(`SSRF blocked: ${webhookUrl}`);
+    }
+    throw err;
+  }
 
   if (res.ok || res.status < 500) {
     // Success or client error (4xx) — don't retry
