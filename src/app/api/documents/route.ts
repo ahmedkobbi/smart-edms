@@ -18,6 +18,7 @@ import { scanFile } from '@/lib/security/malware-scanner';
 import { createDocumentDek, encryptWithDek } from '@/lib/storage/envelope-encryption';
 import { indexDocumentText } from '@/lib/documents/text-extraction';
 import { validateMetadata } from '@/lib/documents/metadata-validator';
+import { indexDocument as osIndexDocument } from '@/lib/search/opensearch-service';
 import { z } from 'zod';
 
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024; // 100 MB
@@ -271,6 +272,9 @@ export const POST = createApiHandler(
     indexDocumentText(ctx.tenantId, result.doc.id, result.version.id).catch((err) => {
       console.warn('[text-index] failed:', err);
     });
+
+    // Index in OpenSearch for production-grade FTS (best-effort, non-blocking)
+    osIndexDocument(ctx.tenantId, result.doc.id).catch(() => {});
 
     // Audit log
     await recordAuditEvent({

@@ -12,6 +12,8 @@ import { createApiHandler } from '@/lib/api/handler';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
 import { searchTextIndex } from '@/lib/documents/text-extraction';
 import { normalizeForSearch } from '@/lib/i18n/arabic-search';
+import { searchDocuments as osSearch, isOpenSearchAvailable, indexDocument } from '@/lib/search/opensearch-service';
+import { logger } from '@/lib/config/logger';
 import { z } from 'zod';
 
 const querySchema = z.object({
@@ -34,6 +36,46 @@ export const GET = createApiHandler(
     const classificationCodes = q.classifications ? q.classifications.split(',').map((s) => s.trim()).filter(Boolean) : [];
     const tagList = q.tags ? q.tags.split(',').map((s) => s.trim()).filter(Boolean) : [];
 
+    // ── Try OpenSearch first (production-grade FTS with Arabic analyzer) ──
+    if (await isOpenSearchAvailable()) {
+      const osResult = await osSearch({
+        tenantId: ctx.tenantId,
+        query: q.q,
+        ownerId: ctx.userId,
+        canReadAll,
+        classifications: classificationCodes,
+        states: q.state ? [q.state] : undefined,
+        tags: tagList.length > 0 ? tagList : undefined,
+        folderId: q.folderId || undefined,
+        page: q.page,
+        pageSize: q.pageSize,
+      });
+
+      if (osResult) {
+        logger.debug('search.opensearch', {
+          query: q.q,
+          total: osResult.total,
+          returned: osResult.items.length,
+        });
+
+        return NextResponse.json({
+          items: osResult.items,
+          total: osResult.total,
+          page: q.page,
+          pageSize: q.pageSize,
+          query: q.q,
+          searchEngine: 'opensearch',
+          highlights: osResult.highlights,
+          facets: {
+            classifications: osResult.facets.classifications,
+            tags: osResult.facets.tags,
+            states: osResult.facets.states,
+          },
+        });
+      }
+    }
+
+    // ── Fallback: Prisma LIKE queries (dev mode or OpenSearch unavailable) ──
     const where = {
       tenantId: ctx.tenantId,
       deletedAt: null,
@@ -123,6 +165,7 @@ export const GET = createApiHandler(
       page: q.page,
       pageSize: q.pageSize,
       query: q.q,
+      searchEngine: 'prisma', // Indicates fallback mode
       fullTextMatches,
       facets: {
         classifications: Array.from(classificationFacet.entries()).map(([id, count]) => ({ id, count })),

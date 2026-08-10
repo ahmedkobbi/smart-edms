@@ -91,10 +91,37 @@ services:
     networks:
       - smartedms
 
+  # OpenSearch for production-grade full-text search with Arabic analyzers
+  opensearch:
+    image: opensearchproject/opensearch:2.13.0
+    container_name: smartedms-opensearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "DISABLE_SECURITY_PLUGIN=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+    profiles:
+      - opensearch
+    networks:
+      - smartedms
+
 volumes:
   postgres_data:
   app_storage:
   minio_data:
+  opensearch_data:
 
 networks:
   smartedms:
