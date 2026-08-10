@@ -18,6 +18,10 @@ This directory contains ADRs for Smart EDMS. Each ADR documents a key architectu
 | [ADR-010](./010-ai-human-in-loop.md) | AI with mandatory human-in-the-loop | Accepted |
 | [ADR-011](./011-tenant-scoping-strategy.md) | Tenant scoping via application + RLS | Accepted |
 | [ADR-012](./012-signed-urls-not-direct-storage.md) | HMAC-signed URLs for file access | Accepted |
+| [ADR-013](./013-redis-rate-limiting.md) | Redis-backed rate limiting + challenge stores | Accepted |
+| [ADR-014](./014-ssrf-dns-pinning.md) | SSRF DNS pinning via undici Agent | Accepted |
+| [ADR-015](./015-billing-reconciliation.md) | Billing reconciliation (Stripe + NowPayments) | Accepted |
+| [ADR-016](./016-payment-security-model.md) | Payment security model (12 rules) | Accepted |
 
 ## Format
 

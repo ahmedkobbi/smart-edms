@@ -17,7 +17,8 @@ test.describe('Authentication', () => {
     await expect(page.locator('h1')).toContainText('Smart EDMS');
     await expect(page.locator('input[type="email"]')).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
-    await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
+    // Use exact match — "Sign in" also matches "Sign in with passkey" button
+    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
   });
 
   test('login with valid credentials redirects to dashboard', async ({ page }) => {
@@ -47,11 +48,14 @@ test.describe('Authentication', () => {
     await page.click('button[type="submit"]');
     await page.waitForURL('**/dashboard', { timeout: 10_000 });
 
-    // Check stat cards render
-    await expect(page.locator('text=Total documents')).toBeVisible({ timeout: 5_000 });
-    await expect(page.locator('text=My documents')).toBeVisible();
-    await expect(page.locator('text=Pending approvals')).toBeVisible();
-    await expect(page.locator('text=Active legal holds')).toBeVisible();
+    // Check stat cards render — use exact text match to avoid strict mode
+    // violations when multiple elements contain the same text (e.g. a
+    // stat card label and a sidebar link both say "My documents")
+    await expect(page.getByText('Total documents', { exact: true })).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText('My documents', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Pending approvals', { exact: true })).toBeVisible();
+    // legalHolds is only shown to admins — the admin user should see it
+    await expect(page.getByText('Active legal holds', { exact: true })).toBeVisible();
   });
 
   test('navigation sidebar renders all sections', async ({ page }) => {

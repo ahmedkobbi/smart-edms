@@ -46,7 +46,8 @@ jobs:
 
       - name: TypeScript type-check
         run: npx tsc --noEmit
-        continue-on-error: true # TODO: fix pre-existing errors, then set to false
+        # SECURITY: type errors can mask security bugs — fail CI on any error
+        continue-on-error: false
 
       - name: Check translation completeness
         run: npm run check:translations
@@ -81,7 +82,7 @@ jobs:
         run: npm run seed
         env:
           DATABASE_URL: file:./test.db
-          NEXTAUTH_SECRET: ci-e2e-secret-minimum-16-chars
+          NEXTAUTH_SECRET: ci-e2e-secret-minimum-32-chars-for-env-validation
           NEXTAUTH_URL: http://localhost:3000
           SMART_EDMS_KEK: ${{ secrets.SMART_EDMS_KEK || '0000000000000000000000000000000000000000000000000000000000000000' }}
 
@@ -92,7 +93,7 @@ jobs:
         run: npx playwright test
         env:
           DATABASE_URL: file:./test.db
-          NEXTAUTH_SECRET: ci-e2e-secret-minimum-16-chars
+          NEXTAUTH_SECRET: ci-e2e-secret-minimum-32-chars-for-env-validation
           NEXTAUTH_URL: http://localhost:3000
           SMART_EDMS_KEK: ${{ secrets.SMART_EDMS_KEK || '0000000000000000000000000000000000000000000000000000000000000000' }}
 
@@ -128,7 +129,7 @@ jobs:
         run: npm test
         env:
           DATABASE_URL: file:./test.db
-          NEXTAUTH_SECRET: ci-test-secret-minimum-16-chars
+          NEXTAUTH_SECRET: ci-test-secret-minimum-32-chars-for-env-validation
           NEXTAUTH_URL: http://localhost:3000
           SMART_EDMS_KEK: ${{ secrets.SMART_EDMS_KEK || '0000000000000000000000000000000000000000000000000000000000000000' }}
 
@@ -165,7 +166,7 @@ jobs:
         run: npm run build
         env:
           DATABASE_URL: file:./test.db
-          NEXTAUTH_SECRET: ci-build-secret-minimum-16-chars
+          NEXTAUTH_SECRET: ci-build-secret-minimum-32-chars-for-env-validation
           NEXTAUTH_URL: https://smartedms.example.com
           SMART_EDMS_KEK: ${{ secrets.SMART_EDMS_KEK || '0000000000000000000000000000000000000000000000000000000000000000' }}
 
@@ -190,8 +191,26 @@ jobs:
 
       - name: Check for secrets in code
         run: |
-          ! grep -rn "ghp_\|sk-\|AKIA\|password.*=.*['\"]" src/ --include="*.ts" --include="*.tsx" || \
+          ! grep -rn "ghp_\|sk_live_\|sk_test_\|AKIA\|whsec_\|password.*=.*['\"]" src/ --include="*.ts" --include="*.tsx" || \
           (echo "❌ Potential secret found in source code" && exit 1)
+
+      - name: Verify security-critical dependency versions
+        run: |
+          # Verify undici is installed (security-critical: used for SSRF DNS pinning)
+          UNDICI_VER=$(node -e "console.log(require('undici/package.json').version)" 2>/dev/null)
+          echo "undici version: $UNDICI_VER"
+          if [ -z "$UNDICI_VER" ]; then
+            echo "❌ undici not found — required for SSRF DNS pinning"
+            exit 1
+          fi
+
+      - name: Run security-regression test suite
+        run: npx vitest run tests/unit/security-regression.test.ts tests/unit/billing-policy.test.ts tests/unit/payment-security.test.ts tests/unit/rate-limit.test.ts tests/unit/auth-lifecycle.test.ts tests/unit/ssrf-guard.test.ts tests/unit/signed-url.test.ts tests/unit/webhook-signatures.test.ts --reporter=verbose
+        env:
+          DATABASE_URL: file:./test.db
+          NEXTAUTH_SECRET: ci-security-secret-minimum-32-chars-for-env
+          NEXTAUTH_URL: http://localhost:3000
+          SMART_EDMS_KEK: '0000000000000000000000000000000000000000000000000000000000000000'
 
   docker-build:
     name: Docker Build

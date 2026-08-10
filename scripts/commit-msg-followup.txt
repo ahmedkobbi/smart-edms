@@ -1,0 +1,122 @@
+chore: e2e fixes + security-regression tests + ADRs + ops runbook + CI hardening + perf verification
+
+Closes out the 6 follow-up items from the security audit:
+
+## #2: Fix pre-existing e2e test failures
+
+- `auth.spec.ts:20` — changed `/sign in/i` to `{ name: 'Sign in', exact: true }`
+  to avoid matching both "Sign in" and "Sign in with passkey" buttons
+- `auth.spec.ts:52` — changed `text=My documents` to `getByText('My documents', { exact: true }).first()`
+  to avoid matching both a stat card label and a sidebar link
+- `login/page.tsx:211` — added `aria-label` to the password visibility toggle
+  button (was causing axe "button-name" critical violation)
+- `reset-password/page.tsx:99` — same aria-label fix for the password toggle
+
+Result: 7/7 non-skipped e2e tests pass (was 3/5 auth + 1/1 accessibility = 4/6
+before; now 5/5 auth + 2/2 accessibility = 7/7). 3 accessibility tests remain
+intentionally skipped (require authenticated dashboard).
+
+## #3: Security-regression unit tests for new infrastructure
+
+New `tests/unit/security-regression.test.ts` — 34 tests covering:
+
+- Challenge store (in-memory): set/get/delete/has, TTL expiry, namespace isolation
+- SSRF safe fetch: SsrfError class, blocked host detection, URL protocol validation
+- Rate limiter (in-memory): strict cap, remaining count, key isolation, reset
+- Signed-URL session binding: u= param in HMAC payload, signature differs from
+  legacy, cross-user replay prevented
+- Client checksum verification: sha256 determinism, timingSafeEqualStr,
+  truncated upload detection, hex format validation
+
+These tests are designed to catch regressions if a future refactor accidentally
+weakens the security guarantees of the new infrastructure modules.
+
+## #4: Update SECURITY.md + add 4 ADRs
+
+### SECURITY.md — comprehensive rewrite
+Added documentation for all new controls:
+- MFA backup codes now hashed (not reversibly encrypted)
+- Step-up/password-reset/invitation tokens hashed at rest
+- Session rotation on role change, password change, MFA disable
+- SSO PKCE + email_verified + domain allowlist
+- Passkey AAGUID allowlist
+- Redis-backed rate limiting + challenge stores (multi-instance)
+- SSRF DNS pinning via undici
+- Signed-URL session binding (u= param)
+- Client checksum verification
+- CSP violation reporting endpoint
+- COOP/CORP/X-Robots-Tag headers
+- Payment security (12-rule model)
+- Billing policy (platform-admin gate + plan-transition allowlist + limits)
+- Updated rate limiting table (20+ endpoints)
+- Updated secrets table (4 new secrets)
+- PCI DSS compliance alignment
+
+### ADR-013: Redis-Backed Rate Limiting + Challenge Stores
+Documents the hybrid Redis/in-memory backend pattern, auto-failover, and
+multi-instance safety.
+
+### ADR-014: SSRF DNS Pinning via Undici Agent
+Documents the custom `connect.lookup` approach that pins TCP connections
+to verified IPs, defeating DNS rebinding TOCTOU.
+
+### ADR-015: Billing Reconciliation (Stripe + NowPayments)
+Documents the 4-layer billing policy: permission gate, Stripe webhook,
+NowPayments checkout, plan-transition policy + limits.
+
+### ADR-016: Payment Security Model (12 Rules)
+Documents all 12 payment security rules: zero client trust, idempotency,
+webhook signature verification, webhook-only business logic, IP allowlist,
+replay protection, atomic status transitions, underpayment protection,
+cron reconciliation, invoice expiry, refund safety, audit trail.
+
+## #5: Operations runbook
+
+New `docs/OPERATIONS-RUNBOOK.md` — 7 sections:
+
+1. Secrets management (inventory, generation, KEK rotation, NEXTAUTH_SECRET rotation)
+2. Redis failover (degradation behavior, detection, recovery, manual failover)
+3. Stripe setup (configuration, testing, webhook verification)
+4. NowPayments setup (configuration, sandbox testing, webhook verification, cron)
+5. Monitoring alerts (critical page, warning email, metrics to track)
+6. Incident response (account compromise, webhook URL compromise, payment fraud, Redis outage)
+7. Deployment checklist (pre-deployment, post-deployment, security verification)
+
+## #6: CI/CD hardening
+
+Updated `.github/workflows/ci.yml`:
+
+- TypeScript type-check: `continue-on-error: false` (was `true` — type errors
+  can mask security bugs)
+- All `NEXTAUTH_SECRET` values updated to 32+ chars (env validation requires it;
+  was 16 chars which would fail the H11 fix)
+- Secret scanning: expanded pattern to include `sk_live_`, `sk_test_`, `whsec_`
+  (Stripe + NowPayments keys)
+- New step: verify security-critical dependency versions (undici must be installed)
+- New step: run security-regression test suite (8 test files covering all
+  security-critical modules: security-regression, billing-policy, payment-security,
+  rate-limit, auth-lifecycle, ssrf-guard, signed-url, webhook-signatures)
+
+## #7: Performance verification
+
+New `scripts/performance-verify.ts` — measures latency of all security-critical
+operations with 10 000 iterations (1 000 warmup):
+
+- Rate limiter check: p99 = 0.006ms ✅
+- Challenge store set/get/has/delete: p99 = 0.003-0.005ms ✅
+- SHA-256 (1KB): p99 = 0.010ms ✅
+- SHA-256 (1MB): p99 = 3.430ms ✅ (only on large uploads)
+- HMAC-SHA256 (signed URL): p99 = 0.005ms ✅
+- HMAC-SHA512 (webhook): p99 = 0.006ms ✅
+- Signed URL generation: p99 = 0.010ms ✅
+
+All operations pass with p99 < 5ms on the in-memory path. In production with
+Redis, expect +1-3ms per rate-limiter/challenge-store call (single MULTI pipeline).
+
+## Test results
+
+- TypeScript: 0 errors
+- ESLint: 0 errors (7 pre-existing a11y warnings)
+- Unit tests: 349/349 passing (315 + 34 new security-regression)
+- E2E tests: 7/7 passed (3 intentionally skipped) — auth + accessibility
+  previously-failing tests now GREEN
