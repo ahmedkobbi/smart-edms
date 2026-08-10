@@ -27,6 +27,8 @@ import { useSessionData } from '@/components/providers/use-session-data';
 import { signOut } from 'next-auth/react';
 import { CommandPalette } from '@/components/layout/command-palette';
 import { useWebSocketNotifications } from '@/hooks/use-websocket-notifications';
+import { ThemeToggle } from '@/components/layout/theme-toggle';
+import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Notification {
@@ -92,6 +94,8 @@ export function TopBar() {
           </div>
 
           <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <ThemeToggle />
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative h-9 w-9">

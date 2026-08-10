@@ -1,0 +1,81 @@
+{
+  "common": {
+    "appName": "Smart EDMS",
+    "tagline": "منصة حوكمة المستندات الآمنة",
+    "loading": "جارٍ التحميل…",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "create": "إنشاء",
+    "update": "تحديث",
+    "search": "بحث",
+    "filter": "تصفية",
+    "close": "إغلاق",
+    "confirm": "تأكيد",
+    "back": "رجوع",
+    "next": "التالي",
+    "previous": "السابق",
+    "actions": "إجراءات",
+    "status": "الحالة",
+    "name": "الاسم",
+    "description": "الوصف",
+    "noResults": "لا توجد نتائج",
+    "noData": "لا توجد بيانات",
+    "error": "خطأ",
+    "success": "نجاح",
+    "warning": "تحذير",
+    "info": "معلومات",
+    "critical": "حرج",
+    "all": "الكل",
+    "yes": "نعم",
+    "no": "لا",
+    "enable": "تفعيل",
+    "disable": "تعطيل",
+    "revoke": "إلغاء",
+    "approve": "موافقة",
+    "reject": "رفض"
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "documents": "المستندات",
+    "folders": "المجلدات",
+    "search": "بحث",
+    "workflows": "سير العمل",
+    "auditLog": "سجل التدقيق",
+    "legalHolds": "الاحتجازات القانونية",
+    "retention": "الاستبقاء",
+    "dispositions": "التصرفات",
+    "securityPosture": "الوضع الأمني",
+    "anomalies": "الشذوذات",
+    "users": "المستخدمون",
+    "settings": "الإعدادات"
+  },
+  "auth": {
+    "signIn": "تسجيل الدخول",
+    "signOut": "تسجيل الخروج",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "welcomeBack": "مرحبًا بك في Smart EDMS"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "totalDocuments": "إجمالي المستندات",
+    "myDocuments": "مستنداتي",
+    "pendingApprovals": "الموافقات المعلقة",
+    "activeLegalHolds": "الاحتجازات القانونية النشطة"
+  },
+  "classification": {
+    "public": "عام",
+    "internal": "داخلي",
+    "confidential": "سري",
+    "restricted": "مقيد",
+    "highlySensitive": "حساس للغاية"
+  },
+  "state": {
+    "draft": "مسودة",
+    "active": "نشط",
+    "record": "سجل",
+    "archived": "مؤرشف",
+    "disposed": "مُستغنى عنه"
+  }
+}

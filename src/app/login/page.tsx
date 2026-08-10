@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Loader2, Lock, Mail, KeyRound, ArrowRight, Eye, EyeOff, Fingerprint } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -289,6 +290,19 @@ export default function LoginPage() {
                 >
                   Back to password
                 </Button>
+              </motion.div>
+            )}
+
+            {!needsMfa && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.45 }}
+                className="text-center"
+              >
+                <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground hover:underline">
+                  Forgot password?
+                </Link>
               </motion.div>
             )}
           </form>

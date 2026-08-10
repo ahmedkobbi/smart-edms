@@ -10,6 +10,8 @@ import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { SessionProvider } from "@/components/providers/session-provider";
+import { logger } from "@/lib/config/logger";
+import { assertEnv } from "@/lib/config/env";
 
 const inter = Inter({
   variable: "--font-geist-sans",
@@ -41,6 +43,18 @@ export const metadata: Metadata = {
   },
   robots: { index: false, follow: false },
 };
+
+// Validate environment at startup
+if (process.env.NODE_ENV === 'production') {
+  try {
+    assertEnv();
+    logger.info('app.startup', { status: 'environment validated', nodeEnv: process.env.NODE_ENV });
+  } catch (err: any) {
+    logger.error('app.startup_failed', { error: err.message });
+  }
+} else {
+  logger.info('app.startup', { status: 'development mode', nodeEnv: process.env.NODE_ENV });
+}
 
 export default function RootLayout({
   children,

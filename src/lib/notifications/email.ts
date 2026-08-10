@@ -249,3 +249,22 @@ export async function sendDispositionApprovalEmail(
   const text = `Disposition approval required for "${documentTitle}" (action: ${action}).\n\nReview: ${url}`;
   await sendEmail({ to, subject: `[Smart EDMS] Disposition approval: ${documentTitle}`, html, text });
 }
+
+export async function sendPasswordResetEmail(
+  to: string,
+  resetUrl: string,
+): Promise<void> {
+  const html = wrapTemplate('Password reset', `
+    <h1>Password reset request</h1>
+    <p>We received a request to reset your Smart EDMS password.</p>
+    <div class="alert alert-info">
+      This link expires in 30 minutes. If you didn't request this, you can safely ignore this email.
+    </div>
+    <a href="${resetUrl}" class="btn">Reset password</a>
+    <p style="font-size: 13px; color: #64748b; margin-top: 16px;">
+      Or copy this link: <code>${resetUrl}</code>
+    </p>
+  `);
+  const text = `Password reset request.\n\nReset your password: ${resetUrl}\n\nThis link expires in 30 minutes.`;
+  await sendEmail({ to, subject: '[Smart EDMS] Password reset', html, text });
+}

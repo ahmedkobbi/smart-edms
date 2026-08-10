@@ -108,36 +108,62 @@ export async function fireWebhook(
 
   await Promise.all(
     matching.map(async (w) => {
-      try {
-        const signature = w.secretHash
-          ? sha256(body + w.secretHash)
-          : '';
-        const res = await fetch(w.url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Smart-EDMS-Event': event,
-            'X-Smart-EDMS-Signature': signature,
-          },
-          body,
-          signal: AbortSignal.timeout(10_000),
-        });
-        await db.webhook.update({
-          where: { id: w.id },
-          data: {
-            lastStatus: `${res.status}`,
-            lastSentAt: new Date(),
-          },
-        });
-      } catch (err: any) {
-        await db.webhook.update({
-          where: { id: w.id },
-          data: {
-            lastStatus: 'error',
-            lastSentAt: new Date(),
-          },
-        });
+      const signature = w.secretHash
+        ? sha256(body + w.secretHash)
+        : '';
+
+      // Retry with exponential backoff: 1s, 2s, 4s, 8s (max 4 attempts)
+      const maxRetries = 4;
+      const baseDelay = 1000;
+      let lastError: any = null;
+
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          const res = await fetch(w.url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Smart-EDMS-Event': event,
+              'X-Smart-EDMS-Signature': signature,
+              'X-Smart-EDMS-Attempt': String(attempt + 1),
+            },
+            body,
+            signal: AbortSignal.timeout(10_000),
+          });
+
+          if (res.ok || res.status < 500) {
+            // Success or client error (4xx) — don't retry
+            await db.webhook.update({
+              where: { id: w.id },
+              data: {
+                lastStatus: `${res.status}`,
+                lastSentAt: new Date(),
+              },
+            });
+            return;
+          }
+
+          // Server error (5xx) — retry
+          lastError = new Error(`HTTP ${res.status}`);
+        } catch (err: any) {
+          lastError = err;
+        }
+
+        // Wait before retry (exponential backoff)
+        if (attempt < maxRetries - 1) {
+          const delay = baseDelay * Math.pow(2, attempt);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
       }
+
+      // All retries failed
+      await db.webhook.update({
+        where: { id: w.id },
+        data: {
+          lastStatus: 'error',
+          lastSentAt: new Date(),
+        },
+      });
     }),
   );
 }
