@@ -45,7 +45,13 @@ export const GET = createApiHandler(
       take: 10_000,
     });
 
-    const headers = [
+    // Localized headers (accept ?locale= param)
+    const locale = req.nextUrl.searchParams.get('locale') || 'en';
+    const headers = locale === 'ar' ? [
+      'الرقم_التسلسلي', 'التاريخ', 'نوع_الحدث', 'الإجراء', 'النتيجة',
+      'المعرف', 'البريد_الإلكتروني', 'عنوان_IP', 'نوع_المورد', 'معرف_المورد',
+      'اسم_المورد', 'السبب', 'هاش_الحدث',
+    ] : [
       'sequenceNum', 'createdAt', 'eventType', 'action', 'result',
       'actorId', 'actorEmail', 'actorIp', 'resourceType', 'resourceId',
       'resourceName', 'reason', 'eventHash',

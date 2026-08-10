@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { truncateHash } from '@/lib/utils/format';
 import { AuditReceiptsPanel } from '@/components/audit/audit-receipts-panel';
+import { AuditTimeline } from '@/components/audit/audit-timeline';
 
 interface AuditItem {
   id: string;
@@ -145,35 +146,8 @@ export default function AuditPage() {
           ) : !data?.items?.length ? (
             <p className="p-8 text-center text-sm text-muted-foreground">No events match your filters.</p>
           ) : (
-            <div className="divide-y divide-slate-100 dark:divide-slate-900">
-              {data.items.map((ev) => (
-                <button
-                  key={ev.id}
-                  onClick={() => setSelected(ev)}
-                  className="w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
-                >
-                  <div className="flex items-start gap-3">
-                    <span className={`mt-1 h-1.5 w-1.5 rounded-full flex-shrink-0 ${
-                      ev.result === 'allow' ? 'bg-emerald-500' : ev.result === 'deny' ? 'bg-red-500' : 'bg-amber-500'
-                    }`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono text-xs">{ev.eventType}</span>
-                        <Badge variant="outline" className="text-[10px] py-0">{ev.result}</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {ev.actorEmail ?? 'system'}
-                        {ev.resourceName && ` · ${ev.resourceName}`}
-                        {ev.reason && ` · ${ev.reason}`}
-                      </p>
-                    </div>
-                    <div className="text-right text-xs text-muted-foreground">
-                      <p>#{ev.sequenceNum}</p>
-                      <p>{formatDistanceToNow(new Date(ev.createdAt), { addSuffix: true })}</p>
-                    </div>
-                  </div>
-                </button>
-              ))}
+            <div className="p-4 max-h-[600px] overflow-y-auto scrollbar-premium">
+              <AuditTimeline events={data.items} />
             </div>
           )}
         </CardContent>

@@ -653,3 +653,38 @@
   border-right: none !important;
   border-left: 1px solid var(--glass-border);
 }
+
+/* ============================================================================
+   Arabic Typography
+   ============================================================================ */
+
+[dir="rtl"] body,
+[dir="rtl"] input,
+[dir="rtl"] textarea,
+[dir="rtl"] button,
+[dir="rtl"] select {
+  font-family: var(--font-arabic), var(--font-geist-sans), system-ui, sans-serif;
+}
+
+[dir="rtl"] .font-mono {
+  font-family: 'Cairo', 'SFMono-Regular', monospace;
+  direction: ltr;
+  text-align: right;
+}
+
+/* Arabic heading weight */
+[dir="rtl"] h1,
+[dir="rtl"] h2,
+[dir="rtl"] h3,
+[dir="rtl"] h4,
+[dir="rtl"] h5,
+[dir="rtl"] h6 {
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+/* Fix for Arabic text overflow in badges */
+[dir="rtl"] .badge,
+[dir="rtl"] [class*="Badge"] {
+  letter-spacing: 0;
+}

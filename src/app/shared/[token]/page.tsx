@@ -94,7 +94,7 @@ export default function SharedDocumentPage() {
   const doc = share.share.document;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950" dir="auto">
       {/* Classification banner */}
       {doc.classification && (
         <div
@@ -210,7 +210,7 @@ function WatermarkedDocument({ url, watermark, mode, fileName }: { url: string; 
   }
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative" dir="ltr">
       {watermark && (
         <>
           {/* Diagonal repeating watermark */}
@@ -222,7 +222,7 @@ function WatermarkedDocument({ url, watermark, mode, fileName }: { url: string; 
             }}
           >
             <div className="absolute inset-0 flex items-center justify-center">
-              <p className="text-xl font-mono text-slate-900 break-all px-8 text-center select-none">{watermark}</p>
+              <p className="text-xl font-mono text-slate-900 break-all px-8 text-center select-none" dir="auto">{watermark}</p>
             </div>
           </div>
         </>
@@ -231,6 +231,7 @@ function WatermarkedDocument({ url, watermark, mode, fileName }: { url: string; 
         src={url}
         className="w-full h-[80vh] border border-slate-200 dark:border-slate-800 rounded-md bg-white"
         title={fileName}
+        sandbox="allow-same-origin"
       />
     </div>
   );
