@@ -7,7 +7,7 @@ import {
   Shield, FileText, Search, GitBranch, Clock, FileLock, ScrollText, Settings,
   LayoutDashboard, Users, ShieldCheck, BookMarked, KeyRound, Webhook, Database,
   Bot, ShieldAlert, FileCheck, Smartphone, Mail, BookOpen, LogIn, RefreshCw,
-  AlertTriangle, CreditCard, Building2, FolderOpen, Menu, X,
+  AlertTriangle, CreditCard, Building2, FolderOpen, Menu, X, Code2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSessionData } from '@/components/providers/use-session-data';
@@ -47,11 +47,14 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       { href: '/admin/security', label: 'Security Posture', icon: ShieldAlert, permission: PERMISSIONS.ADMIN_VIEW },
       { href: '/admin/anomalies', label: 'Anomalies', icon: AlertTriangle, permission: PERMISSIONS.ADMIN_VIEW },
+      { href: '/admin/break-glass', label: 'Break-glass', icon: ShieldAlert, permission: PERMISSIONS.ADMIN_VIEW },
+      { href: '/admin/dual-control', label: 'Dual Control', icon: ShieldCheck, permission: PERMISSIONS.ADMIN_VIEW },
       { href: '/admin/users', label: 'Users', icon: Users, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
       { href: '/admin/invitations', label: 'Invitations', icon: Mail, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
       { href: '/admin/groups', label: 'Groups', icon: Users, permission: PERMISSIONS.ADMIN_GROUPS_MANAGE },
       { href: '/admin/roles', label: 'Roles', icon: KeyRound, permission: PERMISSIONS.ADMIN_ROLES_MANAGE },
       { href: '/admin/recertification', label: 'Recertification', icon: RefreshCw, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
+      { href: '/admin/developer', label: 'Developer', icon: Code2, permission: PERMISSIONS.ADMIN_VIEW },
       { href: '/admin/classifications', label: 'Classifications', icon: BookMarked, permission: PERMISSIONS.ADMIN_CLASSIFICATIONS_MANAGE },
       { href: '/admin/policies', label: 'Policies', icon: ShieldCheck, permission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
       { href: '/admin/metadata-schemas', label: 'Metadata Schemas', icon: Database, permission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
@@ -68,7 +71,10 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   },
   {
     title: 'Account',
-    items: [{ href: '/settings', label: 'Settings', icon: Settings }],
+    items: [
+      { href: '/settings', label: 'Settings', icon: Settings },
+      { href: '/settings/sessions', label: 'Sessions', icon: Smartphone },
+    ],
   },
 ];
 

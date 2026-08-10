@@ -571,3 +571,85 @@
 .border-gradient:hover::before {
   opacity: 1;
 }
+
+/* ============================================================================
+   RTL (Right-to-Left) Support
+   ============================================================================ */
+
+[dir="rtl"] {
+  text-align: right;
+}
+
+[dir="rtl"] .ml-auto {
+  margin-left: 0 !important;
+  margin-right: auto;
+}
+
+[dir="rtl"] .mr-2 {
+  margin-right: 0 !important;
+  margin-left: 0.5rem;
+}
+
+[dir="rtl"] .ml-2 {
+  margin-left: 0 !important;
+  margin-right: 0.5rem;
+}
+
+[dir="rtl"] .mr-1 {
+  margin-right: 0 !important;
+  margin-left: 0.25rem;
+}
+
+[dir="rtl"] .ml-1 {
+  margin-left: 0 !important;
+  margin-right: 0.25rem;
+}
+
+[dir="rtl"] .left-3 {
+  left: auto !important;
+  right: 0.75rem;
+}
+
+[dir="rtl"] .right-3 {
+  right: auto !important;
+  left: 0.75rem;
+}
+
+[dir="rtl"] .pl-9 {
+  padding-left: 0 !important;
+  padding-right: 2.25rem;
+}
+
+[dir="rtl"] .pl-10 {
+  padding-left: 0 !important;
+  padding-right: 2.5rem;
+}
+
+[dir="rtl"] .pl-14 {
+  padding-left: 0 !important;
+  padding-right: 3.5rem;
+}
+
+[dir="rtl"] .pr-10 {
+  padding-right: 0 !important;
+  padding-left: 2.5rem;
+}
+
+[dir="rtl"] .space-x-2 > * + * {
+  margin-left: 0 !important;
+  margin-right: 0.5rem;
+}
+
+[dir="rtl"] .flex-row {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] aside {
+  border-right: none !important;
+  border-left: 1px solid var(--glass-border);
+}
+
+[dir="rtl"] .border-r {
+  border-right: none !important;
+  border-left: 1px solid var(--glass-border);
+}

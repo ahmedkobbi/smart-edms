@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, Loader2, Lock, Mail, KeyRound, ArrowRight, Eye, EyeOff, Fingerprint } from 'lucide-react';
+import { Shield, Loader2, Lock, Mail, KeyRound, ArrowRight, Eye, EyeOff, Fingerprint, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
@@ -305,6 +305,45 @@ export default function LoginPage() {
                 </Link>
               </motion.div>
             )}
+
+            {!needsMfa && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="relative"
+              >
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-slate-200 dark:border-slate-800" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-white/80 dark:bg-slate-900/80 px-2 text-muted-foreground">or</span>
+                </div>
+              </motion.div>
+            )}
+
+            {!needsMfa && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.55 }}
+                className="space-y-2"
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full glass-input border-0 h-11"
+                  onClick={() => {
+                    // Will be replaced with actual passkey flow
+                    toast({ title: 'Passkey sign-in', description: 'Passkey authentication will be available after enrollment in Settings → Security.' });
+                  }}
+                >
+                  <Fingerprint className="mr-2 h-4 w-4" />
+                  Sign in with passkey
+                </Button>
+                <SsoButtons />
+              </motion.div>
+            )}
           </form>
         </motion.div>
 
@@ -320,5 +359,41 @@ export default function LoginPage() {
         </motion.p>
       </motion.div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+//  SSO Provider Buttons
+// ---------------------------------------------------------------------------
+
+function SsoButtons() {
+  const [providers, setProviders] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/admin/sso-providers/public')
+      .then((r) => r.ok ? r.json() : { items: [] })
+      .then((data) => setProviders(data.items || []))
+      .catch(() => {});
+  }, []);
+
+  if (providers.length === 0) return null;
+
+  return (
+    <>
+      {providers.map((p) => (
+        <Button
+          key={p.id}
+          type="button"
+          variant="outline"
+          className="w-full glass-input border-0 h-11"
+          onClick={() => {
+            window.location.href = `/api/auth/sso/${p.id}/init`;
+          }}
+        >
+          <LogIn className="mr-2 h-4 w-4" />
+          Sign in with {p.name}
+        </Button>
+      ))}
+    </>
   );
 }
