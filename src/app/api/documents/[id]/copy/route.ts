@@ -1,12 +1,16 @@
 /**
  * Smart EDMS — Copy document (creates new doc + v1 with same content)
  * POST /api/documents/:id/copy   { title?, folderId? }
+ *
+ * SECURITY FIX (H1): Caller must have read access to the source document.
+ * Previously any end_user could copy any tenant document (bypassing the
+ * document:read.own restriction) and then read the copy as its new owner.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
-import { PERMISSIONS } from '@/lib/auth/permissions';
+import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
 import { getFileStorage, buildStorageKey } from '@/lib/storage/file-storage';
 import { sha256, sha1 } from '@/lib/auth/crypto';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
@@ -25,11 +29,25 @@ export const POST = createApiHandler(
   async (req: NextRequest, ctx, params) => {
     const body = copySchema.parse(await req.json());
 
+    // SECURITY FIX (H1): Check read access to the source document.
+    // Users without DOCUMENT_READ can only copy documents they own
+    // or that have been explicitly shared with them.
+    const canReadAll = hasPermission(ctx.session.user.permissions, PERMISSIONS.DOCUMENT_READ);
     const source = await db.document.findFirst({
-      where: { id: params!.id, tenantId: ctx.tenantId, deletedAt: null },
+      where: {
+        id: params!.id,
+        tenantId: ctx.tenantId,
+        deletedAt: null,
+        ...(canReadAll ? {} : {
+          OR: [
+            { ownerId: ctx.userId },
+            { shares: { some: { recipientUserId: ctx.userId, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } } },
+          ],
+        }),
+      },
       include: { versions: { orderBy: { versionNumber: 'desc' }, take: 1 } },
     });
-    if (!source) throw ApiError.notFound('document_not_found', 'Source document not found');
+    if (!source) throw ApiError.notFound('document_not_found', 'Source document not found or you do not have access');
     const sourceVersion = source.versions[0];
     if (!sourceVersion) throw ApiError.badRequest('no_version', 'Source has no versions');
 

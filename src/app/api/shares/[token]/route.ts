@@ -1,11 +1,17 @@
 /**
  * Smart EDMS — Public share view
  *
- * GET /api/shares/:token               verify share + return document metadata
+ * GET /api/shares/:token               verify share + return minimal metadata
  * POST /api/shares/:token/view         { password? } → returns signed URL + records view
  *
  * No authentication required — the token IS the credential.
  * Enforces: expiry, view count, password, watermark.
+ *
+ * SECURITY FIXES:
+ *   H3: GET no longer leaks document title/description/classification/owner
+ *       when the share has a password. Only returns hasPassword + expiresAt.
+ *   H4: maxViews check-and-increment is now atomic (updateMany with conditional WHERE).
+ *   L3: All "dead" states return uniform 410 Gone with generic message.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -13,13 +19,43 @@ import { db } from '@/lib/db';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { fireWebhook } from '@/lib/notifications/notify';
 import { getFileStorage } from '@/lib/storage/file-storage';
-import { ApiError } from '@/lib/api/handler';
 import argon2 from 'argon2';
 import { z } from 'zod';
+
+function shareGone(code: string): NextResponse {
+  // SECURITY FIX (L3): Uniform 410 for all dead states (no status oracle)
+  return NextResponse.json({ error: { code: 'gone', message: 'This share link is no longer available.' } }, { status: 410 });
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const share = await db.share.findUnique({
+    where: { token },
+    include: {
+      document: { select: { deletedAt: true } },
+    },
+  });
+  if (!share) return NextResponse.json({ error: { code: 'not_found', message: 'Share not found' } }, { status: 404 });
+  if (share.revokedAt) return shareGone('revoked');
+  if (share.expiresAt && share.expiresAt < new Date()) return shareGone('expired');
+  if (share.maxViews && share.viewCount >= share.maxViews) return shareGone('max_views');
+  if (share.document.deletedAt) return shareGone('document_deleted');
+
+  // SECURITY FIX (H3): If the share has a password, return ONLY the fact
+  // that a password is required — do NOT leak document title, description,
+  // classification, or owner name.
+  if (share.passwordHash) {
+    return NextResponse.json({
+      share: {
+        hasPassword: true,
+        expiresAt: share.expiresAt,
+        watermark: share.watermark,
+      },
+    });
+  }
+
+  // No password — safe to return metadata
+  const fullShare = await db.share.findUnique({
     where: { token },
     include: {
       document: {
@@ -27,36 +63,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
       },
     },
   });
-  if (!share) return NextResponse.json({ error: { code: 'not_found', message: 'Share not found' } }, { status: 404 });
-  if (share.revokedAt) return NextResponse.json({ error: { code: 'revoked', message: 'Share has been revoked' } }, { status: 410 });
-  if (share.expiresAt && share.expiresAt < new Date())
-    return NextResponse.json({ error: { code: 'expired', message: 'Share has expired' } }, { status: 410 });
-  if (share.maxViews && share.viewCount >= share.maxViews)
-    return NextResponse.json({ error: { code: 'max_views', message: 'Maximum views reached' } }, { status: 410 });
-  if (share.document.deletedAt)
-    return NextResponse.json({ error: { code: 'document_deleted', message: 'Document no longer available' } }, { status: 410 });
 
   return NextResponse.json({
     share: {
-      token: share.token,
-      mode: share.mode,
-      hasPassword: !!share.passwordHash,
-      expiresAt: share.expiresAt,
-      watermark: share.watermark,
-      viewCount: share.viewCount,
-      maxViews: share.maxViews,
+      token: fullShare!.token,
+      mode: fullShare!.mode,
+      hasPassword: false,
+      expiresAt: fullShare!.expiresAt,
+      watermark: fullShare!.watermark,
+      viewCount: fullShare!.viewCount,
+      maxViews: fullShare!.maxViews,
       document: {
-        id: share.document.id,
-        title: share.document.title,
-        description: share.document.description,
-        classification: share.document.classification
-          ? {
-              code: share.document.classification.code,
-              name: share.document.classification.name,
-              color: share.document.classification.color,
-            }
+        id: fullShare!.document.id,
+        title: fullShare!.document.title,
+        description: fullShare!.document.description,
+        classification: fullShare!.document.classification
+          ? { code: fullShare!.document.classification.code, name: fullShare!.document.classification.name, color: fullShare!.document.classification.color }
           : null,
-        ownerName: share.document.owner?.name ?? null,
+        ownerName: fullShare!.document.owner?.name ?? null,
       },
     },
   });
@@ -77,12 +101,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     },
   });
   if (!share) return NextResponse.json({ error: { code: 'not_found', message: 'Share not found' } }, { status: 404 });
-  if (share.revokedAt) return NextResponse.json({ error: { code: 'revoked', message: 'Share revoked' } }, { status: 410 });
-  if (share.expiresAt && share.expiresAt < new Date())
-    return NextResponse.json({ error: { code: 'expired', message: 'Share expired' } }, { status: 410 });
-  if (share.maxViews && share.viewCount >= share.maxViews)
-    return NextResponse.json({ error: { code: 'max_views', message: 'Maximum views reached' } }, { status: 410 });
+  if (share.revokedAt) return shareGone('revoked');
+  if (share.expiresAt && share.expiresAt < new Date()) return shareGone('expired');
+  if (share.document.deletedAt) return shareGone('document_deleted');
 
+  // Password check
   if (share.passwordHash) {
     if (!body.password) return NextResponse.json({ error: { code: 'password_required', message: 'Password required' } }, { status: 401 });
     try {
@@ -93,6 +116,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     }
   }
 
+  // SECURITY FIX (H4): Atomic maxViews check-and-increment.
+  // The previous code did a non-atomic read-then-write, allowing N concurrent
+  // requests to all pass the maxViews check before any incremented the counter.
+  // Now we use updateMany with a conditional WHERE clause — only one request
+  // can "win" if maxViews is reached.
+  if (share.maxViews) {
+    const incrementResult = await db.share.updateMany({
+      where: {
+        id: share.id,
+        viewCount: { lt: share.maxViews },
+      },
+      data: { viewCount: { increment: 1 } },
+    });
+    if (incrementResult.count === 0) {
+      return shareGone('max_views');
+    }
+  } else {
+    // No maxViews limit — just increment
+    await db.share.update({
+      where: { id: share.id },
+      data: { viewCount: { increment: 1 } },
+    });
+  }
+
   const version = share.document.versions[0];
   if (!version) return NextResponse.json({ error: { code: 'no_version', message: 'No file available' } }, { status: 404 });
 
@@ -100,12 +147,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   const mode = share.mode === 'download' ? 'attachment' : 'inline';
   const url = await storage.getSignedDownloadUrl(version.storageKey, 60, mode === 'inline' ? undefined : version.fileName);
 
-  await db.share.update({
-    where: { id: share.id },
-    data: { viewCount: { increment: 1 } },
-  });
-
-  // Audit (tenant-scoped, no actor)
   await recordAuditEvent({
     tenantId: share.tenantId,
     eventType: 'share.view',
@@ -135,11 +176,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       id: share.document.id,
       title: share.document.title,
       classification: share.document.classification
-        ? {
-            code: share.document.classification.code,
-            name: share.document.classification.name,
-            color: share.document.classification.color,
-          }
+        ? { code: share.document.classification.code, name: share.document.classification.name, color: share.document.classification.color }
         : null,
     },
   });

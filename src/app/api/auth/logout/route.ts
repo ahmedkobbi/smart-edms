@@ -57,7 +57,8 @@ export async function POST(req: NextRequest) {
   const res = NextResponse.json({ ok: true, redirect: '/login' });
   res.cookies.delete('next-auth.session-token');
   res.cookies.delete('__Secure-next-auth.session-token');
-  // Also clear the custom cookie names from auth-options
+  // SECURITY FIX (H15): Also clear the legacy custom cookie name for
+  // backward compatibility with existing sessions.
   res.cookies.delete('smart_edms_session');
   res.cookies.delete('smart_edms_csrf');
 

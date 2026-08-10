@@ -104,14 +104,36 @@ export const PATCH = createApiHandler(
   async (req: NextRequest, ctx: ApiContext, params) => {
     const body = patchSchema.parse(await req.json());
 
+    // SECURITY FIX (H5): Ownership check — users without DOCUMENT_READ
+    // can only PATCH documents they own or have been shared with.
+    const canReadAll = hasPermission(ctx.session.user.permissions, PERMISSIONS.DOCUMENT_READ);
     const doc = await db.document.findFirst({
-      where: { id: params!.id, tenantId: ctx.tenantId, deletedAt: null },
+      where: {
+        id: params!.id,
+        tenantId: ctx.tenantId,
+        deletedAt: null,
+        ...(canReadAll ? {} : {
+          OR: [
+            { ownerId: ctx.userId },
+            { shares: { some: { recipientUserId: ctx.userId, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } } },
+          ],
+        }),
+      },
       include: { classification: true },
     });
-    if (!doc) throw ApiError.notFound('document_not_found', 'Document not found');
+    if (!doc) throw ApiError.notFound('document_not_found', 'Document not found or you do not have access');
 
     if (doc.isLocked && doc.lockedBy !== ctx.userId) {
       throw ApiError.forbidden('document_locked', `Document is locked by another user`);
+    }
+
+    // SECURITY FIX (H5): Security-sensitive fields (shareAllowed, downloadAllowed,
+    // previewAllowed, watermarkEnabled, classificationId) require elevated
+    // permissions — not just DOCUMENT_UPDATE.
+    const securityFields = ['shareAllowed', 'downloadAllowed', 'previewAllowed', 'watermarkEnabled', 'classificationId'];
+    const attemptingSecurityChange = securityFields.some((f) => body[f as keyof typeof body] !== undefined);
+    if (attemptingSecurityChange && !canReadAll) {
+      throw ApiError.forbidden('insufficient_permissions', 'Modifying security flags requires document:read permission (elevated role)');
     }
 
     // Classification change handling

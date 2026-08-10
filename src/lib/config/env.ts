@@ -25,8 +25,10 @@ const ENV_VARS: EnvVar[] = [
     name: 'NEXTAUTH_SECRET',
     required: true,
     description: 'NextAuth JWT secret (generate with: openssl rand -base64 32)',
-    validator: (v) => v.length >= 16,
-    errorMessage: 'Must be at least 16 characters',
+    // SECURITY FIX (H11): Require 32+ chars (256-bit minimum) to prevent
+    // offline brute-force attacks on JWT encryption key derivation.
+    validator: (v) => v.length >= 32,
+    errorMessage: 'Must be at least 32 characters (use: openssl rand -base64 32)',
   },
   {
     name: 'NEXTAUTH_URL',

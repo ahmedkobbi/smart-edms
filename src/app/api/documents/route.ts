@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler, ApiError, ApiContext } from '@/lib/api/handler';
-import { PERMISSIONS } from '@/lib/auth/permissions';
+import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
 import { getFileStorage, buildStorageKey } from '@/lib/storage/file-storage';
 import { validateUploadedFile } from '@/lib/storage/file-validation';
 import { sha256, sha1 } from '@/lib/auth/crypto';
@@ -38,9 +38,21 @@ export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.SEARCH_USE },
   async (req: NextRequest, ctx: ApiContext) => {
     const params = listQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
+
+    // SECURITY FIX (H2): Restrict document listing by ownership/access.
+    // Users without DOCUMENT_READ can only see documents they own or
+    // that have been explicitly shared with them — not every document
+    // in the tenant.
+    const canReadAll = hasPermission(ctx.session.user.permissions, PERMISSIONS.DOCUMENT_READ);
     const where = {
       tenantId: ctx.tenantId,
       deletedAt: null,
+      ...(canReadAll ? {} : {
+        OR: [
+          { ownerId: ctx.userId },
+          { shares: { some: { recipientUserId: ctx.userId, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } } },
+        ],
+      }),
       ...(params.classificationId ? { classificationId: params.classificationId } : {}),
       ...(params.state ? { state: params.state } : {}),
       ...(params.folderId ? { folderId: params.folderId } : {}),

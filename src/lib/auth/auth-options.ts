@@ -453,7 +453,12 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   cookies: {
     sessionToken: {
-      name: 'smart_edms_session',
+      // SECURITY FIX (H15): Use the standard NextAuth cookie name to match
+      // what SSO/passkey/logout handlers set. Previous name 'smart_edms_session'
+      // caused SSO/passkey users to have two different session cookies.
+      name: process.env.NODE_ENV === 'production'
+        ? '__Secure-next-auth.session-token'
+        : 'next-auth.session-token',
       options: {
         httpOnly: true,
         sameSite: 'lax',

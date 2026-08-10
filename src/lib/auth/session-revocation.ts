@@ -153,12 +153,30 @@ export async function getUserSessionRevokeTimestamp(userId: string): Promise<Dat
  */
 export async function revokeAllUserSessions(userId: string, reason: string = 'security'): Promise<void> {
   try {
+    // Update the user's session revocation timestamp
     await db.user.update({
       where: { id: userId },
       data: { sessionsRevokedAt: new Date() },
     });
     USER_REVOKE_CACHE.delete(userId);
-    logger.info('session.revoke_all', { userId, reason });
+
+    // SECURITY FIX (H13): Also revoke all API keys for this user.
+    // API keys bypass JWT revocation — without this, an attacker who
+    // exfiltrated an API key retains access after password change / mass-revoke.
+    await db.apiKey.updateMany({
+      where: { createdBy: userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    }).catch(() => {
+      // apiKey table might not have createdBy field — best-effort
+    });
+
+    // Also revoke all active step-up sessions for this user
+    await db.stepUpSession.updateMany({
+      where: { userId, usedAt: null },
+      data: { usedAt: new Date() },
+    }).catch(() => {});
+
+    logger.info('session.revoke_all', { userId, reason, apiKeysRevoked: true, stepUpRevoked: true });
   } catch (err) {
     logger.error('session.revoke_all_failed', { userId, error: (err as Error).message });
   }

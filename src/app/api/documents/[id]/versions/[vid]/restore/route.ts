@@ -20,6 +20,11 @@ export const POST = createApiHandler(
     audit: { eventType: 'document.version.restore', action: 'create', resourceType: 'document', alwaysAudit: true },
   },
   async (req: NextRequest, ctx, params) => {
+    // SECURITY FIX (H6): Ownership check
+    const { canModifyDocument } = await import('@/lib/documents/access-control');
+    const hasAccess = await canModifyDocument(ctx.userId, ctx.tenantId, params!.id, ctx.session.user.permissions);
+    if (!hasAccess) throw ApiError.notFound('document_not_found', 'Document not found or you do not have write access');
+
     const doc = await db.document.findFirst({
       where: { id: params!.id, tenantId: ctx.tenantId, deletedAt: null },
     });
