@@ -232,7 +232,8 @@
     "developer": "Entwickler",
     "sessions": "Sitzungen",
     "locales": "Sprachen & Übersetzungen",
-    "localePrefs": "Sprache & Gebietsschema"
+    "localePrefs": "Sprache & Gebietsschema",
+    "notificationRouting": "Benachrichtigungsrouting"
   },
   "settings": {
     "title": "Settings",

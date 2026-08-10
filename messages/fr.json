@@ -272,7 +272,8 @@
     "developer": "Développeur",
     "sessions": "Sessions",
     "locales": "Langues et traductions",
-    "localePrefs": "Langue et locale"
+    "localePrefs": "Langue et locale",
+    "notificationRouting": "Routage des notifications"
   },
   "emails": {
     "common": {

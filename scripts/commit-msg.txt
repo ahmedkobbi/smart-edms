@@ -1,92 +1,40 @@
-feat: Profile UI + ClassificationLocalization + timezone-aware dates + retention triggers
+feat: notification routing config + sidebar nav
 
-Phase A + B of MEDIUM-severity audit items.
+Phase C part 1 — Alert routing config.
 
-## Phase A — Profile UI (editable)
+## Notification routing
 
-**Gap:** `GET /api/me` was read-only; settings page showed profile info
-but couldn't edit name, jobTitle, department, or avatarUrl.
-
-**Implemented:**
-- Rewrote `settings/profile-section.tsx` as an editable form with:
-  - Inline edit mode (Edit button → form → Save/Cancel)
-  - Field-level validation (name required, max lengths, URL validation)
-  - Optimistic UI via React Query mutation
-  - Only sends changed fields in the PATCH
-  - `dir="auto"` on all free-text inputs
-  - Localized labels (17 new i18n keys across 5 locales)
-  - Toast feedback on success/error
-- Wires to the existing `PATCH /api/me` endpoint (audited, no step-up
-  required for self-profile edits)
-
-## Phase A — ClassificationLocalization (was dead code)
-
-**Gap:** `ClassificationLocalization` Prisma model existed but had no
-API, no UI, and no back-relation on `Classification`. Custom Arabic
-labels for tenant-specific classifications were impossible.
+**Gap:** Severity was set per-notification but there was no admin UI to
+configure routing rules (e.g. "critical → email + Slack; warning →
+in-app only"). The master prompt §9.13 requires "alert severity and
+routing must be configurable."
 
 **Implemented:**
-- Added `localizations` back-relation on `Classification` model
-- Added `classification` relation on `ClassificationLocalization` model
+- New `NotificationRouting` Prisma model:
+  - `minSeverity` (info | success | warning | critical) — minimum
+    severity to trigger the route
+  - `typePattern` (e.g. `security.*`, `workflow.*`, `*`) — glob match
+    on notification type
+  - `channels` (JSON array: in_app, email, webhook) — delivery methods
+  - `targetRoles` (JSON array of role names) — who receives; empty =
+    original recipient
+  - `priority` (0-1000, higher = evaluated first)
+  - `enabled` boolean
 - New API routes:
-  - `GET /api/admin/classifications/:id/localizations` — list all
-  - `PUT /api/admin/classifications/:id/localizations/:locale` — upsert
-  - `DELETE /api/admin/classifications/:id/localizations/:locale` — delete
-  - All require `ADMIN_CLASSIFICATIONS_MANAGE` + step-up auth + audit
-- Updated `GET /api/classifications` (public) to:
-  - Negotiate locale from `?locale=` param or `Accept-Language` header
-  - Include `localizations` relation filtered by negotiated locale
-  - Return localized `name` + `description` with fallback to default
-  - Include `localized: boolean` flag + `locale` in response
-- New `LocalizationEditor` dialog component:
-  - Shows all 5 locales (en, fr, ar, es, de) with flags + names
-  - Per-locale inline edit (name + description)
-  - "Override" vs "Default" badges
-  - RTL-aware inputs for Arabic
-  - Live preview in classification color
-  - Delete override (reverts to default)
-  - Invalidates classification cache on save
-- Wired "Localize" button into each classification row on admin page
-
-## Phase B — Timezone-aware date formatting
-
-**Gap:** `UserLocalePreference.timezone` was stored and editable but
-never read by any formatter. Retention/disposition dates displayed in
-server time, not the user's preferred timezone.
-
-**Implemented:**
-- `formatDate()` now accepts optional `timezone` param (IANA name)
-- When timezone is provided, uses `Intl.DateTimeFormat` with `timeZone`
-  option (date-fns doesn't natively support timezones)
-- `formatDateTime()` passes timezone through
-- Islamic calendar support also respects timezone
-- Added `COMMON_TIMEZONES` export — 35 common IANA timezones grouped by
-  region (Universal, Africa, Asia, Europe, Americas, Pacific) for the
-  locale settings dropdown
-- Fixed `formatRelativeTime()` — was passing 3 args to date-fns
-  `formatDistanceToNow` which only takes 2 (date + options)
-
-## Phase B — Retention start triggers
-
-**Gap:** Only `document.created` trigger worked. `document.lastModified`
-and `document.closed` were accepted in the schema but never recomputed.
-
-**Implemented:**
-- Added `closedAt DateTime?` field to `Document` model
-- `PATCH /api/documents/:id` now recomputes `retentionDisposeAfter`
-  when the document has a retention schedule with
-  `startTrigger='document.lastModified'` — the dispose date moves
-  forward by the modification time
-- New `POST /api/documents/:id/close` endpoint:
-  - Sets `closedAt = now()`
-  - If retention schedule uses `document.closed` trigger, recomputes
-    `retentionDisposeAfter` from `closedAt + retentionDays`
-  - Idempotent (updates `closedAt` on re-close)
-  - Audited as `document.close`
-  - Respects document lock
+  - `GET /api/admin/notification-routing` — list all rules
+  - `POST /api/admin/notification-routing` — create (step-up + audit)
+  - `PATCH /api/admin/notification-routing/:id` — update (step-up + audit)
+  - `DELETE /api/admin/notification-routing/:id` — delete (step-up + audit)
+- New admin UI page at `/admin/notification-routing`:
+  - Create dialog with severity selector, type pattern, channel toggles
+    (in-app / email / webhook), target-roles input, priority
+  - Per-rule badges showing severity, type pattern, channels, target roles
+  - Enable/Disable toggle + Delete button per rule
+  - Empty state with explanatory text
+  - Added to sidebar navigation under Administration
+- i18n key `admin.notificationRouting` added to all 5 locales
 
 ## Test results
-
 - 263/263 tests passing
 - Lint: clean
-- Translations: 376/376 keys complete across all 5 locales
+- Translations: 377/377 keys complete

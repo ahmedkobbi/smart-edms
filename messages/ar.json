@@ -218,7 +218,8 @@
     "developer": "المطور",
     "sessions": "الجلسات",
     "locales": "اللغات والترجمات",
-    "localePrefs": "اللغة والإعداد المحلي"
+    "localePrefs": "اللغة والإعداد المحلي",
+    "notificationRouting": "توجيه الإشعارات"
   },
   "settings": {
     "title": "الإعدادات",

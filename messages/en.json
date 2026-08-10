@@ -218,7 +218,8 @@
     "developer": "Developer",
     "sessions": "Sessions",
     "locales": "Locales & Translations",
-    "localePrefs": "Language & Locale"
+    "localePrefs": "Language & Locale",
+    "notificationRouting": "Notification Routing"
   },
   "settings": {
     "title": "Settings",

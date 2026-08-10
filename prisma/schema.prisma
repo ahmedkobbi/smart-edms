@@ -63,6 +63,7 @@ model Tenant {
   breakGlassAccesses     BreakGlassAccess[]
   dualControlRequests    DualControlRequest[]
   revokedSessions        RevokedSession[]
+  notificationRoutings   NotificationRouting[]
   ssoProviders           SsoProvider[]
   auditReceipts          AuditReceipt[]
   subscription           Subscription?
@@ -697,6 +698,32 @@ model Notification {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, userId, readAt])
+}
+
+// ============================================================================
+//  NOTIFICATION ROUTING — severity + type-based delivery channel config
+// ============================================================================
+
+model NotificationRouting {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  // What triggers this route: severity level + optional type pattern
+  minSeverity String   @default("warning") // info | success | warning | critical
+  typePattern String   @default("*")       // e.g. "security.*", "workflow.*", "*"
+  // Delivery channels — which methods to use for matching notifications
+  channels    String   @default("[\"in_app\"]") // JSON array: in_app, email, webhook
+  // Who receives — role-based routing
+  targetRoles String   @default("[]") // JSON array of role names; empty = the notification's original recipient
+  enabled     Boolean  @default(true)
+  priority    Int      @default(100) // higher = evaluated first
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId, enabled])
 }
 
 // ============================================================================
