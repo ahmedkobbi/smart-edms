@@ -42,39 +42,12 @@ const RESULT_CONFIG = {
   },
 };
 
-// Localized event type labels
-const EVENT_LABELS: Record<string, { en: string; ar: string }> = {
-  'auth.login': { en: 'Sign in', ar: 'تسجيل الدخول' },
-  'auth.login.deny': { en: 'Sign in denied', ar: 'رفض تسجيل الدخول' },
-  'document.read': { en: 'Document viewed', ar: 'عرض المستند' },
-  'document.create': { en: 'Document created', ar: 'إنشاء مستند' },
-  'document.upload': { en: 'Document uploaded', ar: 'رفع مستند' },
-  'document.update': { en: 'Document updated', ar: 'تحديث المستند' },
-  'document.delete': { en: 'Document deleted', ar: 'حذف المستند' },
-  'document.download': { en: 'Document downloaded', ar: 'تنزيل المستند' },
-  'document.preview': { en: 'Document previewed', ar: 'معاينة المستند' },
-  'document.redact': { en: 'Document redacted', ar: 'تنقيح المستند' },
-  'document.lock': { en: 'Document locked', ar: 'قفل المستند' },
-  'document.unlock': { en: 'Document unlocked', ar: 'فتح المستند' },
-  'document.classify': { en: 'Classification changed', ar: 'تغيير التصنيف' },
-  'share.create': { en: 'Share link created', ar: 'إنشاء رابط مشاركة' },
-  'share.view': { en: 'Share viewed', ar: 'عرض المشاركة' },
-  'share.revoke': { en: 'Share revoked', ar: 'إلغاء المشاركة' },
-  'workflow.create': { en: 'Workflow created', ar: 'إنشاء سير عمل' },
-  'workflow.approve': { en: 'Workflow approved', ar: 'موافقة على سير عمل' },
-  'admin.user.create': { en: 'User created', ar: 'إنشاء مستخدم' },
-  'admin.user.update': { en: 'User updated', ar: 'تحديث المستخدم' },
-  'admin.user.suspend': { en: 'User suspended', ar: 'تعليق المستخدم' },
-  'admin.policy.create': { en: 'Policy created', ar: 'إنشاء سياسة' },
-  'admin.classification.create': { en: 'Classification created', ar: 'إنشاء تصنيف' },
-  'authz.deny': { en: 'Access denied', ar: 'رفض الوصول' },
-  'api.error': { en: 'API error', ar: 'خطأ في API' },
-};
+// Localized event type labels — now uses the comprehensive auto-generated
+// label file covering 128 event types × 5 locales (en, fr, ar, es, de).
+import { getAuditEventLabel } from './audit-event-labels';
 
 export function getEventLabel(eventType: string, locale: string = 'en'): string {
-  const label = EVENT_LABELS[eventType];
-  if (!label) return eventType;
-  return locale === 'ar' ? label.ar : label.en;
+  return getAuditEventLabel(eventType, locale);
 }
 
 export function AuditTimeline({ events, locale = 'en' }: { events: TimelineEvent[]; locale?: string }) {

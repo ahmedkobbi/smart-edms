@@ -1,40 +1,53 @@
-feat: notification routing config + sidebar nav
+feat: comprehensive audit event labels (128 types × 5 locales)
 
-Phase C part 1 — Alert routing config.
+Phase C part 2 — Audit event labels.
 
-## Notification routing
-
-**Gap:** Severity was set per-notification but there was no admin UI to
-configure routing rules (e.g. "critical → email + Slack; warning →
-in-app only"). The master prompt §9.13 requires "alert severity and
-routing must be configurable."
+**Gap:** Only ~23 event types had labels, and only in en/ar. ~60+ event
+types fell through to the raw machine-readable code (e.g. "ai.pii.detected"
+displayed as-is in the audit timeline).
 
 **Implemented:**
-- New `NotificationRouting` Prisma model:
-  - `minSeverity` (info | success | warning | critical) — minimum
-    severity to trigger the route
-  - `typePattern` (e.g. `security.*`, `workflow.*`, `*`) — glob match
-    on notification type
-  - `channels` (JSON array: in_app, email, webhook) — delivery methods
-  - `targetRoles` (JSON array of role names) — who receives; empty =
-    original recipient
-  - `priority` (0-1000, higher = evaluated first)
-  - `enabled` boolean
-- New API routes:
-  - `GET /api/admin/notification-routing` — list all rules
-  - `POST /api/admin/notification-routing` — create (step-up + audit)
-  - `PATCH /api/admin/notification-routing/:id` — update (step-up + audit)
-  - `DELETE /api/admin/notification-routing/:id` — delete (step-up + audit)
-- New admin UI page at `/admin/notification-routing`:
-  - Create dialog with severity selector, type pattern, channel toggles
-    (in-app / email / webhook), target-roles input, priority
-  - Per-rule badges showing severity, type pattern, channels, target roles
-  - Enable/Disable toggle + Delete button per rule
-  - Empty state with explanatory text
-  - Added to sidebar navigation under Administration
-- i18n key `admin.notificationRouting` added to all 5 locales
+- New `src/components/audit/audit-event-labels.ts` — auto-generated from
+  `scripts/generate-audit-labels.py`. Covers 128 event types × 5 locales
+  (en, fr, ar, es, de) = 640 translated labels.
+- Categories covered:
+  - Authentication (login, logout, password reset, step-up, concurrent session)
+  - Authorization (deny, policy.deny, policy.violation)
+  - Document lifecycle (read, create, upload, update, delete, download,
+    preview, redact, lock, unlock, classify, crypto_shred, close, copy,
+    version.create, version.restore, record.declare)
+  - Sharing (create, view, revoke)
+  - Workflow (create, approve, delegate, escalation.run)
+  - Admin — Users (create, update, suspend)
+  - Admin — Roles & Groups (create, update, delete)
+  - Admin — Policies & Classifications (create, update, delete, localization)
+  - Admin — Retention & Legal Hold (create, update, delete, release)
+  - Admin — Dispositions (create, approve)
+  - Admin — Integrations (API keys, service accounts, webhooks, SSO)
+  - Admin — Tenant (create, update)
+  - Admin — Other (key rotation, search reindex, metadata schemas, vocab,
+    notification routing)
+  - Billing (update)
+  - Break-glass (request, granted)
+  - Dual control (request, decide)
+  - Recertification (create)
+  - Invitations (create, sent, accepted)
+  - AI (suggestion, PII detection, summarization, metadata, policy risk)
+  - Audit (export, verify, receipt generate)
+  - Evidence (generate)
+  - Folders (create, apply classification)
+  - Device (revoked, update)
+  - Session (revoke all)
+  - User self-service (password change, MFA, locale, profile)
+  - Passkey (register)
+  - Anomaly (resolved)
+  - Collaboration (join)
+  - Errors (api.error)
+- Updated `audit-timeline.tsx` to use the new comprehensive label file
+  instead of the hardcoded 23-event map.
+- The generator script is idempotent and can be re-run when new event
+  types are added to the codebase.
 
 ## Test results
 - 263/263 tests passing
 - Lint: clean
-- Translations: 377/377 keys complete
