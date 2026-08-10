@@ -64,8 +64,6 @@ export async function alertPolicyViolation(
       tenantId,
       userId: so.userId,
       type: 'policy.violation',
-      title: 'Policy violation detected',
-      body: `${details.actorEmail} was denied ${details.action} on ${details.resourceType}:${details.resourceName || details.resourceId}. Reason: ${details.reason}`,
       severity: 'warning',
       link: '/admin/anomalies',
       metadata: {
@@ -73,6 +71,9 @@ export async function alertPolicyViolation(
         action: details.action,
         resourceType: details.resourceType,
         resourceId: details.resourceId,
+        actor: details.actorEmail,
+        resource: `${details.resourceType}:${details.resourceName || details.resourceId}`,
+        reason: details.reason,
       },
     });
   }
@@ -150,11 +151,9 @@ export async function checkSystemHealth(tenantId: string): Promise<{
         tenantId,
         userId: a.userId,
         type: 'system.health_degraded',
-        title: '⚠️ System health degraded',
-        body: `Health check found issues: ${issues.join('; ')}`,
         severity: 'critical',
         link: '/admin/security',
-        metadata: { issues },
+        metadata: { issues: issues.join('; ') },
       });
     }
   }

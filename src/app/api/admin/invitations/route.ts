@@ -12,6 +12,7 @@ import { randomToken } from '@/lib/auth/crypto';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { notify } from '@/lib/notifications/notify';
 import { sendInvitationEmail } from '@/lib/notifications/email';
+import { getUserLocale } from '@/i18n/server-translator';
 import { z } from 'zod';
 
 export const GET = createApiHandler(
@@ -85,12 +86,16 @@ export const POST = createApiHandler(
       where: { id: ctx.tenantId },
       select: { name: true },
     });
-    await sendInvitationEmail(
-      body.email,
-      tenant?.name || 'Smart EDMS',
+    // Send invitation email — invitation is for a NEW user (no UserLocalePreference yet),
+    // so we fall back to the inviter's locale (the admin who knows the invitee best).
+    const locale = await getUserLocale(ctx.userId);
+    await sendInvitationEmail({
+      to: body.email,
+      tenantName: tenant?.name || 'Smart EDMS',
       inviteUrl,
-      ctx.session.user.email || 'unknown',
-    );
+      inviterEmail: ctx.session.user.email || 'unknown',
+      locale,
+    });
 
     return NextResponse.json({
       invitation,

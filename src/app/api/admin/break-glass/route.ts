@@ -94,6 +94,7 @@ export const POST = createApiHandler(
     });
 
     // Notify all tenant admins (except the requester) for oversight
+    // Pass email + reason in metadata so the i18n template can interpolate them.
     const admins = await db.roleAssignment.findMany({
       where: {
         tenantId: ctx.tenantId,
@@ -107,25 +108,35 @@ export const POST = createApiHandler(
         tenantId: ctx.tenantId,
         userId: a.userId,
         type: 'breakglass.alert',
-        title: '⚠️ Break-glass access granted',
-        body: `${ctx.session.user.email} was granted emergency admin access. Reason: ${body.reason}`,
         severity: 'critical',
         link: '/admin/security',
-        metadata: { breakGlassId: breakGlass.id, userId: ctx.userId, expiresAt: breakGlass.expiresAt },
+        metadata: {
+          breakGlassId: breakGlass.id,
+          userId: ctx.userId,
+          expiresAt: breakGlass.expiresAt,
+          email: ctx.session.user.email,
+          reason: body.reason,
+        },
       });
-      // Send email alert
+      // Send email alert — resolve admin's locale for full i18n
       const adminUser = await db.user.findUnique({
         where: { id: a.userId },
         select: { email: true },
       });
       if (adminUser?.email) {
-        sendBreakGlassAlert(
-          adminUser.email,
-          ctx.session.user.name || ctx.session.user.email,
-          ctx.session.user.email,
-          body.reason,
-          breakGlass.expiresAt,
-        ).catch(() => {});
+        const { getUserLocale } = await import('@/i18n/server-translator');
+        const locale = await getUserLocale(a.userId);
+        sendBreakGlassAlert({
+          to: adminUser.email,
+          userName: ctx.session.user.name || ctx.session.user.email,
+          userEmail: ctx.session.user.email,
+          reason: body.reason,
+          expiresAt: breakGlass.expiresAt,
+          locale,
+          reviewUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/security`,
+        }).catch((err) => {
+          console.warn('[break-glass] failed to send email to admin:', err);
+        });
       }
     }
 

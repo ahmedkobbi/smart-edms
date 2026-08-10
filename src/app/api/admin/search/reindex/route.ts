@@ -1,18 +1,25 @@
 /**
  * Smart EDMS — Search reindex endpoint
- * POST /api/admin/search/reindex
+ * POST /api/admin/search/reindex?scope=keyword|semantic|all
  *
- * Triggers a bulk reindex of all tenant documents into OpenSearch.
+ * Triggers a bulk reindex of all tenant documents.
+ *   - scope=keyword (default): re-index into OpenSearch (BM25 keyword search)
+ *   - scope=semantic: regenerate DocumentEmbedding rows (cosine semantic search)
+ *   - scope=all: both
+ *
  * Use when:
  *   - Setting up OpenSearch for the first time
  *   - After index mapping changes
  *   - After data migrations
+ *   - After enabling AI for a tenant (semantic embeddings)
+ *   - After swapping the embedding model (EMBEDDING_MODEL change)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiHandler } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { reindexTenant, isOpenSearchAvailable } from '@/lib/search/opensearch-service';
+import { reindexTenantEmbeddings } from '@/lib/search/semantic-search';
 import { logger } from '@/lib/config/logger';
 
 export const POST = createApiHandler(
@@ -22,22 +29,48 @@ export const POST = createApiHandler(
     audit: { eventType: 'admin.search.reindex', action: 'create', resourceType: 'tenant', alwaysAudit: true },
   },
   async (req: NextRequest, ctx) => {
-    const available = await isOpenSearchAvailable();
-    if (!available) {
+    const scope = (req.nextUrl.searchParams.get('scope') || 'keyword').toLowerCase();
+    if (!['keyword', 'semantic', 'all'].includes(scope)) {
       return NextResponse.json(
-        { error: { code: 'opensearch_unavailable', message: 'OpenSearch is not configured or unreachable. Set OPENSEARCH_HOST in environment.' } },
-        { status: 503 },
+        { error: { code: 'invalid_scope', message: 'scope must be one of: keyword, semantic, all' } },
+        { status: 400 },
       );
     }
 
-    logger.info('search.reindex_started', { tenantId: ctx.tenantId, actorId: ctx.userId });
+    logger.info('search.reindex_started', { tenantId: ctx.tenantId, actorId: ctx.userId, scope });
 
-    const result = await reindexTenant(ctx.tenantId);
+    const response: any = { ok: true, scope };
 
-    return NextResponse.json({
-      ok: true,
-      ...result,
-      message: `Reindexed ${result.indexed} document(s)${result.failed > 0 ? `, ${result.failed} failed` : ''}.`,
-    });
+    if (scope === 'keyword' || scope === 'all') {
+      const available = await isOpenSearchAvailable();
+      if (!available) {
+        if (scope === 'keyword') {
+          return NextResponse.json(
+            { error: { code: 'opensearch_unavailable', message: 'OpenSearch is not configured or unreachable. Set OPENSEARCH_HOST in environment.' } },
+            { status: 503 },
+          );
+        }
+        response.keyword = { skipped: true, reason: 'opensearch_unavailable' };
+      } else {
+        response.keyword = await reindexTenant(ctx.tenantId);
+      }
+    }
+
+    if (scope === 'semantic' || scope === 'all') {
+      // Semantic reindex works without OpenSearch — it only needs the
+      // DocumentTextIndex rows that are always present.
+      response.semantic = await reindexTenantEmbeddings(ctx.tenantId);
+    }
+
+    const parts: string[] = [];
+    if (response.keyword && !response.keyword.skipped) {
+      parts.push(`keyword: ${response.keyword.indexed} indexed, ${response.keyword.failed} failed`);
+    }
+    if (response.semantic) {
+      parts.push(`semantic: ${response.semantic.generated} generated, ${response.semantic.cached} cached, ${response.semantic.failed} failed`);
+    }
+    response.message = parts.length > 0 ? `Reindex complete — ${parts.join('; ')}.` : 'Reindex complete.';
+
+    return NextResponse.json(response);
   },
 );

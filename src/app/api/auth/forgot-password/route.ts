@@ -12,6 +12,7 @@ import { randomToken } from '@/lib/auth/crypto';
 import { sendPasswordResetEmail } from '@/lib/notifications/email';
 import { authRateLimiter } from '@/lib/security/rate-limit';
 import { logger } from '@/lib/config/logger';
+import { getUserLocale } from '@/i18n/server-translator';
 import { z } from 'zod';
 
 const schema = z.object({ email: z.string().email() });
@@ -49,7 +50,10 @@ export async function POST(req: NextRequest) {
   });
 
   const resetUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
-  await sendPasswordResetEmail(user.email, resetUrl);
+  // Resolve the user's preferred locale so the reset email arrives in their language.
+  // Falls back to 'en' if the user has no preference set.
+  const locale = await getUserLocale(user.id);
+  await sendPasswordResetEmail({ to: user.email, resetUrl, locale });
 
   logger.info('auth.forgot_password.sent', { userId: user.id, email: user.email, ip });
 

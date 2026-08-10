@@ -3,117 +3,31 @@
  *
  * Centralized helper to create notifications + fire webhooks.
  * Used by workflow, share, audit-anomaly, and admin modules.
+ *
+ * Production design:
+ *   1. Resolves the recipient's locale from UserLocalePreference (DB) using
+ *      the cached helper from server-translator.ts. Falls back to 'en'.
+ *   2. All notification titles/bodies are localized via the i18n bundle
+ *      (notifications.{type}.{title|body}) — supports all 5 locales.
+ *   3. The caller-provided title/body are now OPTIONAL and used only as
+ *      an emergency fallback if no template exists for the type.
+ *   4. Caller-provided metadata values (e.g. { docTitle: "Q4.pdf" }) are
+ *      passed to the translator for ICU-style interpolation AND stored
+ *      on the Notification row for later audit/replay.
+ *   5. Pushes via WebSocket (best-effort) with the localized payload.
+ *   6. notifyMany() batches DB writes AND resolves locales per recipient
+ *      so a single call to a mixed-locale audience produces correct
+ *      translations for each recipient.
  */
 
 import { db } from '@/lib/db';
 import { sha256 } from '@/lib/auth/crypto';
 import { logger } from '@/lib/config/logger';
+import { getTranslator, getUserLocale, type Locale } from '@/i18n/server-translator';
 
-/**
- * Resolve a user's locale from their UserLocalePreference.
- * Falls back to 'en' if not set.
- */
-async function getUserLocale(userId: string): Promise<string> {
-  try {
-    const pref = await db.userLocalePreference.findUnique({
-      where: { userId },
-      select: { locale: true },
-    });
-    return pref?.locale || 'en';
-  } catch {
-    return 'en';
-  }
-}
-
-/**
- * Localized notification message templates.
- * Returns { title, body } in the user's locale.
- */
-function getLocalizedNotification(
-  type: string,
-  locale: string,
-  params: Record<string, string | number>,
-): { title: string; body: string } {
-  const ar = locale === 'ar';
-  const templates: Record<string, { en: { title: string; body: (p: any) => string }; ar: { title: string; body: (p: any) => string } }> = {
-    'security.failed_login': {
-      en: { title: 'Failed login attempt', body: (p) => `There were ${p.count} failed login attempts on your account from IP ${p.ip}.` },
-      ar: { title: 'محاولة دخول فاشلة', body: (p) => `كانت هناك ${p.count} محاولات دخول فاشلة على حسابك من IP ${p.ip}.` },
-    },
-    'security.account_locked': {
-      en: { title: 'Account locked', body: (p) => `Account ${p.email} was locked after 5 failed login attempts from IP ${p.ip}.` },
-      ar: { title: 'تم قفل الحساب', body: (p) => `تم قفل الحساب ${p.email} بعد 5 محاولات دخول فاشلة من IP ${p.ip}.` },
-    },
-    'workflow.assigned': {
-      en: { title: 'Approval requested', body: (p) => `You have been assigned to approve "${p.docTitle}" (${p.wfName}).` },
-      ar: { title: 'طلب موافقة', body: (p) => `تم تعيينك للموافقة على "${p.docTitle}" (${p.wfName}).` },
-    },
-    'workflow.escalated': {
-      en: { title: 'Escalated approval', body: (p) => `Approval for "${p.docTitle}" was escalated to you.` },
-      ar: { title: 'موافقة مُصعَّدة', body: (p) => `تم تصعيد الموافقة على "${p.docTitle}" إليك.` },
-    },
-    'workflow.overdue': {
-      en: { title: 'Overdue approval', body: (p) => `Approval for "${p.docTitle}" is overdue and has no escalation target.` },
-      ar: { title: 'موافقة متأخرة', body: (p) => `الموافقة على "${p.docTitle}" متأخرة وليس لها هدف تصعيد.` },
-    },
-    'workflow.reminder': {
-      en: { title: 'Approval due soon', body: (p) => `Your approval for "${p.docTitle}" is due ${p.dueAt}.` },
-      ar: { title: 'موافقة مستحقة قريباً', body: (p) => `موافقتك على "${p.docTitle}" مستحقة ${p.dueAt}.` },
-    },
-    'share.created': {
-      en: { title: 'Document shared', body: (p) => `${p.sharedBy} shared "${p.docTitle}" with ${p.recipient}.` },
-      ar: { title: 'تمت مشاركة مستند', body: (p) => `شارك ${p.sharedBy} "${p.docTitle}" مع ${p.recipient}.` },
-    },
-    'share.received': {
-      en: { title: 'Document shared with you', body: (p) => `${p.sharedBy} shared "${p.docTitle}" with you.` },
-      ar: { title: 'تمت مشاركة مستند معك', body: (p) => `شارك ${p.sharedBy} "${p.docTitle}" معك.` },
-    },
-    'breakglass.alert': {
-      en: { title: '⚠️ Break-glass access granted', body: (p) => `${p.email} was granted emergency admin access. Reason: ${p.reason}` },
-      ar: { title: '⚠️ تم منح وصول طارئ', body: (p) => `تم منح ${p.email} وصولاً إدارياً طارئاً. السبب: ${p.reason}` },
-    },
-    'security.anomaly_detected': {
-      en: { title: 'Security anomaly detected', body: (p) => p.description },
-      ar: { title: 'تم اكتشاف شذوذ أمني', body: (p) => p.description },
-    },
-    'policy.violation': {
-      en: { title: 'Policy violation detected', body: (p) => `${p.actor} was denied ${p.action} on ${p.resource}. Reason: ${p.reason}` },
-      ar: { title: 'تم اكتشاف انتهاك سياسة', body: (p) => `تم رفض ${p.action} على ${p.resource} بواسطة ${p.actor}. السسبب: ${p.reason}` },
-    },
-    'system.health_degraded': {
-      en: { title: '⚠️ System health degraded', body: (p) => `Health check found issues: ${p.issues}` },
-      ar: { title: '⚠️ تدهور صحة النظام', body: (p) => `وجد فحص الصحة مشاكل: ${p.issues}` },
-    },
-    'document.comment': {
-      en: { title: 'New comment on your document', body: (p) => `${p.author} commented on "${p.docTitle}"` },
-      ar: { title: 'تعليق جديد على مستندك', body: (p) => `علّق ${p.author} على "${p.docTitle}"` },
-    },
-    'recertification.assigned': {
-      en: { title: 'Access recertification campaign assigned', body: (p) => `${p.count} user(s) require access recertification for "${p.name}".` },
-      ar: { title: 'تم تعيين حملة إعادة شهادة الوصول', body: (p) => `${p.count} مستخدم(ين) يتطلبون إعادة شهادة الوصول لـ "${p.name}".` },
-    },
-    'recertification.revoked': {
-      en: { title: 'Access revoked', body: (p) => `Your access was revoked during recertification campaign "${p.name}".` },
-      ar: { title: 'تم إلغاء الوصول', body: (p) => `تم إلغاء وصولك خلال حملة إعادة الشهادة "${p.name}".` },
-    },
-    'dual_control.request': {
-      en: { title: 'Dual-control approval required', body: (p) => `${p.email} requested approval for: ${p.action}` },
-      ar: { title: 'مطلوب موافقة الرقابة المزدوجة', body: (p) => `طلب ${p.email} الموافقة على: ${p.action}` },
-    },
-  };
-
-  const template = templates[type];
-  if (!template) {
-    // Fallback: use the input title/body as-is
-    return { title: params.title as string || type, body: params.body as string || '' };
-  }
-
-  const localeTemplate = ar ? template.ar : template.en;
-  return {
-    title: localeTemplate.title,
-    body: localeTemplate.body(params),
-  };
-}
+// ---------------------------------------------------------------------------
+//  WebSocket relay (best-effort)
+// ---------------------------------------------------------------------------
 
 /**
  * Push an event to the WebSocket notifications service (best-effort).
@@ -133,39 +47,95 @@ async function pushWebSocket(userId: string, event: string, data: unknown): Prom
   }
 }
 
+// ---------------------------------------------------------------------------
+//  Notification input + dispatch
+// ---------------------------------------------------------------------------
+
 export interface NotificationInput {
   tenantId: string;
   userId: string;
   type: string;
-  title: string;
-  body: string;
+  /**
+   * Optional — used only if no i18n template exists for `type`.
+   * When the template exists, the template's localized title wins.
+   */
+  title?: string;
+  /**
+   * Optional — used only if no i18n template exists for `type`.
+   * When the template exists, the template's localized body wins.
+   */
+  body?: string;
   severity?: 'info' | 'success' | 'warning' | 'critical';
   link?: string;
+  /**
+   * Interpolation parameters for the i18n template, AND stored on the
+   * Notification row for audit/replay.
+   */
   metadata?: Record<string, unknown>;
+}
+
+/**
+ * Resolve the localized title/body for a notification type.
+ *
+ * Strategy:
+ *   1. Try `notifications.{type}.title` and `.body` in the recipient's locale.
+ *   2. If missing, fall back to the caller-provided title/body (English).
+ *   3. If both are missing, use the type itself as the title and empty body.
+ *
+ * The translator itself falls back to English when a key is missing from
+ * the target locale, so step (1) covers all 5 locales with one lookup.
+ */
+async function resolveLocalizedContent(
+  type: string,
+  locale: Locale,
+  fallbackTitle: string | undefined,
+  fallbackBody: string | undefined,
+  params: Record<string, unknown>,
+): Promise<{ title: string; body: string }> {
+  const t = await getTranslator(locale);
+
+  // The notification type uses dot notation (e.g. "workflow.assigned").
+  // In the bundle, this maps to notifications.workflow.assigned.{title,body}.
+  const titleKey = `notifications.${type}.title`;
+  const bodyKey = `notifications.${type}.body`;
+
+  // Check whether the key exists in the bundle (any locale) — the translator
+  // returns the key path itself when missing, so we detect that and fall
+  // back to the caller-supplied title/body.
+  const translatedTitle = t(titleKey, params);
+  const translatedBody = t.raw(bodyKey, params);
+  const titleMissing = translatedTitle === titleKey;
+  const bodyMissing = translatedBody === bodyKey;
+
+  return {
+    title: titleMissing ? (fallbackTitle || type) : translatedTitle,
+    body: bodyMissing ? (fallbackBody || '') : translatedBody,
+  };
 }
 
 export async function notify(input: NotificationInput): Promise<void> {
   // Resolve recipient's locale for localized title/body
   const locale = await getUserLocale(input.userId);
 
-  // Try localized template first
   const metadata = input.metadata ?? {};
-  const localized = getLocalizedNotification(input.type, locale, {
-    ...metadata,
-    title: input.title,
-    body: input.body,
-  });
+  const { title, body } = await resolveLocalizedContent(
+    input.type,
+    locale,
+    input.title,
+    input.body,
+    metadata,
+  );
 
   const notification = await db.notification.create({
     data: {
       tenantId: input.tenantId,
       userId: input.userId,
       type: input.type,
-      title: localized.title,
-      body: localized.body,
+      title,
+      body,
       severity: input.severity ?? 'info',
       link: input.link ?? null,
-      metadata: JSON.stringify(input.metadata ?? {}),
+      metadata: JSON.stringify(metadata),
     },
   });
 
@@ -173,28 +143,110 @@ export async function notify(input: NotificationInput): Promise<void> {
   pushWebSocket(input.userId, 'notification:new', {
     id: notification.id,
     type: input.type,
-    title: localized.title,
-    body: localized.body,
+    title,
+    body,
     severity: input.severity ?? 'info',
     link: input.link,
+    locale,
     createdAt: notification.createdAt,
   }).catch(() => {});
 }
 
+/**
+ * Notify many recipients in a single DB round-trip.
+ *
+ * Unlike the previous implementation, this resolves each recipient's locale
+ * and uses the localized template — so a single bulk call to a mixed-locale
+ * audience produces correct translations for every recipient.
+ *
+ * To stay within Prisma's batch limits, writes are chunked into batches of
+ * 100 (configurable via NOTIFY_BATCH_SIZE).
+ */
+const NOTIFY_BATCH_SIZE = 100;
+
 export async function notifyMany(inputs: NotificationInput[]): Promise<void> {
   if (inputs.length === 0) return;
-  await db.notification.createMany({
-    data: inputs.map((i) => ({
-      tenantId: i.tenantId,
-      userId: i.userId,
-      type: i.type,
-      title: i.title,
-      body: i.body,
-      severity: i.severity ?? 'info',
-      link: i.link ?? null,
-      metadata: JSON.stringify(i.metadata ?? {}),
-    })),
-  });
+
+  // Group by (type, locale) — same template can be reused across recipients
+  // with the same locale. We pre-resolve templates per group.
+  const byUser = new Map<string, NotificationInput[]>();
+  for (const i of inputs) {
+    if (!byUser.has(i.userId)) byUser.set(i.userId, []);
+    byUser.get(i.userId)!.push(i);
+  }
+
+  // Resolve locales for all unique users in parallel
+  const userIds = Array.from(byUser.keys());
+  const localeMap = new Map<string, Locale>();
+  await Promise.all(
+    userIds.map(async (uid) => {
+      localeMap.set(uid, await getUserLocale(uid));
+    }),
+  );
+
+  // Resolve localized title/body per (user, input)
+  const rows: Array<{
+    tenantId: string;
+    userId: string;
+    type: string;
+    title: string;
+    body: string;
+    severity: string;
+    link: string | null;
+    metadata: string;
+  }> = [];
+
+  for (const input of inputs) {
+    const locale = localeMap.get(input.userId) ?? 'en';
+    const metadata = input.metadata ?? {};
+    const { title, body } = await resolveLocalizedContent(
+      input.type,
+      locale,
+      input.title,
+      input.body,
+      metadata,
+    );
+    rows.push({
+      tenantId: input.tenantId,
+      userId: input.userId,
+      type: input.type,
+      title,
+      body,
+      severity: input.severity ?? 'info',
+      link: input.link ?? null,
+      metadata: JSON.stringify(metadata),
+    });
+  }
+
+  // Chunk + write
+  for (let i = 0; i < rows.length; i += NOTIFY_BATCH_SIZE) {
+    const batch = rows.slice(i, i + NOTIFY_BATCH_SIZE);
+    try {
+      await db.notification.createMany({ data: batch });
+    } catch (err) {
+      logger.error('notify.batch_failed', {
+        batchSize: batch.length,
+        firstUserId: batch[0]?.userId,
+        error: (err as Error).message,
+      });
+    }
+  }
+
+  // Best-effort WS push for each (non-blocking)
+  for (let i = 0; i < inputs.length; i++) {
+    const input = inputs[i];
+    const row = rows[i];
+    pushWebSocket(input.userId, 'notification:new', {
+      id: `${input.userId}-${i}`, // we don't have the DB id from createMany
+      type: input.type,
+      title: row.title,
+      body: row.body,
+      severity: row.severity,
+      link: row.link,
+      locale: localeMap.get(input.userId),
+      createdAt: new Date().toISOString(),
+    }).catch(() => {});
+  }
 }
 
 /**

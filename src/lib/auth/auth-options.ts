@@ -19,6 +19,7 @@ import { authRateLimiter } from '@/lib/security/rate-limit';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { notify } from '@/lib/notifications/notify';
 import { sendFailedLoginAlert, sendAccountLockedAlert } from '@/lib/notifications/email';
+import { getUserLocale } from '@/i18n/server-translator';
 
 // MFA pending token is short-lived (5 minutes)
 const MFA_PENDING_TTL_MS = 5 * 60 * 1000;
@@ -158,18 +159,23 @@ export const authOptions: NextAuthOptions = {
             }).catch(() => {});
 
             // Notify user on 3rd failure + tenant admins on 5th
+            // Pass count + ip in metadata so notify() can localize per recipient.
             if (newFailCount === 3) {
+              const userLocale = await getUserLocale(user.id).catch(() => 'en' as const);
               await notify({
                 tenantId: user.tenantId,
                 userId: user.id,
                 type: 'security.failed_login',
-                title: 'Failed login attempt',
-                body: `There were 3 failed login attempts on your account from IP ${ip}. If this wasn't you, consider changing your password.`,
                 severity: 'warning',
-                metadata: { ip, attempt: newFailCount },
+                metadata: { ip, count: newFailCount },
               }).catch(() => {});
-              // Send email alert
-              sendFailedLoginAlert(user.email, ip, newFailCount).catch(() => {});
+              // Send email alert — localized to the user's preferred locale
+              sendFailedLoginAlert({
+                to: user.email,
+                ip,
+                attemptCount: newFailCount,
+                locale: userLocale,
+              }).catch(() => {});
             }
             if (newFailCount >= 5) {
               const admins = await db.roleAssignment.findMany({
@@ -181,13 +187,17 @@ export const authOptions: NextAuthOptions = {
                   tenantId: user.tenantId,
                   userId: a.userId,
                   type: 'security.account_locked',
-                  title: 'Account locked',
-                  body: `Account ${user.email} was locked after 5 failed login attempts from IP ${ip}.`,
                   severity: 'critical',
                   metadata: { email: user.email, ip },
                 }).catch(() => {});
-                // Send email to each admin
-                sendAccountLockedAlert(a.user.email, user.email, ip).catch(() => {});
+                // Send email to each admin — localized to the admin's preferred locale
+                const adminLocale = await getUserLocale(a.userId).catch(() => 'en' as const);
+                sendAccountLockedAlert({
+                  to: a.user.email,
+                  email: user.email,
+                  ip,
+                  locale: adminLocale,
+                }).catch(() => {});
               }
             }
           } else {

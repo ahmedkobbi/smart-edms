@@ -71,16 +71,19 @@ export const POST = createApiHandler(
       return { campaign, userCount: users.length };
     });
 
-    // Notify reviewer
+    // Notify reviewer — pass count + name in metadata so the i18n template
+    // can interpolate them per recipient's locale
     await notify({
       tenantId: ctx.tenantId,
       userId: body.reviewerId,
       type: 'recertification.assigned',
-      title: 'Access recertification campaign assigned',
-      body: `${result.userCount} user(s) require access recertification for "${result.campaign.name}".`,
       severity: 'warning',
       link: '/admin/recertification',
-      metadata: { campaignId: result.campaign.id },
+      metadata: {
+        campaignId: result.campaign.id,
+        count: result.userCount,
+        name: result.campaign.name,
+      },
     });
 
     return NextResponse.json(result, { status: 201 });

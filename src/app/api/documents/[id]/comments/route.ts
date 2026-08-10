@@ -57,17 +57,21 @@ export const POST = createApiHandler(
       include: { author: { select: { id: true, name: true, email: true } } },
     });
 
-    // Notify document owner (if not the commenter)
+    // Notify document owner (if not the commenter) — pass author + docTitle
+    // in metadata for i18n interpolation
     if (doc.ownerId && doc.ownerId !== ctx.userId) {
       await notify({
         tenantId: ctx.tenantId,
         userId: doc.ownerId,
         type: 'document.comment',
-        title: 'New comment on your document',
-        body: `${ctx.session.user.email} commented on "${doc.title}"`,
         severity: 'info',
         link: `/documents/${doc.id}`,
-        metadata: { commentId: comment.id, documentId: doc.id },
+        metadata: {
+          commentId: comment.id,
+          documentId: doc.id,
+          author: ctx.session.user.email,
+          docTitle: doc.title,
+        },
       });
     }
 

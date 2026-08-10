@@ -10,7 +10,9 @@ import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
-import { notify } from '@/lib/notifications/notify';
+import { notify, notifyMany } from '@/lib/notifications/notify';
+import { sendDispositionApprovalEmail } from '@/lib/notifications/email';
+import { getUserLocale } from '@/i18n/server-translator';
 import { z } from 'zod';
 
 export const GET = createApiHandler(
@@ -89,44 +91,48 @@ export const POST = createApiHandler(
       metadata: { documentId: doc.id, action: body.action },
     });
 
-    // Notify compliance officers
+    // Notify compliance officers — pass i18n metadata for per-recipient localization
     const complianceOfficers = await db.roleAssignment.findMany({
       where: { tenantId: ctx.tenantId, role: { name: 'compliance_auditor' } },
       select: { userId: true },
     });
-    await notifyManySafe(
+    const dispositionUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/dispositions`;
+    await notifyMany(
       complianceOfficers.map((c) => ({
         tenantId: ctx.tenantId,
         userId: c.userId,
         type: 'disposition.pending',
-        title: 'Disposition approval required',
-        body: `Document "${doc.title}" is pending ${body.action} disposition.`,
         severity: 'warning' as const,
         link: `/admin/dispositions`,
-        metadata: { dispositionId: record.id, documentId: doc.id, action: body.action },
+        metadata: {
+          dispositionId: record.id,
+          documentId: doc.id,
+          action: body.action,
+          docTitle: doc.title,
+        },
       })),
     );
+
+    // Send email to each compliance officer — localized per recipient
+    for (const officer of complianceOfficers) {
+      const officerUser = await db.user.findUnique({
+        where: { id: officer.userId },
+        select: { email: true },
+      });
+      if (officerUser?.email) {
+        const officerLocale = await getUserLocale(officer.userId);
+        sendDispositionApprovalEmail({
+          to: officerUser.email,
+          documentTitle: doc.title,
+          action: body.action,
+          url: dispositionUrl,
+          locale: officerLocale,
+        }).catch((err) => {
+          console.warn('[disposition] failed to send email to officer:', err);
+        });
+      }
+    }
 
     return NextResponse.json({ disposition: record }, { status: 201 });
   },
 );
-
-async function notifyManySafe(inputs: any[]) {
-  if (inputs.length === 0) return;
-  try {
-    await db.notification.createMany({
-      data: inputs.map((i) => ({
-        tenantId: i.tenantId,
-        userId: i.userId,
-        type: i.type,
-        title: i.title,
-        body: i.body,
-        severity: i.severity,
-        link: i.link,
-        metadata: JSON.stringify(i.metadata ?? {}),
-      })),
-    });
-  } catch (err) {
-    console.warn('[notify] failed:', err);
-  }
-}

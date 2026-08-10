@@ -48,10 +48,11 @@ export const POST = createApiHandler(
         tenantId: ctx.tenantId,
         userId: item.userId,
         type: 'recertification.revoked',
-        title: 'Access revoked',
-        body: `Your access was revoked during recertification campaign "${item.campaign.name}".`,
         severity: 'critical',
-        metadata: { campaignId: item.campaignId },
+        metadata: {
+          campaignId: item.campaignId,
+          name: item.campaign.name,
+        },
       }).catch(() => {});
     }
 

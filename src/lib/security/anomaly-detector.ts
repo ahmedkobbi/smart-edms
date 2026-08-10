@@ -174,11 +174,13 @@ async function notifyAnomaly(tenantId: string, anomaly: any): Promise<void> {
       tenantId,
       userId: o.userId,
       type: 'security.anomaly_detected',
-      title: anomaly.severity === 'critical' ? '⚠️ Critical security anomaly' : 'Security anomaly detected',
-      body: anomaly.description,
       severity: anomaly.severity as 'info' | 'success' | 'warning' | 'critical',
       link: '/admin/anomalies',
-      metadata: { anomalyId: anomaly.id, type: anomaly.type },
+      metadata: {
+        anomalyId: anomaly.id,
+        type: anomaly.type,
+        description: anomaly.description,
+      },
     }).catch(() => {});
   }
 

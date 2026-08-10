@@ -65,6 +65,7 @@ model Tenant {
   auditReceipts          AuditReceipt[]
   subscription           Subscription?
   documentTextIndexes    DocumentTextIndex[]
+  documentEmbeddings     DocumentEmbedding[]
   securityAnomalies      SecurityAnomaly[]
   userLocalePreferences  UserLocalePreference[]
   evidencePackages       EvidencePackage[]
@@ -386,6 +387,7 @@ model Document {
   redactions      Redaction[]
   encryptionKey   DocumentEncryptionKey?
   textIndex       DocumentTextIndex?
+  embedding       DocumentEmbedding?
 
   @@index([tenantId, folderId])
   @@index([tenantId, state])
@@ -1139,10 +1141,52 @@ model DocumentTextIndex {
   pageCount    Int      @default(0)
   indexedAt    DateTime @default(now())
 
-  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document  Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  embedding DocumentEmbedding?
 
   @@index([tenantId])
+}
+
+// ============================================================================
+//  DOCUMENT EMBEDDINGS — for semantic / vector search
+// ============================================================================
+
+model DocumentEmbedding {
+  id           String   @id @default(cuid())
+  tenantId     String
+  documentId   String   @unique
+  textIndexId  String   @unique
+
+  // The embedding vector, stored as a JSON-encoded array of floats.
+  // We use JSON (rather than pgvector) for portability across SQLite (dev)
+  // and Postgres (prod). On Postgres, a future migration can switch to
+  // pgvector for native k-NN search; the application code below is the
+  // abstraction boundary.
+  vector       String   @default("[]") // JSON-encoded number[]
+
+  // The model + dim that produced this vector — lets us invalidate
+  // caches cleanly when we swap embedding models.
+  model        String   @default("tfidf-bow-v1")
+  dimensions   Int      @default(512)
+  // A short semantic summary (LLM-generated when AI is enabled, or the
+  // first 500 chars of extracted text otherwise). Stored so we can show
+  // "why this matched" in the UI without re-running the LLM.
+  summary      String   @default("")
+  // Detected language of the source text (BCP-47, e.g. "en", "ar", "fr").
+  language     String   @default("en")
+
+  generatedAt  DateTime @default(now())
+  // Hash of the source text — lets us skip regeneration when the
+  // document content has not changed.
+  sourceHash   String   @default("")
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document  Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  textIndex DocumentTextIndex @relation(fields: [textIndexId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, model])
 }
 
 // ============================================================================

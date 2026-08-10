@@ -13,6 +13,7 @@ import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
 import { searchTextIndex } from '@/lib/documents/text-extraction';
 import { normalizeForSearch } from '@/lib/i18n/arabic-search';
 import { searchDocuments as osSearch, isOpenSearchAvailable, indexDocument } from '@/lib/search/opensearch-service';
+import { hybridSearch } from '@/lib/search/semantic-search';
 import { logger } from '@/lib/config/logger';
 import { z } from 'zod';
 
@@ -58,13 +59,43 @@ export const GET = createApiHandler(
           returned: osResult.items.length,
         });
 
+        // ── Hybrid search: combine keyword (OpenSearch BM25) + semantic (cosine) ──
+        // Run semantic search in parallel-restricted mode (only score documents
+        // the keyword search returned) and fuse via Reciprocal Rank Fusion.
+        // If semantic search is unavailable (no embeddings indexed), the
+        // keyword results pass through unchanged.
+        let hybridItems = osResult.items;
+        let searchEngine = 'opensearch';
+        try {
+          const keywordRanked = osResult.items.map((it: any) => ({
+            documentId: it.id,
+            score: typeof it._score === 'number' ? it._score : undefined,
+          }));
+          const fused = await hybridSearch(ctx.tenantId, q.q, keywordRanked, {
+            limit: q.pageSize,
+          });
+          if (fused && fused.length > 0) {
+            // Re-order the OpenSearch items by the fused score
+            const fusedMap = new Map(fused.map((f) => [f.documentId, f]));
+            hybridItems = osResult.items
+              .map((it: any) => {
+                const f = fusedMap.get(it.id);
+                return f ? { ...it, _score: f.score, semanticScore: f.semanticScore, semanticSummary: f.summary } : it;
+              })
+              .sort((a: any, b: any) => (b._score ?? 0) - (a._score ?? 0));
+            searchEngine = 'hybrid';
+          }
+        } catch (err) {
+          logger.warn('search.hybrid_failed', { error: (err as Error).message });
+        }
+
         return NextResponse.json({
-          items: osResult.items,
+          items: hybridItems,
           total: osResult.total,
           page: q.page,
           pageSize: q.pageSize,
           query: q.q,
-          searchEngine: 'opensearch',
+          searchEngine,
           highlights: osResult.highlights,
           facets: {
             classifications: osResult.facets.classifications,
@@ -159,13 +190,38 @@ export const GET = createApiHandler(
       } catch {}
     }
 
+    // ── Hybrid enhancement for Prisma fallback ──
+    // Even without OpenSearch, we can re-rank the Prisma results using
+    // semantic similarity. This is best-effort — if no embeddings are
+    // cached, the original Prisma order is preserved.
+    let hybridFiltered = filtered;
+    let prismaSearchEngine = 'prisma';
+    if (q.q && q.q.trim().length > 0) {
+      try {
+        const keywordRanked = filtered.map((d: any) => ({ documentId: d.id, score: undefined }));
+        const fused = await hybridSearch(ctx.tenantId, q.q, keywordRanked, { limit: filtered.length });
+        if (fused && fused.length > 0) {
+          const fusedMap = new Map(fused.map((f) => [f.documentId, f]));
+          hybridFiltered = filtered
+            .map((d: any) => {
+              const f = fusedMap.get(d.id);
+              return f ? { ...d, _score: f.score, semanticScore: f.semanticScore, semanticSummary: f.summary } : d;
+            })
+            .sort((a: any, b: any) => (b._score ?? 0) - (a._score ?? 0));
+          prismaSearchEngine = 'prisma+semantic';
+        }
+      } catch (err) {
+        logger.warn('search.prisma_hybrid_failed', { error: (err as Error).message });
+      }
+    }
+
     return NextResponse.json({
-      items: filtered,
-      total: tagList.length > 0 ? filtered.length : total,
+      items: hybridFiltered,
+      total: tagList.length > 0 ? hybridFiltered.length : total,
       page: q.page,
       pageSize: q.pageSize,
       query: q.q,
-      searchEngine: 'prisma', // Indicates fallback mode
+      searchEngine: prismaSearchEngine, // Indicates fallback mode (+ semantic re-rank if available)
       fullTextMatches,
       facets: {
         classifications: Array.from(classificationFacet.entries()).map(([id, count]) => ({ id, count })),

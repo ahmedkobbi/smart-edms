@@ -119,6 +119,20 @@ export async function indexDocumentText(
     },
   });
 
+  // Generate or refresh the document's semantic embedding (best-effort,
+  // non-blocking — never fails the indexing operation).
+  // The embedding cache is keyed by source hash, so this is a no-op when
+  // the document content has not changed.
+  try {
+    const { indexDocumentEmbedding } = await import('@/lib/search/semantic-search');
+    // Fire-and-forget — do not block the upload pipeline on embedding generation.
+    indexDocumentEmbedding(documentId).catch((err) => {
+      console.warn(`[text-extraction] embedding generation failed for ${documentId}:`, err);
+    });
+  } catch (err) {
+    console.warn(`[text-extraction] could not load semantic-search module:`, err);
+  }
+
   return { extractedText, ocrApplied, pageCount };
 }
 

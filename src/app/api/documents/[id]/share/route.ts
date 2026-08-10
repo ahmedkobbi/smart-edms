@@ -12,6 +12,8 @@ import { PERMISSIONS } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { hashPassword, randomToken, timingSafeEqualStr } from '@/lib/auth/crypto';
 import { notify, fireWebhook } from '@/lib/notifications/notify';
+import { sendShareNotificationEmail } from '@/lib/notifications/email';
+import { getUserLocale } from '@/i18n/server-translator';
 import { z } from 'zod';
 
 const createSchema = z.object({
@@ -111,17 +113,21 @@ export const POST = createApiHandler(
       },
     });
 
-    // Notify document owner (if not the sharer)
+    // Notify document owner (if not the sharer) — pass i18n metadata
     if (doc.ownerId && doc.ownerId !== ctx.userId) {
       await notify({
         tenantId: ctx.tenantId,
         userId: doc.ownerId,
         type: 'share.created',
-        title: 'Document shared',
-        body: `${ctx.session.user.email} shared "${doc.title}" with ${body.recipientEmail ?? 'an external recipient'}.`,
         severity: 'info',
         link: `/documents/${doc.id}`,
-        metadata: { shareId: share.id, documentId: doc.id },
+        metadata: {
+          shareId: share.id,
+          documentId: doc.id,
+          sharedBy: ctx.session.user.email,
+          docTitle: doc.title,
+          recipient: body.recipientEmail ?? 'an external recipient',
+        },
       });
     }
 
@@ -131,11 +137,47 @@ export const POST = createApiHandler(
         tenantId: ctx.tenantId,
         userId: body.recipientUserId,
         type: 'share.received',
-        title: 'Document shared with you',
-        body: `${ctx.session.user.email} shared "${doc.title}" with you.`,
         severity: 'info',
         link: `/documents/${doc.id}`,
-        metadata: { shareId: share.id, documentId: doc.id },
+        metadata: {
+          shareId: share.id,
+          documentId: doc.id,
+          sharedBy: ctx.session.user.email,
+          docTitle: doc.title,
+        },
+      });
+      // Send email to the recipient — resolve their locale
+      const recipient = await db.user.findUnique({
+        where: { id: body.recipientUserId },
+        select: { email: true },
+      });
+      if (recipient?.email) {
+        const recipientLocale = await getUserLocale(body.recipientUserId);
+        const shareUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/shared/${token}`;
+        sendShareNotificationEmail({
+          to: recipient.email,
+          documentTitle: doc.title,
+          sharedBy: ctx.session.user.email,
+          shareUrl,
+          expiresAt: share.expiresAt ?? undefined,
+          locale: recipientLocale,
+        }).catch((err) => {
+          console.warn('[share] failed to send email to recipient:', err);
+        });
+      }
+    } else if (body.recipientEmail) {
+      // External recipient — no UserLocalePreference, fall back to sharer's locale
+      const sharerLocale = await getUserLocale(ctx.userId);
+      const shareUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/shared/${token}`;
+      sendShareNotificationEmail({
+        to: body.recipientEmail,
+        documentTitle: doc.title,
+        sharedBy: ctx.session.user.email,
+        shareUrl,
+        expiresAt: share.expiresAt ?? undefined,
+        locale: sharerLocale,
+      }).catch((err) => {
+        console.warn('[share] failed to send email to external recipient:', err);
       });
     }
 

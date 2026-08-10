@@ -83,11 +83,14 @@ export async function processOverdueWorkflows(): Promise<{
             tenantId: approval.tenantId,
             userId: target.id,
             type: 'workflow.escalated',
-            title: 'Escalated approval',
-            body: `Approval for "${approval.workflow.document?.title ?? 'document'}" was escalated to you.`,
             severity: 'critical',
             link: `/workflows/${approval.workflowId}`,
-            metadata: { workflowId: approval.workflowId, originalApprover: approval.approverId },
+            metadata: {
+              workflowId: approval.workflowId,
+              originalApprover: approval.approverId,
+              docTitle: approval.workflow.document?.title ?? 'document',
+              wfName: approval.workflow.name ?? '',
+            },
           });
         }
       } else {
@@ -105,11 +108,13 @@ export async function processOverdueWorkflows(): Promise<{
             tenantId: approval.tenantId,
             userId: a.userId,
             type: 'workflow.overdue',
-            title: 'Overdue approval',
-            body: `Approval for "${approval.workflow.document?.title ?? 'document'}" is overdue and has no escalation target.`,
             severity: 'critical',
             link: `/workflows/${approval.workflowId}`,
-            metadata: { workflowId: approval.workflowId, approvalId: approval.id },
+            metadata: {
+              workflowId: approval.workflowId,
+              approvalId: approval.id,
+              docTitle: approval.workflow.document?.title ?? 'document',
+            },
           });
         }
       }
@@ -120,11 +125,13 @@ export async function processOverdueWorkflows(): Promise<{
         tenantId: approval.tenantId,
         userId: approval.approverId,
         type: 'workflow.reminder',
-        title: 'Approval due soon',
-        body: `Your approval for "${approval.workflow.document?.title ?? 'document'}" is due ${approval.dueAt.toISOString()}.`,
         severity: 'warning',
         link: `/workflows/${approval.workflowId}`,
-        metadata: { workflowId: approval.workflowId, dueAt: approval.dueAt },
+        metadata: {
+          workflowId: approval.workflowId,
+          dueAt: approval.dueAt,
+          docTitle: approval.workflow.document?.title ?? 'document',
+        },
       });
       reminded++;
     }

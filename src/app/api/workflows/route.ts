@@ -140,25 +140,42 @@ export const POST = createApiHandler(
     });
 
     // Notify first-step approvers
+    // Pass docTitle and wfName in metadata so the i18n template can interpolate them
+    // for each recipient's locale (notify() resolves the recipient's locale).
     for (const approverId of body.steps[0].approverIds) {
       await notify({
         tenantId: ctx.tenantId,
         userId: approverId,
         type: 'workflow.assigned',
-        title: 'Approval requested',
-        body: `You have been assigned to approve "${doc.title}" (${result.name}).`,
         severity: 'warning',
         link: `/workflows/${result.id}`,
-        metadata: { workflowId: result.id, documentId: doc.id, stepIndex: 0 },
+        metadata: {
+          workflowId: result.id,
+          documentId: doc.id,
+          stepIndex: 0,
+          docTitle: doc.title,
+          wfName: result.name,
+        },
       });
-      // Send email notification
+      // Send email notification — resolve recipient's locale for full i18n
       const approver = await db.user.findUnique({
         where: { id: approverId },
         select: { email: true },
       });
       if (approver?.email) {
         const wfUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/workflows/${result.id}`;
-        sendWorkflowAssignedEmail(approver.email, doc.title, result.name, wfUrl).catch(() => {});
+        // Resolve the approver's locale (cached) and pass it to the email template
+        const { getUserLocale } = await import('@/i18n/server-translator');
+        const locale = await getUserLocale(approverId);
+        sendWorkflowAssignedEmail({
+          to: approver.email,
+          documentTitle: doc.title,
+          workflowName: result.name,
+          workflowUrl: wfUrl,
+          locale,
+        }).catch((err) => {
+          console.warn('[workflow] failed to send email to approver:', err);
+        });
       }
     }
 
