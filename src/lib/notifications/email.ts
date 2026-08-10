@@ -129,18 +129,33 @@ export async function sendInvitationEmail(
   tenantName: string,
   inviteUrl: string,
   inviterEmail: string,
+  locale: string = 'en',
 ): Promise<void> {
-  const html = wrapTemplate("You're invited", `
-    <h1>You've been invited to ${tenantName}</h1>
-    <p><strong>${inviterEmail}</strong> has invited you to join Smart EDMS at <strong>${tenantName}</strong>.</p>
-    <p>Smart EDMS is a secure document governance platform. Your invitation expires in 7 days.</p>
-    <a href="${inviteUrl}" class="btn">Accept invitation</a>
+  const isArabic = locale === 'ar';
+  const title = isArabic ? 'دعوة' : "You're invited";
+  const heading = isArabic
+    ? `تمت دعوتك إلى ${tenantName}`
+    : `You've been invited to ${tenantName}`;
+  const bodyText = isArabic
+    ? `<strong>${inviterEmail}</strong> دعاك للانضمام إلى Smart EDMS في <strong>${tenantName}</strong>.`
+    : `<strong>${inviterEmail}</strong> has invited you to join Smart EDMS at <strong>${tenantName}</strong>.`;
+  const btnText = isArabic ? 'قبول الدعوة' : 'Accept invitation';
+  const expiresText = isArabic ? 'تنتهي صلاحية الدعوة خلال 7 أيام.' : 'Your invitation expires in 7 days.';
+  const subject = isArabic ? `دعوة إلى ${tenantName} على Smart EDMS` : `Invitation to ${tenantName} on Smart EDMS`;
+
+  const html = wrapTemplate(title, `
+    <h1>${heading}</h1>
+    <p>${bodyText}</p>
+    <p>${expiresText}</p>
+    <a href="${inviteUrl}" class="btn">${btnText}</a>
     <p style="font-size: 13px; color: #64748b; margin-top: 16px;">
-      Or copy this link: <code>${inviteUrl}</code>
+      <code>${inviteUrl}</code>
     </p>
   `);
-  const text = `You've been invited to ${tenantName} by ${inviterEmail}.\n\nAccept your invitation: ${inviteUrl}\n\nThis invitation expires in 7 days.`;
-  await sendEmail({ to, subject: `Invitation to ${tenantName} on Smart EDMS`, html, text });
+  const text = isArabic
+    ? `تمت دعوتك إلى ${tenantName} بواسطة ${inviterEmail}.\n\nاقبل الدعوة: ${inviteUrl}\n\nتنتهي الصلاحية خلال 7 أيام.`
+    : `You've been invited to ${tenantName} by ${inviterEmail}.\n\nAccept: ${inviteUrl}\n\nExpires in 7 days.`;
+  await sendEmail({ to, subject, html, text });
 }
 
 export async function sendFailedLoginAlert(

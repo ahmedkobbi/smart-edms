@@ -15,6 +15,7 @@
 
 import { db } from '@/lib/db';
 import { getFileStorage } from '@/lib/storage/file-storage';
+import { buildSearchIndex, detectLanguage } from '@/lib/i18n/arabic-search';
 
 /**
  * Extract text from a document version and persist to DocumentTextIndex.
@@ -83,13 +84,27 @@ export async function indexDocumentText(
     extractedText = extractOoxmlText(buf); // ODF is also zip-based
   }
 
+  // Detect language + build search-optimized text
+  const detectedLang = detectLanguage(extractedText);
+  const searchText = buildSearchIndex(extractedText);
+
+  // Update document language metadata
+  await db.document.update({
+    where: { id: documentId },
+    data: {
+      documentLanguage: detectedLang,
+      textDirection: detectedLang === 'ar' ? 'rtl' : 'ltr',
+    },
+  }).catch(() => {});
+
   // Persist
   await db.documentTextIndex.upsert({
     where: { documentId },
     update: {
       versionId,
-      extractedText,
+      extractedText: searchText, // Store normalized + original for search
       ocrApplied,
+      language: detectedLang,
       pageCount,
       indexedAt: new Date(),
     },
@@ -97,8 +112,9 @@ export async function indexDocumentText(
       tenantId,
       documentId,
       versionId,
-      extractedText,
+      extractedText: searchText,
       ocrApplied,
+      language: detectedLang,
       pageCount,
     },
   });

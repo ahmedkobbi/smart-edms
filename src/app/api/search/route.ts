@@ -11,6 +11,7 @@ import { db } from '@/lib/db';
 import { createApiHandler } from '@/lib/api/handler';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
 import { searchTextIndex } from '@/lib/documents/text-extraction';
+import { normalizeForSearch } from '@/lib/i18n/arabic-search';
 import { z } from 'zod';
 
 const querySchema = z.object({
@@ -46,6 +47,8 @@ export const GET = createApiHandler(
               { title: { contains: q.q } },
               { description: { contains: q.q } },
               { tags: { contains: q.q } },
+              { title: { contains: normalizeForSearch(q.q) } },
+              { description: { contains: normalizeForSearch(q.q) } },
             ],
           }
         : {}),

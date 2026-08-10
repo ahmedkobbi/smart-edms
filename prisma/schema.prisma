@@ -66,6 +66,7 @@ model Tenant {
   subscription           Subscription?
   documentTextIndexes    DocumentTextIndex[]
   securityAnomalies      SecurityAnomaly[]
+  userLocalePreferences  UserLocalePreference[]
 }
 
 // ============================================================================
@@ -118,6 +119,7 @@ model User {
   recentViews            RecentView[] @relation("UserRecentViews")
   savedSearches          SavedSearch[] @relation("UserSavedSearches")
   stepUpSessions         StepUpSession[]
+  localePreference       UserLocalePreference? @relation("UserLocalePreference")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -330,6 +332,8 @@ model Document {
   title           String
   description     String?
   documentType    String   @default("generic") // contract, policy, invoice, etc.
+  documentLanguage String  @default("en") // ISO 639-1: en, ar, fr, es, de
+  textDirection   String   @default("ltr") // ltr | rtl
   classificationId String?
   tags            String   @default("[]") // JSON array
   metadata        String   @default("{}") // JSON
@@ -1156,4 +1160,26 @@ model SecurityAnomaly {
 
   @@index([tenantId, resolved, createdAt])
   @@index([tenantId, severity])
+}
+
+// ============================================================================
+//  USER LOCALE PREFERENCES
+// ============================================================================
+
+model UserLocalePreference {
+  id           String   @id @default(cuid())
+  tenantId     String
+  userId       String   @unique
+  locale       String   @default("en") // en | ar | fr | es | de
+  timezone     String   @default("UTC")
+  direction    String   @default("ltr") // ltr | rtl
+  dateFormat   String   @default("yyyy-MM-dd")
+  numberFormat String   @default("en-US")
+  calendar     String   @default("gregory") // gregory | islamic | islamic-umalqura
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation("UserLocalePreference", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
