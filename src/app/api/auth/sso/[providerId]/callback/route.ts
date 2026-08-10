@@ -55,6 +55,60 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
     return NextResponse.redirect(loginUrl);
   }
 
+  if (provider.type === 'saml') {
+    // --- SAML POST binding (SAML Assertion) ---
+    const body = await req.text();
+    const formData = new URLSearchParams(body);
+    const samlResponse = formData.get('SAMLResponse');
+
+    if (!samlResponse) {
+      loginUrl.searchParams.set('error', 'saml_no_response');
+      return NextResponse.redirect(loginUrl);
+    }
+
+    try {
+      const samlLib = await import('@node-saml/passport-saml');
+      const SAMLStrategy = (samlLib as any).Strategy || (samlLib as any).default?.Strategy;
+      const samlConfig = {
+        entryPoint: provider.metadataUrl || provider.authorizationEndpoint || '',
+        issuer: provider.entityId || provider.clientId,
+        callbackUrl: `${process.env.NEXTAUTH_URL}/api/auth/sso/${providerId}/callback`,
+        cert: provider.jwksUri || undefined,
+        signatureAlgorithm: 'sha256' as const,
+        wantAssertionsSigned: false,
+        acceptedClockSkewMs: 300000,
+      };
+
+      const strategy = new (SAMLStrategy as any)(samlConfig, () => {});
+
+      // Verify the SAML response
+      const samlResult = await new Promise<any>((resolve, reject) => {
+        strategy.validatePostResponse({
+          SAMLResponse: samlResponse,
+          RelayState: formData.get('RelayState') || '',
+        } as any, (err: any, user: any) => {
+          if (err) reject(err);
+          else resolve(user);
+        });
+      });
+
+      const email = samlResult?.[provider.emailAttribute || 'email'] || samlResult?.['nameID'];
+      const name = samlResult?.[provider.nameAttribute || 'name'] || samlResult?.['displayName'] || email?.split('@')[0];
+
+      if (!email) {
+        loginUrl.searchParams.set('error', 'saml_no_email');
+        return NextResponse.redirect(loginUrl);
+      }
+
+      // Continue with the same user lookup + session creation as OIDC
+      return await completeSsoLogin(provider, email, name, req);
+    } catch (err: any) {
+      logger.error('sso.saml_callback_error', { error: err.message, providerId });
+      loginUrl.searchParams.set('error', 'saml_internal_error');
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   if (provider.type !== 'oidc') {
     loginUrl.searchParams.set('error', 'sso_type_not_supported');
     return NextResponse.redirect(loginUrl);
@@ -251,4 +305,96 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
 import { webcrypto } from 'crypto';
 if (typeof globalThis.crypto === 'undefined') {
   (globalThis as any).crypto = webcrypto as any;
+}
+
+/**
+ * Shared SSO login completion — used by both OIDC and SAML flows.
+ * Finds or creates the user, mints a NextAuth JWT, and redirects to the dashboard.
+ */
+async function completeSsoLogin(
+  provider: any,
+  email: string,
+  name: string,
+  req: NextRequest,
+): Promise<NextResponse> {
+  // Find or create user
+  let user = await db.user.findFirst({
+    where: { email: email.toLowerCase(), tenantId: provider.tenantId },
+  });
+
+  if (!user) {
+    user = await db.user.create({
+      data: {
+        tenantId: provider.tenantId,
+        email: email.toLowerCase(),
+        name: name || email.split('@')[0],
+        status: 'active',
+      },
+    });
+
+    const endUserRole = await db.role.findFirst({
+      where: { tenantId: provider.tenantId, name: 'end_user' },
+    });
+    if (endUserRole) {
+      await db.roleAssignment.create({
+        data: { tenantId: provider.tenantId, userId: user.id, roleId: endUserRole.id, scope: '' },
+      });
+    }
+  }
+
+  if (user.status !== 'active') {
+    const loginUrl = new URL('/login', process.env.NEXTAUTH_URL || 'http://localhost:3000');
+    loginUrl.searchParams.set('error', 'sso_account_inactive');
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Audit
+  await recordAuditEvent({
+    tenantId: provider.tenantId,
+    actorId: user.id,
+    actorEmail: user.email,
+    actorIp: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown',
+    actorUserAgent: req.headers.get('user-agent') || null,
+    eventType: 'auth.login',
+    action: 'login',
+    resourceType: 'user',
+    resourceId: user.id,
+    resourceName: user.email,
+    result: 'allow',
+    reason: `sso:${provider.name}`,
+    metadata: { provider: provider.name, method: provider.type },
+  });
+
+  // Mint JWT
+  const roles = await resolveUserRoles(user.id, provider.tenantId);
+  const permissions = await resolveUserPermissions(user.id, provider.tenantId);
+  const now = Math.floor(Date.now() / 1000);
+  const sessionMaxAge = 8 * 60 * 60;
+  const token = {
+    id: user.id, email: user.email, name: user.name,
+    tenantId: provider.tenantId, roles, permissions,
+    mfaVerified: user.mfaEnabled, refreshAt: Date.now() + 5 * 60 * 1000,
+    iat: now, exp: now + sessionMaxAge, jti: crypto.randomUUID(),
+  };
+
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    logger.error('sso.no_nextauth_secret', {});
+    const loginUrl = new URL('/login', process.env.NEXTAUTH_URL || 'http://localhost:3000');
+    loginUrl.searchParams.set('error', 'sso_internal_error');
+    return NextResponse.redirect(loginUrl);
+  }
+
+  const encoded = await encodeJwt({ token, secret, maxAge: sessionMaxAge } as any);
+  const isProduction = process.env.NODE_ENV === 'production';
+  const cookieName = isProduction ? '__Secure-next-auth.session-token' : 'next-auth.session-token';
+  const cookieStore = await cookies();
+  cookieStore.set(cookieName, encoded, {
+    httpOnly: true, sameSite: 'lax', secure: isProduction, path: '/', maxAge: sessionMaxAge,
+  });
+
+  logger.info('sso.login_success', { providerId: provider.id, userId: user.id, email: user.email, method: provider.type });
+  const dashboardUrl = new URL('/dashboard', process.env.NEXTAUTH_URL || 'http://localhost:3000');
+  dashboardUrl.searchParams.set('sso', '1');
+  return NextResponse.redirect(dashboardUrl);
 }

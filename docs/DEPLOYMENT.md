@@ -118,6 +118,33 @@ Navigate to `https://app.yourdomain.com` and sign in with:
 - [ ] Test backup restore procedure
 - [ ] Set up point-in-time recovery (PITR)
 
+### Recovery Point Objective (RPO) / Recovery Time Objective (RTO)
+
+**Design targets** (configure infrastructure to meet these):
+
+| Component | RPO Target | RTO Target | Strategy |
+|-----------|-----------|-----------|----------|
+| Database (PostgreSQL) | 15 minutes | 1 hour | WAL archiving + PITR; daily `pg_dump` to S3; automated restore test weekly |
+| Object storage (S3) | 0 (versioned) | 30 minutes | S3 bucket versioning + Object Lock; cross-region replication |
+| Redis (job queues) | Acceptable loss | 5 minutes | No persistence required (jobs are best-effort; re-enqueue from Prisma Job model) |
+| OpenSearch index | 1 hour | 2 hours | Rebuild from PostgreSQL via `POST /api/admin/search/reindex?scope=all` |
+| Application config | 0 (Git-tracked) | 5 minutes | Deploy from CI/CD pipeline; rollback via previous Docker image tag |
+
+**Backup schedule:**
+- PostgreSQL: WAL archive every 5 min + daily full `pg_dump` at 02:00 UTC
+- S3: Continuous versioning + cross-region replication (1 min lag)
+- Restore drill: Automated weekly test (restore to staging, verify row count + hash chain)
+
+**Disaster recovery runbook:**
+1. Provision new infrastructure from IaC (Terraform/CloudFormation)
+2. Restore PostgreSQL from latest PITR point (`pg_basebackup` + WAL replay)
+3. Switch S3 bucket to replica (or promote cross-region replica)
+4. Rebuild OpenSearch index: `POST /api/admin/search/reindex?scope=all`
+5. Deploy app + worker containers
+6. Verify: health check, audit chain integrity, tenant isolation test
+7. Switch DNS to new infrastructure
+8. Estimated total RTO: 2-4 hours (depending on database size)
+
 ### Storage
 - [ ] S3 bucket with versioning enabled
 - [ ] Bucket lifecycle policy for old versions

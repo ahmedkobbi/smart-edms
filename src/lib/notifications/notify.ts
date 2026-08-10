@@ -150,6 +150,24 @@ export async function notify(input: NotificationInput): Promise<void> {
     locale,
     createdAt: notification.createdAt,
   }).catch(() => {});
+
+  // Push via browser push notification (best-effort, non-blocking)
+  // Only for warning/critical severity (avoid spamming users with info-level pushes)
+  const severity = input.severity ?? 'info';
+  if (severity === 'warning' || severity === 'critical') {
+    try {
+      const { sendPushNotification } = await import('@/lib/notifications/push');
+      sendPushNotification({
+        userId: input.userId,
+        title,
+        body: body.slice(0, 200),
+        url: input.link,
+        tag: input.type,
+      }).catch(() => {});
+    } catch {
+      // web-push not configured — silent
+    }
+  }
 }
 
 /**

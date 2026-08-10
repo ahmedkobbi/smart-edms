@@ -1,0 +1,144 @@
+# Smart EDMS — Staging environment
+#
+# Production-like configuration with:
+#   - PostgreSQL
+#   - Redis (BullMQ job queues)
+#   - ClamAV (malware scanning)
+#   - OpenSearch (full-text search)
+#   - App + Worker (production build)
+#
+# Usage: docker compose -f docker-compose.staging.yml up -d
+#
+# Differences from docker-compose.yml (production):
+#   - Uses staging-specific env vars
+#   - No port exposure (behind reverse proxy)
+#   - Resource limits tuned for staging
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: smartedms-staging-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: smartedms_staging
+      POSTGRES_USER: smartedms
+      POSTGRES_PASSWORD: ${STAGING_POSTGRES_PASSWORD:?STAGING_POSTGRES_PASSWORD is required}
+    volumes:
+      - staging_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartedms -d smartedms_staging"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - staging
+
+  redis:
+    image: redis:7-alpine
+    container_name: smartedms-staging-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy noeviction --appendonly yes
+    volumes:
+      - staging_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - staging
+
+  clamav:
+    image: clamav/clamav:latest
+    container_name: smartedms-staging-clamav
+    restart: unless-stopped
+    volumes:
+      - staging_clamav:/var/lib/clamav
+    networks:
+      - staging
+
+  opensearch:
+    image: opensearchproject/opensearch:2.13.0
+    container_name: smartedms-staging-opensearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "DISABLE_SECURITY_PLUGIN=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - staging_opensearch:/usr/share/opensearch/data
+    networks:
+      - staging
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smartedms-staging-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://smartedms:${STAGING_POSTGRES_PASSWORD}@postgres:5432/smartedms_staging?schema=public
+      REDIS_URL: redis://redis:6379
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: "3310"
+      NEXTAUTH_URL: ${STAGING_NEXTAUTH_URL:?STAGING_NEXTAUTH_URL is required}
+      NEXTAUTH_SECRET: ${STAGING_NEXTAUTH_SECRET:?STAGING_NEXTAUTH_SECRET is required}
+      SMART_EDMS_KEK: ${STAGING_SMART_EDMS_KEK:?STAGING_SMART_EDMS_KEK is required}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_ROOT: /app/storage
+      OPENSEARCH_HOST: http://opensearch:9200
+      NODE_ENV: production
+    volumes:
+      - staging_app_storage:/app/storage
+    networks:
+      - staging
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smartedms-staging-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["bun", "run", "src/worker/index.ts"]
+    environment:
+      DATABASE_URL: postgresql://smartedms:${STAGING_POSTGRES_PASSWORD}@postgres:5432/smartedms_staging?schema=public
+      REDIS_URL: redis://redis:6379
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: "3310"
+      NEXTAUTH_SECRET: ${STAGING_NEXTAUTH_SECRET}
+      SMART_EDMS_KEK: ${STAGING_SMART_EDMS_KEK}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_ROOT: /app/storage
+      NODE_ENV: production
+    volumes:
+      - staging_app_storage:/app/storage
+    networks:
+      - staging
+
+volumes:
+  staging_postgres:
+  staging_redis:
+  staging_clamav:
+  staging_opensearch:
+  staging_app_storage:
+
+networks:
+  staging:
+    driver: bridge

@@ -63,6 +63,7 @@ model Tenant {
   breakGlassAccesses     BreakGlassAccess[]
   dualControlRequests    DualControlRequest[]
   revokedSessions        RevokedSession[]
+  pushSubscriptions      PushSubscription[]
   notificationRoutings   NotificationRouting[]
   ssoProviders           SsoProvider[]
   auditReceipts          AuditReceipt[]
@@ -124,6 +125,7 @@ model User {
   accounts        Account[]
   verificationTokens VerificationToken[]
   devices         Device[]
+  pushSubscriptions PushSubscription[]
   workflowInitiated Workflow[]
   approvalDelegationsFrom ApprovalDelegation[] @relation("ApprovalDelegationFrom")
   classificationChangesAsActor ClassificationChange[]
@@ -290,6 +292,27 @@ model Device {
 
   @@index([userId])
   @@index([tenantId, trusted])
+}
+
+// ============================================================================
+//  BROWSER PUSH NOTIFICATIONS (web-push)
+// ============================================================================
+
+model PushSubscription {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String
+  endpoint    String   @unique
+  p256dhKey   String
+  authKey     String
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
 }
 
 // ============================================================================

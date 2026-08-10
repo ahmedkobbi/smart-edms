@@ -43,6 +43,15 @@ services:
       # Redis (for BullMQ job queues)
       REDIS_URL: redis://redis:6379
 
+      # ClamAV (for malware scanning)
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: "3310"
+
+      # Web Push (VAPID keys — generate with: npx web-push generate-vapid-keys)
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:noreply@smartedms.local}
+
       # NextAuth
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
@@ -123,6 +132,23 @@ services:
     networks:
       - smartedms
 
+  # ClamAV for malware scanning
+  clamav:
+    image: clamav/clamav:latest
+    container_name: smartedms-clamav
+    restart: unless-stopped
+    volumes:
+      - clamav_data:/var/lib/clamav
+    ports:
+      - "3310:3310"
+    healthcheck:
+      test: ["CMD", "clamav-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - smartedms
+
   # Optional: MinIO for local S3-compatible storage testing
   minio:
     image: minio/minio:latest
@@ -174,6 +200,7 @@ volumes:
   minio_data:
   opensearch_data:
   redis_data:
+  clamav_data:
 
 networks:
   smartedms:
