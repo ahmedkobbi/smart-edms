@@ -41,7 +41,125 @@ import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { notify } from '@/lib/notifications/notify';
 
 // ---------------------------------------------------------------------------
-//  Plan definitions + transition rules
+//  Server-side price table (ZERO CLIENT TRUST)
+// ---------------------------------------------------------------------------
+//
+// SECURITY: the client never sends a price. It sends { plan, billingCycle,
+// idempotencyKey }. The server reads the price from this table and writes
+// `amountUsd` to the PaymentInvoice row. The client cannot tamper with the
+// amount charged.
+//
+// To change prices, update this table and deploy — no client change needed.
+
+export type BillingCycle = 'monthly' | 'annual';
+
+interface PlanPrice {
+  monthly: number; // USD per month
+  annual: number;  // USD per year (≈ 2 months free vs monthly)
+}
+
+export const PLAN_PRICES_USD: Record<Plan, PlanPrice> = {
+  trial:      { monthly: 0,   annual: 0    },
+  starter:    { monthly: 29,  annual: 290  },
+  business:   { monthly: 99,  annual: 990  },
+  enterprise: { monthly: 499, annual: 4990 },
+};
+
+/**
+ * Compute the USD price for a plan + billing cycle.
+ * This is the ONLY function that determines what a customer pays — the
+ * client-supplied plan is validated against this table, never trusted.
+ */
+export function computePriceUsd(plan: Plan, cycle: BillingCycle): number {
+  const price = PLAN_PRICES_USD[plan];
+  if (!price) throw new Error(`Unknown plan: ${plan}`);
+  return cycle === 'annual' ? price.annual : price.monthly;
+}
+
+/**
+ * Compute the period (start + end) for a billing cycle.
+ * Monthly = 30 days, Annual = 365 days.
+ */
+export function computeBillingPeriod(cycle: BillingCycle, from: Date = new Date()): { start: Date; end: Date } {
+  const days = cycle === 'annual' ? 365 : 30;
+  return {
+    start: from,
+    end: new Date(from.getTime() + days * 24 * 3600 * 1000),
+  };
+}
+
+// ---------------------------------------------------------------------------
+//  Payment invoice status machine
+// ---------------------------------------------------------------------------
+
+export type InvoiceStatus =
+  | 'pending'      // invoice created, awaiting redirect to provider
+  | 'waiting'      // provider invoice created, awaiting payment
+  | 'confirming'   // payment detected, awaiting blockchain confirmation
+  | 'confirmed'    // fully confirmed — subscription activated
+  | 'failed'       // payment failed or was rejected
+  | 'expired'      // invoice expired before payment
+  | 'refunded';    // payment was refunded (terminal)
+
+/**
+ * Allowed status transitions. Any transition not in this map is rejected.
+ * This prevents, e.g., a `confirmed` invoice from going back to `pending`
+ * via a malformed webhook.
+ */
+export const ALLOWED_STATUS_TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
+  pending:    ['waiting', 'failed', 'expired'],
+  waiting:    ['confirming', 'failed', 'expired', 'confirmed'],
+  confirming: ['confirmed', 'failed', 'expired'],
+  confirmed:  ['refunded'],
+  failed:     [], // terminal
+  expired:    [], // terminal
+  refunded:   [], // terminal
+};
+
+/**
+ * Check whether a status transition is allowed by the status machine.
+ */
+export function isStatusTransitionAllowed(from: InvoiceStatus, to: InvoiceStatus): boolean {
+  const allowed = ALLOWED_STATUS_TRANSITIONS[from];
+  return allowed ? allowed.includes(to) : false;
+}
+
+/**
+ * Whether the status is terminal (no further transitions possible
+ * except refund for `confirmed`).
+ */
+export function isTerminalStatus(status: InvoiceStatus): boolean {
+  return status === 'failed' || status === 'expired' || status === 'refunded';
+}
+
+// ---------------------------------------------------------------------------
+//  Crypto currency allowlist + minimums
+// ---------------------------------------------------------------------------
+
+/**
+ * Allowed crypto currencies for NowPayments checkout.
+ * Maps the NowPayments currency code to a minimum amount (in the smallest
+ * unit the API accepts) below which NowPayments rejects the invoice.
+ * NowPayments also enforces its own minimums; this is a defense-in-depth.
+ */
+export const ALLOWED_CRYPTO_CURRENCIES: Record<string, { minUsd: number; displayName: string }> = {
+  'btc':       { minUsd: 1,    displayName: 'Bitcoin' },
+  'eth':       { minUsd: 1,    displayName: 'Ethereum' },
+  'usdttrc20': { minUsd: 1,    displayName: 'USDT (TRC20)' },
+  'usdterc20': { minUsd: 1,    displayName: 'USDT (ERC20)' },
+  'usdc':      { minUsd: 1,    displayName: 'USD Coin' },
+  'ltc':       { minUsd: 1,    displayName: 'Litecoin' },
+  'bch':       { minUsd: 1,    displayName: 'Bitcoin Cash' },
+  'xmr':       { minUsd: 1,    displayName: 'Monero' },
+  'dash':      { minUsd: 1,    displayName: 'Dash' },
+};
+
+export function isCryptoCurrencyAllowed(currency: string): boolean {
+  return currency.toLowerCase() in ALLOWED_CRYPTO_CURRENCIES;
+}
+
+// ---------------------------------------------------------------------------
+//  Plan definitions + transition rules (existing — kept for compat)
 // ---------------------------------------------------------------------------
 
 export type Plan = 'trial' | 'starter' | 'business' | 'enterprise';

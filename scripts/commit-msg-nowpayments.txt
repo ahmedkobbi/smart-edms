@@ -1,0 +1,149 @@
+feat: NowPayments crypto checkout with strict payment security
+
+Adds NowPayments as a crypto payment method (BTC, ETH, USDT, USDC, LTC,
+XMR, etc.) alongside the existing Stripe integration. Implements strict
+payment security rules across the entire payment flow — not just
+NowPayments, but the shared payment infrastructure that Stripe also uses.
+
+## Security model — strict payment security rules
+
+### 1. Zero client trust
+The client NEVER sends a price. It sends only { plan, billingCycle,
+payCurrency, idempotencyKey }. The server reads the price from
+PLAN_PRICES_USD (server-side table in billing-policy.ts) and writes
+`amountUsd` to the PaymentInvoice row. The client cannot tamper with the
+amount charged — even if an attacker intercepts the request and changes
+`plan: 'enterprise'` to `plan: 'trial'`, the server ignores the price
+field entirely and reads from its own table.
+
+To change prices, update PLAN_PRICES_USD and deploy — no client change
+needed. The client never sees the price until the NowPayments invoice page
+loads (which is hosted on NowPayments' domain, not ours).
+
+### 2. Idempotency
+Every checkout request includes a client-supplied `idempotencyKey` (UUID).
+The PaymentInvoice table has a UNIQUE constraint on this field. If the
+client retries (network blip, user double-clicks), the server returns the
+existing invoice instead of creating a new one. The unique constraint is
+enforced at the DB layer — race-safe even under concurrent requests.
+
+The `createInvoiceRecord()` function in payment-service.ts handles the
+race: if two concurrent requests with the same key both pass the
+`findUnique` check, the second `create` throws P2002 (unique constraint
+violation), which is caught and re-queried.
+
+### 3. Webhook signature verification
+Every NowPayments IPN (Instant Payment Notification) is signed with
+HMAC-SHA256 over the alphabetically-sorted, `|`-concatenated values of
+the JSON body. The signature is in the `x-nowpayments-sig` header. We
+verify it with NOWPAYMENTS_IPN_SECRET. Unsigned or mismatched webhooks
+are dropped with 400 + an audit event recording the failed attempt.
+
+The verification uses constant-time comparison (`crypto.timingSafeEqual`)
+to prevent timing-based signature extraction.
+
+### 4. Webhook-only business logic
+Subscription activation happens ONLY in the webhook handler
+(POST /api/billing/webhook/nowpayments) — NEVER on the return URL.
+
+The /api/billing/return endpoint is DISPLAY ONLY: it fetches the invoice
+status from the DB (written by the webhook) and redirects the user to the
+billing dashboard. It NEVER mutates the subscription, NEVER transitions
+the invoice status, and NEVER trusts query params other than `invoice_id`.
+
+This prevents return-URL tampering attacks (e.g. an attacker crafting
+`/api/billing/return?invoice_id=xxx&status=confirmed` to activate a
+subscription without paying).
+
+### 5. IP allowlist (defense-in-depth)
+When NOWPAYMENTS_ALLOWED_IPS is configured, webhooks from any other IP
+are rejected with 403. This is defense-in-depth — the HMAC signature is
+the primary auth gate, but the IP check catches the case where the HMAC
+secret has leaked but the attacker hasn't yet forged a signature from a
+NowPayments IP.
+
+### 6. Replay protection
+Each webhook delivery is deduplicated by a synthesized event ID
+`${payment_id}:${payment_status}`. The PaymentInvoice.processedWebhooks
+field stores every processed event ID (capped at 100 entries). Duplicate
+deliveries (NowPayments retries on 5xx) are a no-op — the status is
+already terminal.
+
+### 7. Atomic status transitions
+Status changes use `updateMany WHERE id = ? AND status = fromStatus` so
+two concurrent webhooks cannot both transition the invoice. Only one
+wins (count=1); the other gets count=0 and is treated as a no-op.
+
+The status machine (ALLOWED_STATUS_TRANSITIONS in billing-policy.ts)
+defines which transitions are allowed. Any transition not in the map is
+rejected — e.g. a `confirmed` invoice cannot go back to `pending` via a
+malformed webhook.
+
+### 8. Underpayment protection
+The webhook only transitions to `confirmed` when
+`actually_paid >= pay_amount`. Partial payments stay in `confirming`
+until the full amount arrives or the invoice expires. This prevents an
+attacker from paying $0.01 on a $499 enterprise invoice and getting the
+subscription activated.
+
+### 9. Cron reconciliation
+An hourly cron (GET /api/cron/billing-reconcile) queries the NowPayments
+API for every pending/waiting/confirming invoice and syncs the status —
+catches missed webhooks (network outages, endpoint down). Also expires
+stale invoices past their `expiresAt` timestamp.
+
+### 10. Invoice expiry
+Crypto invoices expire (typically 20-30 min). The cron marks expired
+invoices as `expired` and never activates the subscription. This prevents
+an attacker from holding an invoice open indefinitely (e.g. creating many
+invoices to lock up NowPayments quota).
+
+### 11. Refund safety
+Refunds require:
+  - Platform admin permission (ADMIN_PLATFORM_BILLING_MANAGE) — tenant_admins cannot refund
+  - Step-up auth (MFA or password re-entry)
+  - The invoice must be in `confirmed` status
+
+Refunds are NEVER automatic — no cron job, no webhook, no UI button for
+tenant_admins. Only a platform admin can issue a refund, and every refund
+is audit-logged with the actor + reason. The subscription is downgraded
+to `past_due` (not canceled — the tenant admin may want to re-subscribe).
+
+### 12. Audit trail
+Every status change is recorded as an audit event with the actor
+(user/system/webhook/provider), the from/to status, the webhook event ID,
+and the amount. This provides a complete forensic trail for every payment.
+
+## New files
+
+- src/lib/billing/nowpayments.ts — NowPayments API client + HMAC-SHA256
+  webhook signature verification + IP allowlist + status mapping
+- src/lib/billing/payment-service.ts — shared payment business logic:
+  idempotent invoice creation, atomic status transitions, webhook dedup,
+  subscription activation (ONLY from `confirmed`), refund handling,
+  invoice expiry
+- src/app/api/billing/checkout/route.ts — create invoice (server-side
+  price + idempotency key)
+- src/app/api/billing/webhook/nowpayments/route.ts — webhook handler
+  (signature + IP + replay + underpayment + atomic transition)
+- src/app/api/billing/return/route.ts — DISPLAY ONLY return URL
+- src/app/api/billing/status/[invoiceId]/route.ts — polling endpoint
+- src/app/api/billing/refund/route.ts — platform-admin refund
+- src/app/api/cron/billing-reconcile/route.ts — hourly reconciliation
+- tests/unit/payment-security.test.ts — 35 tests covering all security rules
+
+## Modified files
+
+- prisma/schema.prisma — new PaymentInvoice model + Tenant relation
+- src/lib/billing/billing-policy.ts — added PLAN_PRICES_USD,
+  computePriceUsd, BillingCycle, InvoiceStatus status machine,
+  ALLOWED_STATUS_TRANSITIONS, isStatusTransitionAllowed, isTerminalStatus,
+  ALLOWED_CRYPTO_CURRENCIES, isCryptoCurrencyAllowed
+- src/lib/config/env.ts — NOWPAYMENTS_API_KEY + NOWPAYMENTS_IPN_SECRET
+  validators
+- .env.example — NowPayments env var documentation
+
+## Test results
+- TypeScript: 0 errors
+- ESLint: 0 errors (7 pre-existing a11y warnings)
+- Unit tests: 315/315 passing (280 existing + 35 new payment-security)

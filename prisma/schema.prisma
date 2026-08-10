@@ -68,6 +68,13 @@ model Tenant {
   ssoProviders           SsoProvider[]
   auditReceipts          AuditReceipt[]
   subscription           Subscription?
+  // NowPayments / Stripe payment invoices for crypto + card checkout.
+  // SECURITY: every invoice has a unique idempotency key (prevents
+  // duplicate charges from network retries) and a strict status machine
+  // (pending → waiting → confirming → confirmed | failed | expired).
+  // Business logic (subscription activation) runs ONLY in the webhook
+  // handler, never on the success return URL.
+  paymentInvoices        PaymentInvoice[]
   documentTextIndexes    DocumentTextIndex[]
   documentEmbeddings     DocumentEmbedding[]
   securityAnomalies      SecurityAnomaly[]
@@ -1293,6 +1300,110 @@ model Subscription {
   updatedAt    DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================================
+//  PAYMENT INVOICES (NowPayments crypto + Stripe card)
+// ============================================================================
+//
+// SECURITY MODEL — strict payment security rules:
+//
+//   1. ZERO CLIENT TRUST: the client never sends a price. It sends only
+//      { plan, billingCycle, idempotencyKey }. The server reads the price
+//      from PLAN_PRICES_USD (server-side table) and writes `amountUsd`
+//      to the invoice row. The client cannot tamper with the amount.
+//
+//   2. IDEMPOTENCY: `idempotencyKey` is a client-supplied UUID with a
+//      UNIQUE constraint. If the client retries (network blip), the
+//      server returns the existing invoice instead of creating a new one.
+//      The unique constraint is enforced at the DB layer — race-safe.
+//
+//   3. WEBHOOK VERIFICATION: every webhook is verified via HMAC-SHA512
+//      signature (NowPayments) or HMAC-SHA256 (Stripe) computed over the
+//      RAW body. The signature secret is in NOWPAYMENTS_IPN_SECRET /
+//      STRIPE_WEBHOOK_SECRET. Webhooks failing verification are dropped.
+//
+//   4. WEBHOOK-ONLY BUSINESS LOGIC: subscription activation runs ONLY in
+//      the webhook handler. The /api/billing/return endpoint is DISPLAY
+//      ONLY — it fetches invoice status for the UI but never mutates the
+//      subscription. This prevents return-URL tampering (e.g. an attacker
+//      crafting `/api/billing/return?invoice_id=xxx&status=confirmed`).
+//
+//   5. REPLAY PROTECTION: `processedWebhooks` stores the IDs of every
+//      webhook event already processed. Duplicate deliveries (NowPayments
+//      retries on 5xx) are a no-op — the status is already terminal.
+//
+//   6. ATOMIC STATUS TRANSITIONS: status changes use `updateMany WHERE
+//      status IN (allowed_prev_states)` so two concurrent webhooks
+//      cannot both transition the invoice. Only one wins; the other gets
+//      count=0 and is a no-op.
+//
+//   7. UNDERPAYMENT PROTECTION: the webhook only transitions to
+//      `confirmed` when `amountReceivedCrypto >= amountDueCrypto`. Partial
+//      payments stay in `confirming` until the full amount arrives or the
+//      invoice expires.
+//
+//   8. CRON RECONCILIATION: an hourly cron queries the NowPayments API
+//      for every `pending`/`waiting`/`confirming` invoice and syncs the
+//      status — catches missed webhooks (network outages, endpoint down).
+//
+//   9. INVOICE EXPIRY: crypto invoices expire (typically 20 min). The
+//      cron marks expired invoices as `expired` and never activates the
+//      subscription.
+//
+//  10. REFUND SAFETY: refunds require platform-admin + step-up auth and
+//      are NEVER automatic. The `refunded` status is terminal.
+//
+//  11. AUDIT TRAIL: every status change is recorded as an audit event
+//      with the actor (user/system/webhook/provider).
+
+model PaymentInvoice {
+  id              String   @id @default(cuid())
+  tenantId        String
+  userId          String // who initiated the checkout
+
+  // Provider fields
+  provider        String   // 'nowpayments' | 'stripe'
+  providerInvoiceId String? // NowPayments invoice_id or Stripe session_id
+  providerPaymentId  String? // NowPayments payment_id (set when payment detected)
+
+  // What was purchased — SERVER-AUTHORITATIVE (zero client trust)
+  plan            String   // trial | starter | business | enterprise
+  billingCycle    String   // 'monthly' | 'annual'
+  seats           Int
+  storageBytes    BigInt
+  amountUsd       Float    // server-calculated price in USD (from PLAN_PRICES_USD)
+  amountDueCrypto Float?   // crypto amount due (set by NowPayments)
+  amountReceivedCrypto Float? // crypto amount actually received
+  cryptoCurrency  String?  // BTC, ETH, USDT-TRC20, etc.
+  payCurrency     String?  // currency the user chose to pay in
+
+  // Idempotency — UNIQUE constraint prevents duplicate invoices
+  idempotencyKey  String   @unique
+
+  // Status machine: pending → waiting → confirming → confirmed | failed | expired | refunded
+  status          String   @default("pending")
+
+  // Webhook dedup — JSON array of processed webhook event IDs
+  processedWebhooks String?
+
+  // Pay URL (NowPayments-hosted invoice page; client redirects here)
+  invoiceUrl      String?
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  expiresAt       DateTime? // invoice expiry (typically 20 min for crypto)
+  confirmedAt     DateTime?
+  refundedAt      DateTime?
+  refundedBy      String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([provider, providerInvoiceId])
+  @@index([provider, providerPaymentId])
+  @@index([status, expiresAt]) // cron queries pending + expired
 }
 
 // ============================================================================

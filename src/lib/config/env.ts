@@ -136,6 +136,21 @@ const ENV_VARS: EnvVar[] = [
     validator: (v) => v.startsWith('whsec_'),
     errorMessage: 'Must start with whsec_',
   },
+  // NowPayments crypto payment integration
+  {
+    name: 'NOWPAYMENTS_API_KEY',
+    required: false,
+    description: 'NowPayments API key (enables crypto checkout)',
+    validator: (v) => v.length >= 10,
+    errorMessage: 'Must be at least 10 characters',
+  },
+  {
+    name: 'NOWPAYMENTS_IPN_SECRET',
+    required: false,
+    description: 'NowPayments IPN webhook signing secret (HMAC-SHA256)',
+    validator: (v) => v.length >= 10,
+    errorMessage: 'Must be at least 10 characters',
+  },
 ];
 
 export interface EnvValidationResult {
