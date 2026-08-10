@@ -196,7 +196,16 @@ async function ensureIndex(client: Client): Promise<void> {
               default: { type: 'text', analyzer: 'smart_edms_default' },
             },
           },
-          metadata: { type: 'object', enabled: false }, // Stored but not indexed
+          // Metadata — dynamic mapping so any metadata field is auto-indexed.
+          // This enables filtering by metadata values (e.g. metadata.department,
+          // metadata.caseNumber, metadata.jurisdiction).
+          // String values are indexed as both `text` (for full-text search)
+          // and `keyword` (for exact filtering / aggregations).
+          metadata: {
+            type: 'object',
+            enabled: true,
+            dynamic: true,
+          },
           createdAt: { type: 'date' },
           updatedAt: { type: 'date' },
         },
@@ -235,6 +244,11 @@ export async function indexDocument(tenantId: string, documentId: string): Promi
     let tags: string[] = [];
     try { tags = JSON.parse(doc.tags || '[]'); } catch {}
 
+    // Parse metadata JSON — this is indexed as a dynamic object so any
+    // field (e.g. metadata.department, metadata.caseNumber) is searchable.
+    let metadata: Record<string, unknown> = {};
+    try { metadata = JSON.parse(doc.metadata || '{}'); } catch {}
+
     const docBody = {
       tenantId,
       documentId: doc.id,
@@ -249,6 +263,7 @@ export async function indexDocument(tenantId: string, documentId: string): Promi
       folderId: doc.folderId || '',
       documentLanguage: doc.documentLanguage || 'en',
       content: textIndex?.extractedText || '',
+      metadata,
       createdAt: doc.createdAt.toISOString(),
       updatedAt: doc.updatedAt.toISOString(),
     };
@@ -307,6 +322,8 @@ export async function searchDocuments(params: {
   states?: string[];
   tags?: string[];
   folderId?: string;
+  /** Metadata field filters — key = field name, value = expected value(s). */
+  metadata?: Record<string, string | string[]>;
   page: number;
   pageSize: number;
 }): Promise<{
@@ -316,6 +333,8 @@ export async function searchDocuments(params: {
     classifications: { id: string; count: number }[];
     states: { state: string; count: number }[];
     tags: { name: string; count: number }[];
+    /** Top metadata field values (for the most common fields). */
+    metadata: { field: string; value: string; count: number }[];
   };
   highlights: Record<string, string[]>;
 } | null> {
@@ -348,8 +367,26 @@ export async function searchDocuments(params: {
   if (params.folderId) {
     filter.push({ term: { folderId: params.folderId } });
   }
+  // Metadata filters — each key becomes a `term` or `terms` filter on
+  // `metadata.<fieldName>`. OpenSearch's dynamic mapping auto-creates
+  // keyword subfields for string values, so we filter on the keyword
+  // subfield for exact matches.
+  if (params.metadata) {
+    for (const [key, value] of Object.entries(params.metadata)) {
+      if (value == null) continue;
+      const fieldPath = `metadata.${key}`;
+      if (Array.isArray(value)) {
+        // Multiple values → terms (OR) query on the keyword subfield
+        filter.push({ terms: { [`${fieldPath}.keyword`]: value } });
+      } else {
+        // Single value → term query on the keyword subfield
+        filter.push({ term: { [`${fieldPath}.keyword`]: value } });
+      }
+    }
+  }
 
   // Text query — search both Arabic and default analyzers
+  // Also includes metadata.* (wildcard) so metadata values are full-text searchable
   if (query && query.trim()) {
     const normalized = normalizeForSearch(query);
     must.push({
@@ -365,6 +402,7 @@ export async function searchDocuments(params: {
           'content.arabic',
           'content.default',
           'tags',
+          'metadata.*', // all metadata text fields
         ],
         type: 'best_fields',
         fuzziness: 'AUTO',
@@ -400,6 +438,19 @@ export async function searchDocuments(params: {
       },
       tags: {
         terms: { field: 'tags', size: 30 },
+      },
+      // Metadata facets — we can't aggregate over all metadata fields
+      // dynamically (OpenSearch doesn't support wildcard aggregations),
+      // so we aggregate over the most common fields if they exist.
+      // Admins can extend this list via tenant settings in a future iteration.
+      metadataDepartments: {
+        terms: { field: 'metadata.department.keyword', size: 15, missing: '__none__' },
+      },
+      metadataDocumentTypes: {
+        terms: { field: 'metadata.documentType.keyword', size: 15, missing: '__none__' },
+      },
+      metadataJurisdictions: {
+        terms: { field: 'metadata.jurisdiction.keyword', size: 10, missing: '__none__' },
       },
     },
   };
@@ -466,6 +517,19 @@ export async function searchDocuments(params: {
           name: b.key,
           count: b.doc_count,
         })),
+        // Metadata facets — flatten the 3 aggregation buckets into a
+        // single list of { field, value, count } entries.
+        metadata: [
+          ...(aggregations?.metadataDepartments?.buckets || [])
+            .filter((b: any) => b.key !== '__none__')
+            .map((b: any) => ({ field: 'department', value: b.key, count: b.doc_count })),
+          ...(aggregations?.metadataDocumentTypes?.buckets || [])
+            .filter((b: any) => b.key !== '__none__')
+            .map((b: any) => ({ field: 'documentType', value: b.key, count: b.doc_count })),
+          ...(aggregations?.metadataJurisdictions?.buckets || [])
+            .filter((b: any) => b.key !== '__none__')
+            .map((b: any) => ({ field: 'jurisdiction', value: b.key, count: b.doc_count })),
+        ],
       },
       highlights: {},
     };

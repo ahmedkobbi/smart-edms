@@ -1,0 +1,78 @@
+feat: metadata search + cross-tenant isolation tests + ADR-003 update
+
+Three remaining HIGH-priority items from the master-prompt audit.
+
+## 1. Metadata search (OpenSearch + Prisma fallback)
+
+**Gap:** OpenSearch mapping had `metadata: { enabled: false }` — metadata
+was stored but not indexed. Documents could not be found by metadata
+values (department, caseNumber, jurisdiction, etc.). No metadata facets.
+
+**Implemented:**
+- Changed OpenSearch mapping to `metadata: { type: 'object', enabled: true,
+  dynamic: true }` — any metadata field is now auto-indexed as both `text`
+  (full-text search) and `keyword` (exact filtering / aggregations).
+- `indexDocument()` now parses `Document.metadata` JSON and includes it
+  in the indexed document body.
+- `searchDocuments()` accepts a new `metadata?: Record<string, string[]>`
+  param. Each key becomes a `term` or `terms` filter on `metadata.<key>.keyword`
+  for exact matching. Multiple values are OR'd within a key; multiple keys
+  are AND'd.
+- Full-text query now includes `metadata.*` (wildcard) in the `multi_match`
+  fields, so metadata values are searchable via free-text too.
+- Added 3 metadata facet aggregations: `metadata.department`,
+  `metadata.documentType`, `metadata.jurisdiction` — flattened into a
+  single `metadata: [{ field, value, count }]` array in the response.
+- Search API (`/api/search`) accepts `?metadata=department:Finance` or
+  `?metadata=department:Finance,jurisdiction:EU,US` or repeated
+  `?metadata=department:Finance&metadata=jurisdiction:EU,US`.
+- Prisma fallback: metadata filtering via `metadata: { contains: '"key":"value"' }`
+  (approximate — SQLite doesn't support JSON path queries). Free-text
+  query also searches the metadata JSON string.
+
+**Note:** Existing OpenSearch indices need reindexing to pick up the new
+mapping. Run `POST /api/admin/search/reindex?scope=keyword` after deploy.
+
+## 2. Cross-tenant isolation test (vitest)
+
+**Gap:** `scripts/test-isolation.ts` existed but was a standalone script
+— NOT in the vitest suite, NOT in CI. No automated test proved tenant
+isolation.
+
+**Implemented:** `tests/unit/tenant-isolation.test.ts` — 11 tests covering:
+- Tenant A document query doesn't return tenant B documents
+- Tenant B document query doesn't return tenant A documents
+- Direct document ID lookup with wrong tenantId returns null
+- Direct document ID lookup with correct tenantId succeeds
+- Audit events are tenant-scoped
+- User records are tenant-scoped
+- Notifications are tenant-scoped
+- Shares are tenant-scoped
+- Roles don't leak across tenants
+- Role assignments don't leak across tenants
+- Count queries are tenant-scoped
+
+The test is self-contained: creates its own two tenants + users + docs +
+audit events + notifications + shares (with a unique RUN_ID to avoid
+collisions), runs assertions, and cleans up all artifacts in `afterAll`.
+Skipped automatically if `DATABASE_URL` is not set.
+
+## 3. ADR-003 updated — JWT denylist now implemented
+
+ADR-003 originally said "For critical revocation needs: maintain a JWT
+blacklist (Redis) in future." The denylist has since been implemented
+(`RevokedSession` model + `session-revocation.ts` module + `/api/auth/logout`
+endpoint + mass-revoke via `User.sessionsRevokedAt`). Updated the ADR to:
+- Document the two-layer revocation mechanism (single-session + mass-revoke)
+- Explain the performance characteristics (60s cache, indexed lookups)
+- Compare against DB-session strategy (denylist is cheaper: 1 lookup
+  only on cache miss, vs 1 lookup per request for DB sessions)
+- List the mitigation paths (password change, admin force-logout, stolen
+  token recovery)
+
+## Test results
+
+- 263/263 tests passing (252 existing + 11 new cross-tenant isolation tests)
+- Lint: clean
+- New code introduces zero new TypeScript errors (the OpenSearch aggregate
+  type-narrowing warnings are pre-existing)

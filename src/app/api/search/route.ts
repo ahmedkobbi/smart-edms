@@ -25,8 +25,39 @@ const querySchema = z.object({
   tags: z.string().optional(),
   state: z.string().optional(),
   folderId: z.string().optional(),
+  /**
+   * Metadata field filters. Format: `key:value` or `key:value1,value2`.
+   * Multiple filters: repeat the param or use `&metadata.department=Finance&metadata.jurisdiction=EU,US`.
+   * OpenSearch filters on `metadata.<key>.keyword` for exact matches.
+   */
+  metadata: z.union([z.string(), z.array(z.string())]).optional(),
   sort: z.enum(['relevance', 'createdAt:desc', 'createdAt:asc', 'title:asc', 'updatedAt:desc']).default('relevance'),
 });
+
+/**
+ * Parse the `metadata` query param into a Record<string, string[]>.
+ *
+ * Supports two formats:
+ *   1. Single string: "department:Finance,jurisdiction:EU"
+ *      → { department: ['Finance'], jurisdiction: ['EU'] }
+ *   2. Array (repeated param): ["department:Finance", "jurisdiction:EU,US"]
+ *      → { department: ['Finance'], jurisdiction: ['EU', 'US'] }
+ */
+function parseMetadataParam(raw: string | string[] | undefined): Record<string, string[]> | undefined {
+  if (!raw) return undefined;
+  const items = Array.isArray(raw) ? raw : [raw];
+  const result: Record<string, string[]> = {};
+  for (const item of items) {
+    const colonIdx = item.indexOf(':');
+    if (colonIdx === -1) continue;
+    const key = item.slice(0, colonIdx).trim();
+    const values = item.slice(colonIdx + 1).split(',').map((v) => v.trim()).filter(Boolean);
+    if (!key || values.length === 0) continue;
+    if (!result[key]) result[key] = [];
+    result[key].push(...values);
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
 
 export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.SEARCH_USE },
@@ -36,6 +67,14 @@ export const GET = createApiHandler(
 
     const classificationCodes = q.classifications ? q.classifications.split(',').map((s) => s.trim()).filter(Boolean) : [];
     const tagList = q.tags ? q.tags.split(',').map((s) => s.trim()).filter(Boolean) : [];
+
+    // Parse metadata filters from query params.
+    // Supports: ?metadata=department:Finance  OR  ?metadata=department:Finance,jurisdiction:EU,US
+    // OR repeated: ?metadata=department:Finance&metadata=jurisdiction:EU,US
+    // Note: next/url searchParams only returns the first value for repeated
+    // keys via .get(), so we use .getAll() for multi-value support.
+    const rawMetadata = req.nextUrl.searchParams.getAll('metadata');
+    const metadataFilters = parseMetadataParam(rawMetadata.length > 0 ? rawMetadata : q.metadata as string | string[] | undefined);
 
     // ── Try OpenSearch first (production-grade FTS with Arabic analyzer) ──
     if (await isOpenSearchAvailable()) {
@@ -48,6 +87,7 @@ export const GET = createApiHandler(
         states: q.state ? [q.state] : undefined,
         tags: tagList.length > 0 ? tagList : undefined,
         folderId: q.folderId || undefined,
+        metadata: metadataFilters,
         page: q.page,
         pageSize: q.pageSize,
       });
@@ -101,12 +141,33 @@ export const GET = createApiHandler(
             classifications: osResult.facets.classifications,
             tags: osResult.facets.tags,
             states: osResult.facets.states,
+            metadata: osResult.facets.metadata || [],
           },
         });
       }
     }
 
     // ── Fallback: Prisma LIKE queries (dev mode or OpenSearch unavailable) ──
+    // Note: Prisma's SQLite provider doesn't support JSON path queries,
+    // so metadata filtering is approximated by a `contains` check on the
+    // raw metadata JSON string. This is less precise than OpenSearch
+    // (it matches substrings, not field values) but covers the common case.
+    const metadataFilterConditions: any[] = [];
+    if (metadataFilters) {
+      for (const [key, values] of Object.entries(metadataFilters)) {
+        for (const value of values) {
+          // Match "key":"value" in the JSON string (approximate)
+          metadataFilterConditions.push({
+            metadata: { contains: `"${key}":"${value}"` },
+          });
+          // Also match with a space after the colon (common JSON formatting)
+          metadataFilterConditions.push({
+            metadata: { contains: `"${key}": "${value}"` },
+          });
+        }
+      }
+    }
+
     const where = {
       tenantId: ctx.tenantId,
       deletedAt: null,
@@ -114,6 +175,7 @@ export const GET = createApiHandler(
       ...(classificationCodes.length > 0 ? { classification: { code: { in: classificationCodes } } } : {}),
       ...(q.state ? { state: q.state } : {}),
       ...(q.folderId ? { folderId: q.folderId } : {}),
+      ...(metadataFilterConditions.length > 0 ? { AND: metadataFilterConditions } : {}),
       ...(q.q
         ? {
             OR: [
@@ -122,6 +184,8 @@ export const GET = createApiHandler(
               { tags: { contains: q.q } },
               { title: { contains: normalizeForSearch(q.q) } },
               { description: { contains: normalizeForSearch(q.q) } },
+              // Also search metadata JSON for the query text
+              { metadata: { contains: q.q } },
             ],
           }
         : {}),
@@ -227,6 +291,7 @@ export const GET = createApiHandler(
         classifications: Array.from(classificationFacet.entries()).map(([id, count]) => ({ id, count })),
         tags: Array.from(tagFacet.entries()).map(([name, count]) => ({ name, count })),
         states: Array.from(stateFacet.entries()).map(([state, count]) => ({ state, count })),
+        metadata: [], // Prisma fallback doesn't compute metadata facets
       },
     });
   },
