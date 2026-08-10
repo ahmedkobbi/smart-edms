@@ -91,7 +91,7 @@ export default function AdminDispositionsPage() {
                     )}
                     {d.status === 'executed' && d.certificateHash && (
                       <Button variant="ghost" size="sm" onClick={() => viewCert.mutate(d.id)}>
-                        <FileCheck className="mr-1 h-3 w-3" /> Certificate
+                        <FileCheck className="me-1 h-3 w-3" /> Certificate
                       </Button>
                     )}
                   </div>
@@ -126,11 +126,11 @@ export default function AdminDispositionsPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => decide.mutate({ id: selected?.id, approved: false })} disabled={decide.isPending}>
-              <XCircle className="mr-2 h-3.5 w-3.5" /> Reject
+              <XCircle className="me-2 h-3.5 w-3.5" /> Reject
             </Button>
             <Button onClick={() => decide.mutate({ id: selected?.id, approved: true })} disabled={decide.isPending}>
-              {decide.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-              <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Approve &amp; execute
+              {decide.isPending && <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" />}
+              <CheckCircle2 className="me-2 h-3.5 w-3.5" /> Approve &amp; execute
             </Button>
           </DialogFooter>
         </DialogContent>

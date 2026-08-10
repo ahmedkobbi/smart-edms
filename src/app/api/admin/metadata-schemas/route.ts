@@ -40,6 +40,7 @@ const createSchema = z.object({
 export const POST = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_POLICIES_MANAGE,
+    requireStepUp: true,
     audit: { eventType: 'admin.metadata-schema.create', action: 'create', resourceType: 'metadata-schema', alwaysAudit: true },
   },
   async (req: NextRequest, ctx) => {

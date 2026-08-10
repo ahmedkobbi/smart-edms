@@ -82,20 +82,20 @@ export default function ResetPasswordPage() {
                 <div className="space-y-2">
                   <Label htmlFor="password">New password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Lock className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="password"
                       type={showPassword ? 'text' : 'password'}
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-9 pr-10 glass-input border-0 h-11"
+                      className="ps-9 pe-10 glass-input border-0 h-11"
                       placeholder="Min 12 chars, upper/lower/digit/special"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -112,7 +112,7 @@ export default function ResetPasswordPage() {
               </CardContent>
               <CardFooter>
                 <Button type="submit" className="w-full btn-premium" disabled={loading || !password}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {loading && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
                   Update password
                 </Button>
               </CardFooter>

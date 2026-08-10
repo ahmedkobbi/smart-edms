@@ -50,7 +50,7 @@ export default function AdminInvitationsPage() {
         </div>
         <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) setInviteUrl(null); }}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="mr-2 h-4 w-4" /> New invitation</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New invitation</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -65,7 +65,7 @@ export default function AdminInvitationsPage() {
                   <p className="font-mono text-xs break-all">{inviteUrl}</p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(inviteUrl); toast({ title: 'Copied' }); }}>
-                  <Copy className="mr-2 h-3.5 w-3.5" /> Copy URL
+                  <Copy className="me-2 h-3.5 w-3.5" /> Copy URL
                 </Button>
               </div>
             ) : (
@@ -101,7 +101,7 @@ export default function AdminInvitationsPage() {
                 <>
                   <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
                   <Button onClick={() => create.mutate()} disabled={!form.email || create.isPending}>
-                    {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
                     Create
                   </Button>
                 </>

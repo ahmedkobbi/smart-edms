@@ -53,6 +53,7 @@ export const POST = createApiHandler(
       });
 
       const stepApproverCount = allStepApprovals.length;
+      const stepMode = approval.stepMode || 'all';
       const approvedCount = allStepApprovals.filter((a) => a.status === 'approved').length + (body.decision === 'approve' ? 1 : 0) - 1;
       const rejectedCount = allStepApprovals.filter((a) => a.status === 'rejected').length + (body.decision === 'reject' ? 1 : 0) - 1;
 
@@ -62,11 +63,26 @@ export const POST = createApiHandler(
 
       if (body.decision === 'reject' || rejectedCount > 0) {
         workflowStatus = 'rejected';
-      } else if (approvedCount >= stepApproverCount) {
-        // Step approved — find next step definition
-        // We need to look at stored step definitions
-        const wfDef = await tx.workflowDefinition.findFirst({ where: { id: wf.definitionId ?? '' } });
-        // For ad-hoc workflows, we use the current step + 1 logic
+      } else if (stepMode === 'any') {
+        // mode='any': first approval completes the step immediately.
+        // Mark all OTHER pending approvals on this step as 'delegated'
+        // (re-used as 'auto-resolved') so they don't count as pending.
+        if (body.decision === 'approve') {
+          await tx.approval.updateMany({
+            where: {
+              workflowId: wf.id,
+              stepIndex: approval.stepIndex,
+              id: { not: approval.id },
+              status: 'pending',
+            },
+            data: {
+              status: 'delegated',
+              comment: 'Auto-resolved: another approver on this step already approved (mode=any).',
+              decidedAt: new Date(),
+            },
+          });
+        }
+        // For mode='any', one approval is enough — proceed to next step
         const maxStep = Math.max(...(await tx.approval.findMany({
           where: { workflowId: wf.id },
           select: { stepIndex: true },
@@ -75,7 +91,6 @@ export const POST = createApiHandler(
 
         if (approval.stepIndex < maxStep) {
           nextStep = approval.stepIndex + 1;
-          // Activate next step's pending approvals (they were pre-created)
           await tx.approval.updateMany({
             where: { workflowId: wf.id, stepIndex: nextStep },
             data: { status: 'pending' },
@@ -86,7 +101,33 @@ export const POST = createApiHandler(
           });
         } else {
           workflowStatus = 'approved';
-          // Mark document as record if it was a record declaration workflow
+          if (wf.name?.toLowerCase().includes('record')) {
+            await tx.document.update({
+              where: { id: wf.documentId ?? '' },
+              data: { isRecord: true, state: 'record' },
+            });
+          }
+        }
+      } else if (approvedCount >= stepApproverCount) {
+        // mode='all': all approvers must approve (default behavior)
+        const maxStep = Math.max(...(await tx.approval.findMany({
+          where: { workflowId: wf.id },
+          select: { stepIndex: true },
+          distinct: ['stepIndex'],
+        })).map((s) => s.stepIndex));
+
+        if (approval.stepIndex < maxStep) {
+          nextStep = approval.stepIndex + 1;
+          await tx.approval.updateMany({
+            where: { workflowId: wf.id, stepIndex: nextStep },
+            data: { status: 'pending' },
+          });
+          await tx.workflow.update({
+            where: { id: wf.id },
+            data: { currentStep: nextStep },
+          });
+        } else {
+          workflowStatus = 'approved';
           if (wf.name?.toLowerCase().includes('record')) {
             await tx.document.update({
               where: { id: wf.documentId ?? '' },

@@ -56,7 +56,7 @@ export default function AdminGroupsPage() {
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="mr-2 h-4 w-4" /> New group</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New group</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -76,7 +76,7 @@ export default function AdminGroupsPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
               <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>
-                {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
                 Create
               </Button>
             </DialogFooter>
@@ -107,7 +107,7 @@ export default function AdminGroupsPage() {
                     {g.description && <p className="text-xs text-muted-foreground mt-0.5">{g.description}</p>}
                   </div>
                   <Button variant="ghost" size="sm" className="text-red-600" onClick={() => del.mutate(g.id)}>
-                    <Trash2 className="mr-1 h-3 w-3" /> Delete
+                    <Trash2 className="me-1 h-3 w-3" /> Delete
                   </Button>
                 </div>
               ))}

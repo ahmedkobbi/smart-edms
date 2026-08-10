@@ -102,7 +102,7 @@ export default function WorkflowsPage() {
                         <Link href={`/documents/${wf.document.id}`} className="text-sm text-muted-foreground hover:underline mt-1 block">
                           {wf.document.title}
                           {wf.document.classification && (
-                            <span className="ml-2 font-mono text-xs" style={{ color: wf.document.classification.color }}>
+                            <span className="ms-2 font-mono text-xs" style={{ color: wf.document.classification.color }}>
                               {wf.document.classification.code}
                             </span>
                           )}

@@ -58,7 +58,7 @@ export default function AdminLegalHoldsPage() {
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="mr-2 h-4 w-4" /> New hold</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New hold</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -82,7 +82,7 @@ export default function AdminLegalHoldsPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
               <Button onClick={() => create.mutate()} disabled={!form.name || !form.reason || create.isPending}>
-                {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
                 Create
               </Button>
             </DialogFooter>

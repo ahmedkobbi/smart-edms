@@ -59,7 +59,7 @@ export default function AdminLocalesPage() {
                   </div>
                 </div>
                 <Badge variant="default" className="text-xs">
-                  <CheckCircle2 className="mr-1 h-3 w-3" /> Active
+                  <CheckCircle2 className="me-1 h-3 w-3" /> Active
                 </Badge>
               </div>
             ))}
@@ -103,7 +103,7 @@ export default function AdminLocalesPage() {
         <CardContent>
           <Link href="https://github.com/ahmedkobbi/smart-edms/blob/main/docs/GLOSSARY-EN-AR.md" target="_blank">
             <Button variant="outline" size="sm">
-              <BookOpen className="mr-2 h-3.5 w-3.5" /> View Glossary
+              <BookOpen className="me-2 h-3.5 w-3.5" /> View Glossary
             </Button>
           </Link>
         </CardContent>

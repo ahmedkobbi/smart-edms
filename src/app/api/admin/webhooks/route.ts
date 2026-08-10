@@ -33,6 +33,7 @@ const createSchema = z.object({
 export const POST = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_WEBHOOKS_MANAGE,
+    requireStepUp: true,
     audit: { eventType: 'admin.webhook.create', action: 'create', resourceType: 'webhook', alwaysAudit: true },
   },
   async (req: NextRequest, ctx) => {

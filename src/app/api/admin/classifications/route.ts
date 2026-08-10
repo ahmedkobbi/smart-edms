@@ -35,6 +35,7 @@ const createSchema = z.object({
 export const POST = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_CLASSIFICATIONS_MANAGE,
+    requireStepUp: true,
     audit: { eventType: 'admin.classification.create', action: 'create', resourceType: 'classification', alwaysAudit: true },
   },
   async (req: NextRequest, ctx) => {

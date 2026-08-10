@@ -44,7 +44,7 @@ export default function SessionsPage() {
             <CardDescription>Based on audit events</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={() => revokeAll.mutate()} disabled={revokeAll.isPending}>
-            <LogOut className="mr-2 h-3.5 w-3.5" /> Revoke all others
+            <LogOut className="me-2 h-3.5 w-3.5" /> Revoke all others
           </Button>
         </CardHeader>
         <CardContent className="p-0">

@@ -65,18 +65,18 @@ export default function SearchPage() {
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <SearchIcon className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search title, description, tags…"
                 value={q}
                 onChange={(e) => { setQ(e.target.value); setPage(1); }}
-                className="pl-9"
+                className="ps-9"
                 autoFocus
               />
             </div>
             <Select value={classificationId} onValueChange={(v) => { setClassificationId(v); setPage(1); }}>
               <SelectTrigger className="w-full md:w-48">
-                <Filter className="mr-2 h-3.5 w-3.5" />
+                <Filter className="me-2 h-3.5 w-3.5" />
                 <SelectValue placeholder="Classification" />
               </SelectTrigger>
               <SelectContent>

@@ -101,7 +101,7 @@ export default function SharedDocumentPage() {
           className="px-4 py-2 text-sm font-medium text-white text-center"
           style={{ backgroundColor: doc.classification.color }}
         >
-          <Shield className="inline h-3.5 w-3.5 mr-1.5" />
+          <Shield className="inline h-3.5 w-3.5 me-1.5" />
           {doc.classification.name}
         </div>
       )}
@@ -168,8 +168,8 @@ export default function SharedDocumentPage() {
                 </div>
               )}
               <Button onClick={handleView} disabled={viewing || (pwRequired && !password)} className="w-full">
-                {viewing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> :
-                  share.share.mode === 'download' ? <Download className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
+                {viewing ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> :
+                  share.share.mode === 'download' ? <Download className="me-2 h-4 w-4" /> : <Eye className="me-2 h-4 w-4" />}
                 {share.share.mode === 'download' ? 'Download document' : 'View document'}
               </Button>
             </CardContent>
@@ -197,7 +197,7 @@ function WatermarkedDocument({ url, watermark, mode, fileName }: { url: string; 
         <p className="text-sm text-muted-foreground mb-3">Your download should start automatically. If not, click below:</p>
         <a href={url}>
           <Button>
-            <Download className="mr-2 h-4 w-4" /> Download {fileName}
+            <Download className="me-2 h-4 w-4" /> Download {fileName}
           </Button>
         </a>
         {watermark && (

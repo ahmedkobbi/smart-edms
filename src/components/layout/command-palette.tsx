@@ -76,33 +76,33 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         {hasPermission(perms, PERMISSIONS.ADMIN_VIEW) && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Administration">
+            <CommandGroup heading={t('common.administration')}>
               <CommandItem onSelect={() => go('/admin/users')}>
                 <Users className="ms-2 h-4 w-4" />
-                Users
+                {t('admin.users.title')}
               </CommandItem>
               <CommandItem onSelect={() => go('/admin/roles')}>
                 <KeyRound className="ms-2 h-4 w-4" />
-                Roles
+                {t('nav.roles')}
               </CommandItem>
               <CommandItem onSelect={() => go('/admin/classifications')}>
                 <BookMarked className="ms-2 h-4 w-4" />
-                Classifications
+                {t('nav.classifications')}
               </CommandItem>
               <CommandItem onSelect={() => go('/admin/policies')}>
                 <ShieldCheck className="ms-2 h-4 w-4" />
-                Policies
+                {t('nav.policies')}
               </CommandItem>
               {hasPermission(perms, PERMISSIONS.LEGAL_HOLD_MANAGE) && (
                 <CommandItem onSelect={() => go('/admin/legal-holds')}>
                   <FileLock className="ms-2 h-4 w-4" />
-                  Legal holds
+                  {t('nav.legalHolds')}
                 </CommandItem>
               )}
               {hasPermission(perms, PERMISSIONS.RETENTION_MANAGE) && (
                 <CommandItem onSelect={() => go('/admin/retention')}>
                   <Clock className="ms-2 h-4 w-4" />
-                  Retention schedules
+                  {t('nav.retention')}
                 </CommandItem>
               )}
             </CommandGroup>
@@ -110,14 +110,14 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         )}
 
         <CommandSeparator />
-        <CommandGroup heading="Account">
+        <CommandGroup heading={t('common.account')}>
           <CommandItem onSelect={() => go('/settings')}>
             <Settings className="ms-2 h-4 w-4" />
-            Settings
+            {t('nav.settings')}
           </CommandItem>
           <CommandItem onSelect={() => go('/settings/security')}>
             <Shield className="ms-2 h-4 w-4" />
-            Security
+            {t('common.security')}
           </CommandItem>
         </CommandGroup>
       </CommandList>

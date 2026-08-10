@@ -140,7 +140,7 @@ export default function SecurityPosturePage() {
       <Card>
         <CardContent className="p-4">
           <p className="text-xs text-muted-foreground">
-            <Shield className="inline h-3 w-3 mr-1" />
+            <Shield className="inline h-3 w-3 me-1" />
             Posture is computed from observable signals and is advisory. Configure external monitoring
             (SIEM, log forwarding) for production-grade anomaly detection.
           </p>

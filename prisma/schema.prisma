@@ -61,6 +61,8 @@ model Tenant {
   invitations            Invitation[]
   recertificationCampaigns RecertificationCampaign[]
   breakGlassAccesses     BreakGlassAccess[]
+  dualControlRequests    DualControlRequest[]
+  revokedSessions        RevokedSession[]
   ssoProviders           SsoProvider[]
   auditReceipts          AuditReceipt[]
   subscription           Subscription?
@@ -98,6 +100,7 @@ model User {
   lastLoginUserAgent String?
   failedLoginAttempts Int    @default(0)
   lockedUntil       DateTime?
+  sessionsRevokedAt DateTime? // mass-revoke timestamp; JWTs with iat < this are invalid
   avatarUrl         String?
   jobTitle          String?
   department        String?
@@ -116,6 +119,7 @@ model User {
   notifications   Notification[]
   shares          Share[]
   sessions        Session[]
+  revokedSessions RevokedSession[]
   accounts        Account[]
   verificationTokens VerificationToken[]
   devices         Device[]
@@ -127,6 +131,8 @@ model User {
   recentViews            RecentView[] @relation("UserRecentViews")
   savedSearches          SavedSearch[] @relation("UserSavedSearches")
   stepUpSessions         StepUpSession[]
+  dualControlRequested   DualControlRequest[] @relation("DualControlRequester")
+  dualControlApproved    DualControlRequest[] @relation("DualControlApprover")
   localePreference       UserLocalePreference? @relation("UserLocalePreference")
 
   @@unique([tenantId, email])
@@ -260,10 +266,20 @@ model Device {
   id          String   @id @default(cuid())
   tenantId    String
   userId      String
-  label       String
-  fingerprint String   // hashed user-agent + IP-range + geo hint
+  // Human-readable name extracted from the User-Agent (e.g. "Chrome on macOS")
+  name        String   @default("Unknown device")
+  // Stable hash of (userId + userAgent) — used for upsert deduplication
+  deviceHash  String   @unique
+  // Full User-Agent string for forensic reference
+  userAgent   String   @default("")
+  // Legacy field — kept for backwards compat, same as deviceHash
+  label       String   @default("")
+  fingerprint String   @default("")
   trusted     Boolean  @default(false)
+  firstSeenAt DateTime @default(now())
   lastSeenAt  DateTime @default(now())
+  lastIp      String?
+  // Legacy field — same as lastIp
   lastSeenIp  String?
   createdAt   DateTime @default(now())
 
@@ -271,6 +287,7 @@ model Device {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([tenantId, trusted])
 }
 
 // ============================================================================
@@ -359,7 +376,7 @@ model Document {
   legalHoldReason String?
   legalHoldSetBy  String?
   legalHoldSetAt  DateTime?
-  shareAllowed    Boolean  @default(true)
+  shareAllowed    Boolean  @default(false)
   downloadAllowed Boolean  @default(true)
   previewAllowed  Boolean  @default(true)
   watermarkEnabled Boolean @default(true)
@@ -480,6 +497,8 @@ model Approval {
   dueAt       DateTime?
   decidedAt   DateTime?
   createdAt   DateTime @default(now())
+  // Step mode: 'all' = all approvers must approve; 'any' = first approver wins
+  stepMode    String   @default("all")
 
   workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   document Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
@@ -695,6 +714,31 @@ model Session {
 
   @@index([userId])
   @@index([tenantId])
+}
+
+// ============================================================================
+//  SESSION REVOCATION LIST — JWT denylist for immediate logout
+// ============================================================================
+// When a user logs out, or an admin revokes their sessions, the JWT's `jti`
+// claim is added to this table. The auth handler checks every request
+// against this list and rejects revoked tokens immediately.
+//
+// Rows are garbage-collected after `expiresAt` (matches JWT `exp`).
+
+model RevokedSession {
+  id           String   @id @default(cuid())
+  tenantId     String
+  userId       String
+  jti          String   @unique // JWT ID claim — unique per token
+  reason       String   @default("logout") // logout | admin_revoke | password_change | security
+  revokedAt    DateTime @default(now())
+  expiresAt    DateTime // when the JWT would have naturally expired
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+  @@index([expiresAt])
 }
 
 model Account {
@@ -1050,6 +1094,44 @@ model BreakGlassAccess {
 
   @@index([tenantId, reviewed])
   @@index([tenantId, userId])
+}
+
+// ============================================================================
+//  DUAL-CONTROL REQUESTS — destructive admin actions require 2 approvers
+// ============================================================================
+
+model DualControlRequest {
+  id             String   @id @default(cuid())
+  tenantId       String
+  // Who requested the destructive action
+  requestedById  String
+  // What action was requested (e.g. "tenant.delete", "key.rotation",
+  // "policy.purge", "classification.cascade-delete")
+  action         String
+  resourceType   String
+  resourceId     String   @default("")
+  reason         String
+  // Status: pending | approved | rejected | executed | expired
+  status         String   @default("pending")
+  // Who approved/rejected (second admin)
+  approvedById   String?
+  decisionAt     DateTime?
+  decisionReason String?
+  // Execution tracking
+  executedAt     DateTime?
+  executionError String?
+  // JSON payload of the action parameters (for replay by the executor)
+  payload        String   @default("{}")
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requester User   @relation("DualControlRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+  approver  User?  @relation("DualControlApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+  @@index([tenantId, requestedById])
+  @@index([tenantId, action])
 }
 
 // ============================================================================

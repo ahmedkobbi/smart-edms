@@ -144,50 +144,110 @@ function applyPlural(
   params: Record<string, unknown>,
   locale: Locale,
 ): string {
-  // Match {name, plural, ...}
-  return template.replace(/\{(\w+),\s*plural,\s*([^}]+)\}/g, (match, name: string, body: string) => {
-    const value = params[name];
-    const num = typeof value === 'number' ? value : parseInt(String(value ?? 0), 10);
-    const branches = parsePluralBranches(body);
-    // Check explicit =N matches first
-    const exact = branches[`=${num}`];
-    if (exact !== undefined) return interpolate(exact, params, locale, /*raw*/ false);
-    // Fall back to CLDR category
-    const category = new Intl.PluralRules(locale).select(num);
-    const selected = branches[category] ?? branches.other ?? '';
-    return interpolate(selected, params, locale, /*raw*/ false);
-  });
+  // Scan for {name, plural, ...} and use brace-matching to find the
+  // closing brace of the plural expression (which may contain nested
+  // braces inside branch values).
+  let result = '';
+  let i = 0;
+  while (i < template.length) {
+    // Look for the start of a plural expression: '{' + name + ', plural,'
+    if (template[i] === '{') {
+      // Try to match {name, plural, at this position
+      const m = /^\{(\w+),\s*plural,\s*/.exec(template.slice(i));
+      if (m) {
+        const name = m[1];
+        let j = i + m[0].length;
+        // Find the matching closing brace, accounting for nesting
+        let depth = 1;
+        let body = '';
+        while (j < template.length && depth > 0) {
+          const ch = template[j];
+          if (ch === '{') {
+            depth++;
+            body += ch;
+          } else if (ch === '}') {
+            depth--;
+            if (depth > 0) body += ch;
+          } else {
+            body += ch;
+          }
+          j++;
+        }
+        // Now body contains the branch definitions
+        const value = params[name];
+        const num = typeof value === 'number' ? value : parseInt(String(value ?? 0), 10);
+        const branches = parsePluralBranches(body);
+        // Check explicit =N matches first
+        const exact = branches[`=${num}`];
+        let selected: string;
+        if (exact !== undefined) {
+          selected = exact;
+        } else {
+          const category = new Intl.PluralRules(locale).select(num);
+          selected = branches[category] ?? branches.other ?? '';
+        }
+        // Replace ICU '#' placeholder with the count (locale-formatted)
+        const numFormatted = new Intl.NumberFormat(locale).format(num);
+        const withHash = selected.replace(/#/g, numFormatted);
+        result += interpolate(withHash, params, locale, /*raw*/ false);
+        i = j;
+        continue;
+      }
+    }
+    result += template[i];
+    i++;
+  }
+  return result;
 }
 
 /**
  * Parse the body of a plural expression into a map of category → template.
  * Body shape: "one {...} few {...} many {...} other {...}"
  * Values may contain nested { } (e.g. {count, number}).
+ *
+ * This is a proper brace-matching tokenizer — not a regex — because
+ * regex-based parsing cannot correctly handle nested braces inside
+ * branch values (e.g. "one {تعيين {name}}").
  */
 function parsePluralBranches(body: string): Record<string, string> {
   const branches: Record<string, string> = {};
-  // Tokenize: keyword then { ... balanced ... }
-  const re = /(\w+|=0|=1|=2)\s*\{/g;
-  let match: RegExpExecArray | null;
-  let start = 0;
-  const keys: { key: string; start: number; end: number }[] = [];
-  while ((match = re.exec(body)) !== null) {
-    const key = match[1];
-    const contentStart = match.index + match[0].length;
-    // Find the matching closing brace, accounting for nesting
-    let depth = 1;
-    let i = contentStart;
-    while (i < body.length && depth > 0) {
-      if (body[i] === '{') depth++;
-      else if (body[i] === '}') depth--;
-      if (depth > 0) i++;
+  let i = 0;
+  while (i < body.length) {
+    // Skip whitespace
+    while (i < body.length && /\s/.test(body[i])) i++;
+    if (i >= body.length) break;
+
+    // Read the key (keyword or =N)
+    let key = '';
+    while (i < body.length && /[a-zA-Z0-9=]/.test(body[i])) {
+      key += body[i];
+      i++;
     }
-    keys.push({ key, start: contentStart, end: i });
-    re.lastIndex = i + 1;
-    start = i + 1;
-  }
-  for (const k of keys) {
-    branches[k.key] = body.slice(k.start, k.end);
+    if (!key) break;
+
+    // Skip whitespace before the opening brace
+    while (i < body.length && /\s/.test(body[i])) i++;
+    if (body[i] !== '{') break;
+    i++; // consume the {
+
+    // Read the content with brace matching
+    let depth = 1;
+    let content = '';
+    while (i < body.length && depth > 0) {
+      const ch = body[i];
+      if (ch === '{') {
+        depth++;
+        content += ch;
+      } else if (ch === '}') {
+        depth--;
+        if (depth > 0) content += ch;
+      } else {
+        content += ch;
+      }
+      i++;
+    }
+
+    branches[key] = content;
   }
   return branches;
 }

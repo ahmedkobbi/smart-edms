@@ -12,6 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     libvips-dev \
     tesseract-ocr \
+    tesseract-ocr-ara \
+    tesseract-ocr-fra \
+    tesseract-ocr-spa \
+    tesseract-ocr-deu \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
@@ -46,6 +50,10 @@ WORKDIR /app
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
+    tesseract-ocr-ara \
+    tesseract-ocr-fra \
+    tesseract-ocr-spa \
+    tesseract-ocr-deu \
     libvips42 \
     dumb-init \
     && rm -rf /var/lib/apt/lists/*

@@ -89,7 +89,7 @@ export default function BreakGlassPage() {
               onClick={() => request.mutate()}
               disabled={reason.length < 10 || justification.length < 20 || request.isPending}
             >
-              {request.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldAlert className="mr-2 h-4 w-4" />}
+              {request.isPending ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <ShieldAlert className="me-2 h-4 w-4" />}
               Request break-glass access
             </Button>
           </CardContent>
@@ -132,7 +132,7 @@ export default function BreakGlassPage() {
                       {bg.reviewed ? 'Reviewed' : 'Pending review'}
                     </Badge>
                     <Badge variant="outline" className="text-xs">
-                      <Clock className="mr-1 h-3 w-3" />
+                      <Clock className="me-1 h-3 w-3" />
                       {formatDistanceToNow(new Date(bg.grantedAt), { addSuffix: true })}
                     </Badge>
                   </div>

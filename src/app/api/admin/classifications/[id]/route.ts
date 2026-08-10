@@ -22,6 +22,7 @@ const patchSchema = z.object({
 export const PATCH = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_CLASSIFICATIONS_MANAGE,
+    requireStepUp: true,
     audit: { eventType: 'admin.classification.update', action: 'update', resourceType: 'classification', alwaysAudit: true },
   },
   async (req: NextRequest, ctx, params) => {
@@ -63,6 +64,7 @@ export const PATCH = createApiHandler(
 export const DELETE = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_CLASSIFICATIONS_MANAGE,
+    requireStepUp: true,
     audit: { eventType: 'admin.classification.delete', action: 'delete', resourceType: 'classification', alwaysAudit: true },
   },
   async (req: NextRequest, ctx, params) => {

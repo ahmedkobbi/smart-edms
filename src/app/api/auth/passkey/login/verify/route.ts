@@ -2,7 +2,12 @@
  * Smart EDMS — Passkey login verify (PUBLIC)
  * POST /api/auth/passkey/login/verify
  *
- * Verifies the passkey assertion and signs the user in via NextAuth.
+ * Verifies the WebAuthn assertion and establishes a NextAuth JWT session
+ * by minting the session JWT directly and setting the session cookie.
+ *
+ * This is a TRUE passwordless login — no fallback to credentials provider,
+ * no client-side signIn callback needed. The session cookie is set here
+ * and the client redirects to /dashboard.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,7 +17,9 @@ import { authChallengeStore } from '../init/route';
 import { authRateLimiter } from '@/lib/security/rate-limit';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { resolveUserRoles, resolveUserPermissions } from '@/lib/auth/auth-options';
-import { getServerSession } from '@/lib/auth/auth-options';
+import { encode as encodeJwt } from 'next-auth/jwt';
+import { cookies } from 'next/headers';
+import { logger } from '@/lib/config/logger';
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
@@ -28,9 +35,14 @@ export async function POST(req: NextRequest) {
   }
 
   // Find the challenge
-  const challengeKey = assertion.response?.clientDataJSON
-    ? JSON.parse(Buffer.from(assertion.response.clientDataJSON, 'base64url').toString()).challenge
-    : null;
+  let challengeKey: string | null = null;
+  try {
+    challengeKey = assertion.response?.clientDataJSON
+      ? JSON.parse(Buffer.from(assertion.response.clientDataJSON, 'base64url').toString()).challenge
+      : null;
+  } catch {
+    return NextResponse.json({ error: { code: 'invalid_client_data' } }, { status: 400 });
+  }
 
   const stored = challengeKey ? authChallengeStore.get(challengeKey) : null;
   if (!stored || stored.expiresAt < Date.now()) {
@@ -40,7 +52,7 @@ export async function POST(req: NextRequest) {
   // Find user + credential
   const user = await db.user.findUnique({
     where: { id: stored.userId },
-    select: { id: true, email: true, name: true, tenantId: true, status: true, passkeyCredentials: true },
+    select: { id: true, email: true, name: true, tenantId: true, status: true, passkeyCredentials: true, mfaEnabled: true },
   });
 
   if (!user || user.status !== 'active') {
@@ -109,21 +121,75 @@ export async function POST(req: NextRequest) {
       resourceName: user.email,
       result: 'allow',
       reason: 'passkey',
-      metadata: { method: 'webauthn' },
+      metadata: { method: 'webauthn', credentialId: credential.id.slice(0, 16) },
     });
 
-    // Sign in via NextAuth (create session)
-    // Since we use Credentials provider, we need to use the signIn flow
-    // For passkey, we return a special token that the client uses to complete signIn
+    // --- Establish NextAuth JWT session ---
+    // Mint the session JWT directly and set the cookie, so the user is
+    // logged in immediately — no client-side signIn callback needed.
+    const roles = await resolveUserRoles(user.id, user.tenantId);
+    const permissions = await resolveUserPermissions(user.id, user.tenantId);
+
+    const now = Math.floor(Date.now() / 1000);
+    const sessionMaxAge = 8 * 60 * 60; // 8 hours — matches auth-options.ts
+    const token = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      tenantId: user.tenantId,
+      roles,
+      permissions,
+      mfaVerified: user.mfaEnabled,
+      refreshAt: Date.now() + 5 * 60 * 1000,
+      iat: now,
+      exp: now + sessionMaxAge,
+      jti: crypto.randomUUID(),
+    };
+
+    const secret = process.env.NEXTAUTH_SECRET;
+    if (!secret) {
+      logger.error('passkey.no_nextauth_secret', {});
+      return NextResponse.json({ error: { code: 'server_error', message: 'Server not configured for sessions' } }, { status: 500 });
+    }
+
+    const encoded = await encodeJwt({
+      token,
+      secret,
+      maxAge: sessionMaxAge,
+    } as any);
+
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieName = isProduction
+      ? '__Secure-next-auth.session-token'
+      : 'next-auth.session-token';
+
+    const cookieStore = await cookies();
+    cookieStore.set(cookieName, encoded, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: isProduction,
+      path: '/',
+      maxAge: sessionMaxAge,
+    });
+
+    logger.info('passkey.login_success', { userId: user.id, email: user.email });
+
     return NextResponse.json({
       verified: true,
       userId: user.id,
       email: user.email,
       tenantId: user.tenantId,
-      message: 'Passkey verified. Complete sign-in via client-side signIn callback.',
+      redirect: '/dashboard',
     });
   } catch (err: any) {
     authChallengeStore.delete(stored.challenge);
+    logger.warn('passkey.verify_failed', { error: err.message });
     return NextResponse.json({ error: { code: 'verification_failed', message: err.message } }, { status: 403 });
   }
+}
+
+// crypto.randomUUID fallback for older Node
+import { webcrypto } from 'crypto';
+if (typeof globalThis.crypto === 'undefined') {
+  (globalThis as any).crypto = webcrypto as any;
 }

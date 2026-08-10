@@ -36,7 +36,24 @@
     "disable": "Désactiver",
     "revoke": "Révoquer",
     "approve": "Approuver",
-    "reject": "Rejeter"
+    "reject": "Rejeter",
+    "notifications": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "noNotifications": "Aucune notification",
+    "profile": "Profil",
+    "security": "Sécurité",
+    "signOut": "Déconnexion",
+    "administration": "Administration",
+    "account": "Compte",
+    "command": "Commande",
+    "commandPlaceholder": "Tapez une commande ou recherchez…",
+    "skipToContent": "Aller au contenu principal",
+    "loadingApp": "Chargement de Smart EDMS…",
+    "navigation": "Navigation",
+    "quickActions": "Actions rapides",
+    "working": "En cours…",
+    "suspend": "Suspendre",
+    "suspendUser": "Suspendre l'utilisateur"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -227,7 +244,9 @@
       "lastLogin": "Last login",
       "suspend": "Suspend",
       "createUser": "Create user",
-      "temporaryPassword": "Temporary password"
+      "temporaryPassword": "Temporary password",
+      "suspendConfirm": "Cela révoquera immédiatement toutes les sessions de {email}. L'utilisateur ne pourra pas se connecter jusqu'à sa réactivation. Une authentification renforcée est requise.",
+      "suspended": "Utilisateur suspendu"
     },
     "breakGlass": "Accès d'urgence",
     "dualControl": "Contrôle dual",

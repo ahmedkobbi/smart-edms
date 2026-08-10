@@ -17,7 +17,8 @@ const patchSchema = z.object({
 });
 
 export const PATCH = createApiHandler(
-  { requiredPermission: PERMISSIONS.ADMIN_INTEGRATIONS_MANAGE },
+  {
+    requireStepUp: true, requiredPermission: PERMISSIONS.ADMIN_INTEGRATIONS_MANAGE },
   async (req: NextRequest, ctx, params) => {
     const body = patchSchema.parse(await req.json());
     const provider = await db.ssoProvider.findFirst({ where: { id: params!.id, tenantId: ctx.tenantId } });
@@ -43,7 +44,8 @@ export const PATCH = createApiHandler(
 );
 
 export const DELETE = createApiHandler(
-  { requiredPermission: PERMISSIONS.ADMIN_INTEGRATIONS_MANAGE },
+  {
+    requireStepUp: true, requiredPermission: PERMISSIONS.ADMIN_INTEGRATIONS_MANAGE },
   async (req: NextRequest, ctx, params) => {
     const provider = await db.ssoProvider.findFirst({ where: { id: params!.id, tenantId: ctx.tenantId } });
     if (!provider) throw ApiError.notFound('not_found', 'SSO provider not found');

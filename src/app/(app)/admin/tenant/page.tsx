@@ -176,7 +176,7 @@ export default function AdminTenantPage() {
           </Button>
         )}
         <Button onClick={() => save.mutate()} disabled={save.isPending || !localState}>
-          {save.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {save.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
           Save settings
         </Button>
       </div>

@@ -67,6 +67,7 @@ const patchSchema = z.object({
 export const PATCH = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_TENANT_MANAGE,
+    requireStepUp: true,
     audit: { eventType: 'admin.billing.update', action: 'update', resourceType: 'subscription', alwaysAudit: true },
   },
   async (req: NextRequest, ctx) => {

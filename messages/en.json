@@ -36,7 +36,24 @@
     "disable": "Disable",
     "revoke": "Revoke",
     "approve": "Approve",
-    "reject": "Reject"
+    "reject": "Reject",
+    "notifications": "Notifications",
+    "markAllRead": "Mark all read",
+    "noNotifications": "No notifications",
+    "profile": "Profile",
+    "security": "Security",
+    "signOut": "Sign out",
+    "administration": "Administration",
+    "account": "Account",
+    "command": "Command",
+    "commandPlaceholder": "Type a command or search…",
+    "skipToContent": "Skip to main content",
+    "loadingApp": "Loading Smart EDMS…",
+    "navigation": "Navigation",
+    "quickActions": "Quick actions",
+    "working": "Working…",
+    "suspend": "Suspend",
+    "suspendUser": "Suspend user"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -191,7 +208,9 @@
       "lastLogin": "Last login",
       "suspend": "Suspend",
       "createUser": "Create user",
-      "temporaryPassword": "Temporary password"
+      "temporaryPassword": "Temporary password",
+      "suspendConfirm": "This will immediately revoke all sessions for {email}. The user will not be able to sign in until reactivated. Step-up authentication is required.",
+      "suspended": "User suspended"
     },
     "breakGlass": "Break-glass",
     "dualControl": "Dual Control",
@@ -259,14 +278,14 @@
       "welcome": "Smart EDMS is a secure enterprise document management platform with classification, workflow, retention, and audit-trail capabilities."
     },
     "failedLogin": {
-      "subject": "[Smart EDMS] {count} failed login attempts",
+      "subject": "[Smart EDMS] {count, plural, one {# failed login attempt} other {# failed login attempts}}",
       "title": "Failed login attempts",
       "heading": "Failed login attempts on your account",
-      "alert": "<strong>{count}</strong> failed login attempt(s) were recorded on your Smart EDMS account.",
+      "alert": "<strong>{count, plural, one {# failed login attempt} other {# failed login attempts}}</strong> were recorded on your Smart EDMS account.",
       "ipLabel": "IP address",
       "advice": "If this was not you, consider changing your password immediately and enabling MFA if you haven't already.",
       "lockWarning": "Your account will be temporarily locked after 5 failed attempts.",
-      "text": "{count} failed login attempts on your account from IP {ip}.\n\nIf this was not you, change your password and enable MFA."
+      "text": "{count, plural, one {# failed login attempt} other {# failed login attempts}} on your account from IP {ip}.\n\nIf this was not you, change your password and enable MFA."
     },
     "accountLocked": {
       "subject": "[Smart EDMS] Account locked: {email}",

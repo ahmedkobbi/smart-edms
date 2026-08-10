@@ -88,7 +88,7 @@ export function CollaborationPanel({ docId, tenantId }: { docId: string; tenantI
             </div>
           )}
           <Button onClick={() => joinSession.mutate()} disabled={joinSession.isPending}>
-            {joinSession.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit3 className="mr-2 h-4 w-4" />}
+            {joinSession.isPending ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Edit3 className="me-2 h-4 w-4" />}
             Start editing
           </Button>
         </CardContent>

@@ -40,10 +40,11 @@ export const POST = createApiHandler(
     const newHash = await hashPassword(body.newPassword);
     await db.user.update({ where: { id: user.id }, data: { passwordHash: newHash } });
 
-    // Kill all sessions except current
-    await db.session.deleteMany({
-      where: { userId: user.id, NOT: { sessionToken: ctx.session.user.id } },
-    });
+    // Revoke ALL sessions for this user (including the current one) —
+    // standard security practice on password change. The user must sign
+    // in again with their new password.
+    const { revokeAllUserSessions } = await import('@/lib/auth/session-revocation');
+    await revokeAllUserSessions(user.id, 'password_change');
 
     await recordAuditEvent({
       tenantId: ctx.tenantId,

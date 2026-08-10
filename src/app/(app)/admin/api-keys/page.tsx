@@ -58,7 +58,7 @@ export default function AdminApiKeysPage() {
         </div>
         <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) setCreatedKey(null); }}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="mr-2 h-4 w-4" /> New API key</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New API key</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -73,7 +73,7 @@ export default function AdminApiKeysPage() {
                   <p className="font-mono text-xs break-all">{createdKey}</p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(createdKey); toast({ title: 'Copied' }); }}>
-                  <Copy className="mr-2 h-3.5 w-3.5" /> Copy
+                  <Copy className="me-2 h-3.5 w-3.5" /> Copy
                 </Button>
               </div>
             ) : (
@@ -113,7 +113,7 @@ export default function AdminApiKeysPage() {
                 <>
                   <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
                   <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>
-                    {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
                     Create
                   </Button>
                 </>
@@ -158,7 +158,7 @@ export default function AdminApiKeysPage() {
                     </p>
                   </div>
                   <Button variant="ghost" size="sm" className="text-red-600" onClick={() => revoke.mutate(k.id)}>
-                    <Trash2 className="mr-1 h-3 w-3" /> Revoke
+                    <Trash2 className="me-1 h-3 w-3" /> Revoke
                   </Button>
                 </div>
               ))}

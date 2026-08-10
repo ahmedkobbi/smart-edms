@@ -49,6 +49,7 @@ const createSchema = z.object({
 export const POST = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_INTEGRATIONS_MANAGE,
+    requireStepUp: true,
     audit: { eventType: 'admin.sso.create', action: 'create', resourceType: 'sso-provider', alwaysAudit: true },
   },
   async (req: NextRequest, ctx) => {

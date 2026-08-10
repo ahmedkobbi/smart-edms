@@ -30,6 +30,7 @@ const createSchema = z.object({
 export const POST = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_POLICIES_MANAGE,
+    requireStepUp: true,
     audit: { eventType: 'admin.vocab.create', action: 'create', resourceType: 'vocabulary', alwaysAudit: true },
   },
   async (req: NextRequest, ctx) => {

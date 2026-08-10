@@ -57,7 +57,7 @@ export default function AdminRolesPage() {
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="mr-2 h-4 w-4" /> New role</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New role</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -96,7 +96,7 @@ export default function AdminRolesPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
               <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>
-                {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
                 Create
               </Button>
             </DialogFooter>
@@ -134,7 +134,7 @@ export default function AdminRolesPage() {
                   </div>
                   {!r.isSystem && (
                     <Button variant="ghost" size="sm" className="mt-2 text-red-600 h-7" onClick={() => del.mutate(r.id)}>
-                      <Trash2 className="mr-1 h-3 w-3" /> Delete
+                      <Trash2 className="me-1 h-3 w-3" /> Delete
                     </Button>
                   )}
                 </div>

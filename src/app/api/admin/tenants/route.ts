@@ -42,6 +42,7 @@ const createSchema = z.object({
 export const POST = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_TENANT_MANAGE,
+    requireStepUp: true,
     audit: { eventType: 'admin.tenant.create', action: 'create', resourceType: 'tenant', alwaysAudit: true },
   },
   async (req: NextRequest, ctx) => {

@@ -133,7 +133,7 @@ export default function AcceptInvitePage() {
             </CardContent>
             <CardFooter>
               <Button type="submit" className="w-full" disabled={submitting || !name || !password}>
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {submitting && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
                 Create account
               </Button>
             </CardFooter>

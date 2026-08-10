@@ -21,6 +21,7 @@ import { hasPermission } from '@/lib/auth/permissions';
 import { apiRateLimiter, getClientIp } from '@/lib/security/rate-limit';
 import { recordAuditEvent, AuditEventInput } from '@/lib/audit/audit-service';
 import { logger, setRequestContext, clearRequestContext } from '@/lib/config/logger';
+import { isSessionRevoked, getUserSessionRevokeTimestamp } from '@/lib/auth/session-revocation';
 import { sha256, timingSafeEqualStr } from '@/lib/auth/crypto';
 import { randomUUID } from 'crypto';
 import { db } from '@/lib/db';
@@ -324,6 +325,27 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
 
     if (!session?.user) {
       return localizedError(401, 'unauthenticated', 'Authentication required');
+    }
+
+    // --- Session revocation check (JWT denylist) ---
+    // Skip for API-key auth (no JWT, revocation is via API key deletion).
+    if (!isApiKey && session.user.jti) {
+      // 1. Check if this specific JWT has been revoked (single-session logout)
+      if (await isSessionRevoked(session.user.jti)) {
+        return jsonError(401, 'session_revoked', 'Your session has been revoked. Please sign in again.');
+      }
+      // 2. Check mass-revoke timestamp (e.g. after password change)
+      //    If the user's `sessionsRevokedAt` is newer than the JWT's `iat`,
+      //    the JWT is invalid.
+      if (session.user.iat) {
+        const revokeTs = await getUserSessionRevokeTimestamp(session.user.id);
+        if (revokeTs) {
+          const jwtIatMs = session.user.iat * 1000;
+          if (jwtIatMs < revokeTs.getTime()) {
+            return jsonError(401, 'session_expired', 'Your session is no longer valid. Please sign in again.');
+          }
+        }
+      }
     }
 
     setRequestContext({ tenantId: session.user.tenantId, userId: session.user.id });

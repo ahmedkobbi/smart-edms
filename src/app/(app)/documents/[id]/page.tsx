@@ -19,6 +19,7 @@ import {
   ArrowLeft, Download, Lock, Unlock, FileLock, Shield, History, Share2, Sparkles,
   Loader2, Eye, FileText, CheckCircle2, XCircle, AlertTriangle, Clock,
   ShieldAlert, Copy, MessageSquare, Send, Star, ShieldCheck, FolderOpen, Square,
+  RotateCcw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSessionData } from '@/components/providers/use-session-data';
@@ -166,6 +167,17 @@ export default function DocumentDetailPage() {
     onError: (err: any) => toast({ title: 'Upload failed', description: err?.message, variant: 'destructive' }),
   });
 
+  // Restore a previous version (creates a new forward-only version)
+  const restoreVersionMutation = useMutation({
+    mutationFn: ({ versionId, reason }: { versionId: string; reason: string }) =>
+      api.post(`/api/documents/${params.id}/versions/${versionId}/restore`, { reason }),
+    onSuccess: () => {
+      toast({ title: 'Version restored', description: 'A new version was created with the restored content.' });
+      qc.invalidateQueries({ queryKey: ['document', params.id] });
+    },
+    onError: (err: any) => toast({ title: 'Restore failed', description: err?.message, variant: 'destructive' }),
+  });
+
   if (isLoading || !data) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -183,7 +195,7 @@ export default function DocumentDetailPage() {
     <div className="space-y-6 max-w-6xl mx-auto">
       <div>
         <Link href="/documents" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-3">
-          <ArrowLeft className="mr-1 h-3.5 w-3.5" /> Back to documents
+          <ArrowLeft className="me-1 h-3.5 w-3.5" /> Back to documents
         </Link>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex-1 min-w-0">
@@ -198,12 +210,12 @@ export default function DocumentDetailPage() {
               {doc.isRecord && <Badge variant="outline" className="text-xs">Record</Badge>}
               {doc.legalHold && (
                 <Badge variant="outline" className="text-xs text-red-600 border-red-300">
-                  <FileLock className="mr-1 h-3 w-3" /> Legal hold
+                  <FileLock className="me-1 h-3 w-3" /> Legal hold
                 </Badge>
               )}
               {doc.isLocked && (
                 <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                  <Lock className="mr-1 h-3 w-3" /> Locked
+                  <Lock className="me-1 h-3 w-3" /> Locked
                 </Badge>
               )}
             </div>
@@ -212,7 +224,7 @@ export default function DocumentDetailPage() {
           <div className="flex gap-2">
             {hasPermission(perms, PERMISSIONS.DOCUMENT_DOWNLOAD) && doc.downloadAllowed && (
               <Button variant="outline" size="sm" onClick={handleDownload}>
-                <Download className="mr-2 h-3.5 w-3.5" /> Download
+                <Download className="me-2 h-3.5 w-3.5" /> Download
               </Button>
             )}
             <FavoriteButton docId={params.id} />
@@ -228,7 +240,7 @@ export default function DocumentDetailPage() {
                   }
                 }}
               >
-                <ShieldCheck className="mr-2 h-3.5 w-3.5" /> Declare Record
+                <ShieldCheck className="me-2 h-3.5 w-3.5" /> Declare Record
               </Button>
             )}
             <MoveCopyDialog docId={params.id} />
@@ -239,7 +251,7 @@ export default function DocumentDetailPage() {
                 onClick={() => lockMutation.mutate(!doc.isLocked)}
                 disabled={lockMutation.isPending}
               >
-                {doc.isLocked ? <Unlock className="mr-2 h-3.5 w-3.5" /> : <Lock className="mr-2 h-3.5 w-3.5" />}
+                {doc.isLocked ? <Unlock className="me-2 h-3.5 w-3.5" /> : <Lock className="me-2 h-3.5 w-3.5" />}
                 {doc.isLocked ? 'Unlock' : 'Lock'}
               </Button>
             )}
@@ -401,7 +413,7 @@ export default function DocumentDetailPage() {
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm">
-                      <History className="mr-2 h-3.5 w-3.5" /> Upload new version
+                      <History className="me-2 h-3.5 w-3.5" /> Upload new version
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
@@ -418,7 +430,7 @@ export default function DocumentDetailPage() {
                     </div>
                     <DialogFooter>
                       <Button onClick={() => uploadVersionMutation.mutate()} disabled={!newVersionFile || uploadVersionMutation.isPending}>
-                        {uploadVersionMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {uploadVersionMutation.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
                         Upload
                       </Button>
                     </DialogFooter>
@@ -441,9 +453,26 @@ export default function DocumentDetailPage() {
                       {v.changeReason && <p className="text-xs mt-1 italic text-muted-foreground">"{v.changeReason}"</p>}
                       <p className="text-[10px] font-mono text-muted-foreground mt-1">sha256:{truncateHash(v.checksumSha256, 16, 12)}</p>
                     </div>
-                    {v.versionNumber === doc.currentVersion && (
-                      <Badge variant="secondary" className="text-xs">Current</Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {v.versionNumber !== doc.currentVersion && hasPermission(perms, PERMISSIONS.DOCUMENT_VERSION_RESTORE) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={restoreVersionMutation.isPending}
+                          onClick={() => {
+                            const reason = window.prompt(`Restore version ${v.versionNumber}? This creates a NEW version with the old content (the current version is preserved). Enter a reason:`);
+                            if (reason) {
+                              restoreVersionMutation.mutate({ versionId: v.id, reason });
+                            }
+                          }}
+                        >
+                          <RotateCcw className="me-1 h-3 w-3" /> Restore
+                        </Button>
+                      )}
+                      {v.versionNumber === doc.currentVersion && (
+                        <Badge variant="secondary" className="text-xs">Current</Badge>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -547,7 +576,7 @@ export default function DocumentDetailPage() {
               )}
               {hasPermission(perms, PERMISSIONS.AI_SUGGESTION_REQUEST) && (
                 <Button variant="outline" size="sm" onClick={() => aiSuggestMutation.mutate()} disabled={aiSuggestMutation.isPending}>
-                  {aiSuggestMutation.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-2 h-3.5 w-3.5" />}
+                  {aiSuggestMutation.isPending ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="me-2 h-3.5 w-3.5" />}
                   Request suggestion
                 </Button>
               )}
@@ -698,7 +727,7 @@ function ShareManager({ docId, shares, doc }: { docId: string; shares: any[]; do
           </div>
         </div>
         <Button size="sm" onClick={() => createShare.mutate()} disabled={createShare.isPending}>
-          {createShare.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+          {createShare.isPending && <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" />}
           Create share link
         </Button>
 
@@ -716,7 +745,7 @@ function ShareManager({ docId, shares, doc }: { docId: string; shares: any[]; do
                   </div>
                   <a href={`/shared/${s.token}`} target="_blank" rel="noreferrer">
                     <Button variant="ghost" size="sm" className="text-xs">
-                      <Eye className="mr-1 h-3 w-3" /> Open
+                      <Eye className="me-1 h-3 w-3" /> Open
                     </Button>
                   </a>
                 </div>
@@ -784,8 +813,8 @@ function DocumentPreview({ docId, doc }: { docId: string; doc: any }) {
       <CardContent className="space-y-3">
         {!preview ? (
           <Button onClick={loadPreview} disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <Eye className="mr-2 h-4 w-4" /> Load preview
+            {loading && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
+            <Eye className="me-2 h-4 w-4" /> Load preview
           </Button>
         ) : (
           <div className="space-y-3">
@@ -809,7 +838,7 @@ function DocumentPreview({ docId, doc }: { docId: string; doc: any }) {
                   <p className="text-sm">Preview not available for {preview.mimeType}</p>
                   <a href={preview.url} target="_blank" rel="noreferrer">
                     <Button variant="outline" size="sm" className="mt-2">
-                      <Download className="mr-2 h-3.5 w-3.5" /> Download instead
+                      <Download className="me-2 h-3.5 w-3.5" /> Download instead
                     </Button>
                   </a>
                 </div>
@@ -924,7 +953,7 @@ function PiiScanner({ docId }: { docId: string }) {
   return (
     <div className="space-y-3">
       <Button variant="outline" size="sm" onClick={scan} disabled={loading}>
-        {loading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Shield className="mr-2 h-3.5 w-3.5" />}
+        {loading ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <Shield className="me-2 h-3.5 w-3.5" />}
         Scan for PII
       </Button>
       {result && (
@@ -992,7 +1021,7 @@ function Summarizer({ docId }: { docId: string }) {
   return (
     <div className="space-y-3">
       <Button variant="outline" size="sm" onClick={summarize} disabled={loading}>
-        {loading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-2 h-3.5 w-3.5" />}
+        {loading ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="me-2 h-3.5 w-3.5" />}
         Generate summary
       </Button>
       {result && (
@@ -1051,7 +1080,7 @@ function PolicyRiskAnalyzer({ docId }: { docId: string }) {
   return (
     <div className="space-y-3">
       <Button variant="outline" size="sm" onClick={analyze} disabled={loading}>
-        {loading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <ShieldAlert className="mr-2 h-3.5 w-3.5" />}
+        {loading ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <ShieldAlert className="me-2 h-3.5 w-3.5" />}
         Analyze risks
       </Button>
       {result && (
@@ -1222,7 +1251,7 @@ function MoveCopyDialog({ docId }: { docId: string }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          <FolderOpen className="mr-2 h-3.5 w-3.5" /> Move/Copy
+          <FolderOpen className="me-2 h-3.5 w-3.5" /> Move/Copy
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -1265,7 +1294,7 @@ function MoveCopyDialog({ docId }: { docId: string }) {
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
           <Button onClick={() => execute.mutate()} disabled={execute.isPending}>
-            {execute.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+            {execute.isPending && <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" />}
             {mode === 'move' ? 'Move' : 'Copy'}
           </Button>
         </DialogFooter>
@@ -1317,7 +1346,7 @@ function RedactionEntry({ docId, doc }: { docId: string; doc: any }) {
           <p className="text-xs text-muted-foreground">Select regions to black out. Creates a new derivative version.</p>
         </div>
         <Button variant="outline" size="sm" onClick={startRedaction} disabled={loading || !doc.previewAllowed}>
-          {loading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Square className="mr-2 h-3.5 w-3.5" />}
+          {loading ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <Square className="me-2 h-3.5 w-3.5" />}
           Start redaction
         </Button>
       </CardContent>

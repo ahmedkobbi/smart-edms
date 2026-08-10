@@ -36,6 +36,7 @@ const createSchema = z.object({
 export const POST = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_POLICIES_MANAGE,
+    requireStepUp: true,
     audit: { eventType: 'admin.policy.create', action: 'create', resourceType: 'policy', alwaysAudit: true },
   },
   async (req: NextRequest, ctx) => {

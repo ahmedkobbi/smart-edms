@@ -152,11 +152,12 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { t } = useI18n();
 
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-60 flex-col glass border-r border-white/10 dark:border-white/5 h-screen sticky top-0 z-40">
+      <aside className="hidden md:flex w-60 flex-col glass border-e border-white/10 dark:border-white/5 h-screen sticky top-0 z-40">
         <SidebarContent />
       </aside>
 
@@ -166,7 +167,7 @@ export function Sidebar() {
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden fixed top-2 left-2 z-50 glass"
+            className="md:hidden fixed top-2 start-2 z-50 glass"
           >
             <Menu className="h-5 w-5" />
           </Button>
@@ -174,7 +175,7 @@ export function Sidebar() {
         <SheetContent side="left" className="w-72 p-0 glass">
           <div className="flex flex-col h-full">
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-              <span className="text-sm font-medium">Navigation</span>
+              <span className="text-sm font-medium">{t('common.navigation')}</span>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setMobileOpen(false)}>
                 <X className="h-4 w-4" />
               </Button>

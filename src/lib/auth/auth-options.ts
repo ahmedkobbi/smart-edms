@@ -12,7 +12,7 @@ import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { getServerSession as nextAuthGetServerSession } from 'next-auth';
 import { db } from '@/lib/db';
-import { verifyPassword } from './crypto';
+import { verifyPassword, sha256 } from './crypto';
 import { decryptTotpSecret, verifyTotp } from './totp';
 import { SYSTEM_ROLE_PERMISSIONS, SYSTEM_ROLES } from './permissions';
 import { authRateLimiter } from '@/lib/security/rate-limit';
@@ -23,6 +23,35 @@ import { getUserLocale } from '@/i18n/server-translator';
 
 // MFA pending token is short-lived (5 minutes)
 const MFA_PENDING_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * Extract a human-readable device name from a User-Agent string.
+ * Examples:
+ *   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ... Chrome/120.0"
+ *     → "Chrome on macOS"
+ *   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ... Edg/120.0"
+ *     → "Edge on Windows"
+ *   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) ... Mobile/15E148 Safari/604.1"
+ *     → "Safari on iOS"
+ */
+function extractDeviceName(ua: string): string {
+  if (!ua) return 'Unknown device';
+  let browser = 'Unknown browser';
+  if (/edg/i.test(ua)) browser = 'Edge';
+  else if (/chrome|crios/i.test(ua)) browser = 'Chrome';
+  else if (/firefox|fxios/i.test(ua)) browser = 'Firefox';
+  else if (/safari/i.test(ua)) browser = 'Safari';
+
+  let os = 'Unknown OS';
+  if (/iphone|ipad|ipod/i.test(ua)) os = 'iOS';
+  else if (/android/i.test(ua)) os = 'Android';
+  else if (/mac os x|macintosh/i.test(ua)) os = 'macOS';
+  else if (/windows nt 10/i.test(ua)) os = 'Windows';
+  else if (/windows nt/i.test(ua)) os = 'Windows';
+  else if (/linux/i.test(ua)) os = 'Linux';
+
+  return `${browser} on ${os}`;
+}
 
 const SECURITY_HEADERS = {
   'X-Frame-Options': 'DENY',
@@ -44,6 +73,12 @@ export interface SmartEdmsSession {
     mfaVerified: boolean;
     isStepUp: boolean;
     stepUpExpiresAt?: number;
+    /** JWT ID — used for session revocation. Undefined for API-key auth. */
+    jti?: string;
+    /** JWT issued-at (unix seconds) — used for mass-revoke checks. */
+    iat?: number;
+    /** JWT expiry (unix seconds). */
+    exp?: number;
   };
   expires: string;
   csrfToken?: string;
@@ -263,8 +298,39 @@ export const authOptions: NextAuthOptions = {
             lastLoginAt: new Date(),
             lastLoginIp: ip,
             lastLoginUserAgent: (req.headers?.['user-agent'] as string) || null,
+            failedLoginAttempts: 0,
+            lockedUntil: null,
           },
         });
+
+        // Record the device (upsert by userId + userAgent hash)
+        // This populates the Device table for the admin device-management UI
+        // and enables device-trust awareness (§9.1 requirement).
+        try {
+          const userAgent = (req.headers?.['user-agent'] as string) || 'unknown';
+          const deviceHash = sha256(`${user.id}|${userAgent}`).slice(0, 32);
+          await db.device.upsert({
+            where: { deviceHash },
+            update: {
+              lastSeenAt: new Date(),
+              lastIp: ip,
+            },
+            create: {
+              tenantId: user.tenantId,
+              userId: user.id,
+              deviceHash,
+              userAgent,
+              name: extractDeviceName(userAgent),
+              trusted: false, // new devices start untrusted; admin can mark trusted
+              firstSeenAt: new Date(),
+              lastSeenAt: new Date(),
+              lastIp: ip,
+            },
+          });
+        } catch (err) {
+          // Device recording is best-effort — don't block login on it
+          console.warn('[auth] failed to record device:', err);
+        }
 
         // Concurrent session limit: track recent logins, alert if too many
         const recentLogins = await db.auditEvent.count({
@@ -351,6 +417,9 @@ export const authOptions: NextAuthOptions = {
         permissions: (token.permissions as string[]) || [],
         mfaVerified: !!token.mfaVerified,
         isStepUp: false,
+        jti: token.jti as string | undefined,
+        iat: token.iat as number | undefined,
+        exp: token.exp as number | undefined,
       };
       return session;
     },

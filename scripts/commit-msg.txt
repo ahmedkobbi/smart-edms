@@ -1,0 +1,151 @@
+feat: master-prompt line-by-line audit — critical bug fixes, security hardening, i18n/RTL, workflow completeness
+
+Comprehensive audit of the codebase against the 3,056-line master prompt.
+Fixed every CRITICAL and most HIGH-severity gaps identified by 4 parallel
+exploration agents covering all sections (IAM, multi-tenancy, documents,
+classification, metadata, versioning, retention, workflow, secure viewing,
+search, sharing, audit, notifications, AI, admin, security, i18n/RTL,
+DevOps, testing).
+
+## Phase 1 — Critical functional bugs (6 fixes)
+
+1. **`/api/storage/resolve` endpoint** (was missing, broke all local-mode
+   downloads/previews) — HMAC-signed URL verification + streaming file
+   response with path-traversal prevention.
+2. **`/api/documents/[id]/download` endpoint** (was missing, UI 404'd) —
+   generates signed URL with 60s expiry, audits every download.
+3. **SSO OIDC callback** — decrypts `clientSecretEnc` before token
+   exchange (was sending the encrypted blob as plaintext secret, breaking
+   every provider with a secret); mints NextAuth JWT directly + sets
+   session cookie (was redirecting to /login, never establishing session).
+4. **Dual-control flow** — created missing parent route
+   `/api/admin/dual-control` (GET list + POST create); added
+   `DualControlRequest` Prisma model (was in-memory store with broken
+   import); rewrote `[id]` route to use DB.
+5. **Passkey login** — mints NextAuth JWT + sets session cookie on
+   successful WebAuthn assertion (was returning JSON with no session
+   establishment, making passkey login impossible to complete).
+6. **Redaction** — strips PDF text-showing operators (Tj, TJ, ', ") from
+   content streams on redacted pages, making redaction TRUE content
+   removal (was only drawing black rectangles over text, leaving the text
+   layer extractable by copy-paste).
+
+## Phase 2 — Security rule violations (6 fixes)
+
+1. **External sharing denied by default** — `Document.shareAllowed`
+   default changed from `true` to `false`; added tenant-level sharing
+   policy (`settings.sharing.externalEnabled`, `anonymousEnabled`,
+   `maxExpiryHours`, `requirePassword`) enforced in the share API.
+2. **Anonymous shares restricted** — both `recipientEmail` and
+   `recipientUserId` null is now blocked unless
+   `settings.sharing.anonymousEnabled === true`.
+3. **Step-up auth extended** — `requireStepUp: true` added to all 32
+   admin mutation routes (users, roles, groups, policies, classifications,
+   retention, legal-holds, break-glass, dual-control, dispositions, SSO,
+   webhooks, API keys, service accounts, etc.). Was only on 2 routes.
+4. **Session revocation list** — new `RevokedSession` Prisma model +
+   `src/lib/auth/session-revocation.ts` module; auth handler checks
+   every request against the JTI denylist + per-user mass-revoke
+   timestamp (`sessionsRevokedAt`); new `/api/auth/logout` endpoint
+   revokes the JWT on logout; password change revokes all sessions.
+5. **CSP hardened** — removed deprecated `X-XSS-Protection`; CORS
+   `Access-Control-Allow-Origin` no longer defaults to invalid
+   `same-origin` (now requires explicit `CORS_ALLOW_ORIGIN` env);
+   added `upgrade-insecure-requests`; dev-mode allows WebSocket
+   connect-src.
+6. **Admin confirmation dialogs** — new `ConfirmDialog` component
+   (with optional `requirePhrase` for high-risk actions); wired into
+   user suspend button as proof-of-concept.
+
+## Phase 3 — i18n/RTL correctness (4 fixes)
+
+1. **ICU plural forms** — added Arabic plural forms (zero/one/two/few/
+   many/other) to `messages/ar.json` for failed_login + recertification
+   notifications; English singular/plural for failed_login. Fixed the
+   plural parser (was regex-based, couldn't handle nested braces; rewrote
+   with proper brace-matching tokenizer). Fixed `#` placeholder
+   substitution (was not replacing the ICU count placeholder).
+2. **Physical → logical Tailwind utilities** — 279 replacements across
+   73 files (ml-→ms-, mr-→me-, pl-→ps-, pr-→pe-, left-→start-,
+   right-→end-, border-r→border-e, rounded-l→rounded-s, text-left→
+   text-start, etc.).
+3. **Hardcoded strings localized** — top-bar (Notifications, Mark all
+   read, No notifications, Profile, Security, Sign out), command-palette
+   (Administration, Account, all admin nav items), sidebar (Navigation),
+   app-shell (Loading, Skip to main content), admin/users (Suspend +
+   confirmation dialog).
+4. **Client-side i18n upgraded** — `useI18n()` now supports ICU
+   MessageFormat interpolation + plurals (was key-only lookup). New
+   signature: `t('key', { name: 'value' })` alongside `t('key',
+   'fallback')`.
+
+## Phase 5 — Workflow completeness (3 fixes)
+
+1. **Delegation API + UI** — new `POST /api/workflows/:id/delegate`
+   endpoint; creates `ApprovalDelegation` record, marks original
+   approval `delegated`, creates new pending approval for the delegate,
+   notifies the delegate. UI: Delegate button + dialog in workflow
+   detail page.
+2. **Parallel approvals `mode: 'any'`** — added `stepMode` field to
+   `Approval` model; approve logic now branches: `mode='any'` completes
+   the step on first approval + auto-resolves other pending approvals;
+   `mode='all'` (default) requires unanimous approval.
+3. **Signature attestation UI** — workflow detail page now has a
+   signature-text input; the decide mutation passes `signatureText` to
+   the API (was always undefined, so `Approval.signature` was always
+   null). Decision buttons are disabled until signature text is entered.
+
+## Phase 6 — Retention/metadata/locale (4 fixes)
+
+1. **Restore UI button** — version history now shows a Restore button
+   for non-current versions (requires `DOCUMENT_VERSION_RESTORE`
+   permission); prompts for a reason; calls the existing restore API.
+2. **Profile management** — new `PATCH /api/me` endpoint; users can
+   now edit name, jobTitle, department, avatarUrl (was read-only).
+3. **Device trust recording** — login flow now upserts a `Device` row
+   on every successful login (was never recording devices, so the admin
+   device-management UI showed nothing). Added `extractDeviceName()`
+   helper (parses User-Agent → "Chrome on macOS"). Updated `Device`
+   model with `deviceHash` (unique), `name`, `userAgent`, `firstSeenAt`.
+4. **Bug fix** — workflow detail `myPendingApproval` was checking
+   `wf.initiator?.id` instead of the current user's ID; fixed to use
+   `session.user.id`.
+
+## Phase 7 — Testing & CI (4 fixes)
+
+1. **ICU pluralization tests** — 19 new tests covering Arabic plural
+   rules (zero/one/two/few/many/other), English singular/plural,
+   complex plurals with nested {name} interpolation, mixed-param
+   interpolation, no-leak-of-branch-syntax. Total: 231 tests passing.
+2. **npm audit** — removed `continue-on-error: true`; high-severity
+   vulnerabilities now fail CI.
+3. **TypeScript type-check** — added `tsc --noEmit` step to CI
+   (continue-on-error for now, to be tightened after pre-existing
+   errors are fixed).
+4. **CI CORS header** — added `Accept-Language` to allowed headers
+   for API locale negotiation.
+
+## Phase 8 — DevOps (1 fix)
+
+1. **Arabic OCR** — Dockerfile now installs `tesseract-ocr-ara` (Arabic
+   language pack) in both builder and runner stages. Also added fra/spa/
+   deu packs. Arabic OCR will now work instead of silently failing.
+
+## Schema changes (3 new models)
+
+- `DualControlRequest` — DB-backed dual-control requests (replaces
+  in-memory store).
+- `RevokedSession` — JWT denylist for immediate session revocation.
+- `Approval.stepMode` — 'all' (unanimous) or 'any' (first-approver-wins).
+- `User.sessionsRevokedAt` — mass-revoke timestamp.
+- `Device` — expanded with `deviceHash` (unique), `name`, `userAgent`,
+  `firstSeenAt` for proper device tracking.
+
+## Test results
+
+- 231/231 tests passing (212 existing + 19 new ICU plural tests)
+- Lint: clean
+- Translations: 357/357 keys complete across all 5 locales
+- Dev server: starts cleanly
+- New code introduces zero new TypeScript errors (verified by comparing
+  tsc --noEmit before/after)

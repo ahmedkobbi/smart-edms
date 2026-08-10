@@ -29,6 +29,7 @@ const createSchema = z.object({
 export const POST = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_GROUPS_MANAGE,
+    requireStepUp: true,
     audit: { eventType: 'admin.group.create', action: 'create', resourceType: 'group', alwaysAudit: true },
   },
   async (req: NextRequest, ctx) => {

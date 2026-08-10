@@ -51,7 +51,7 @@ export default function ForgotPasswordPage() {
               </p>
               <Link href="/login">
                 <Button variant="outline">
-                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to sign in
+                  <ArrowLeft className="me-2 h-4 w-4" /> Back to sign in
                 </Button>
               </Link>
             </CardContent>
@@ -65,14 +65,14 @@ export default function ForgotPasswordPage() {
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Mail className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="email"
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="pl-9 glass-input border-0 h-11"
+                      className="ps-9 glass-input border-0 h-11"
                       placeholder="you@company.com"
                     />
                   </div>
@@ -85,7 +85,7 @@ export default function ForgotPasswordPage() {
               </CardContent>
               <CardFooter className="flex flex-col gap-3">
                 <Button type="submit" className="w-full btn-premium" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {loading && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
                   Send reset link
                 </Button>
                 <Link href="/login" className="text-xs text-muted-foreground hover:underline">

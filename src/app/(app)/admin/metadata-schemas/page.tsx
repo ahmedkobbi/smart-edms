@@ -61,7 +61,7 @@ export default function AdminMetadataSchemasPage() {
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="mr-2 h-4 w-4" /> New schema</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New schema</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
@@ -106,14 +106,14 @@ export default function AdminMetadataSchemasPage() {
                   </div>
                 ))}
                 <Button variant="outline" size="sm" onClick={() => setForm({ ...form, fields: [...form.fields, { name: '', label: '', type: 'text', required: false }] })}>
-                  <Plus className="mr-1 h-3 w-3" /> Add field
+                  <Plus className="me-1 h-3 w-3" /> Add field
                 </Button>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
               <Button onClick={() => create.mutate()} disabled={!form.name || form.fields.some((f) => !f.name) || create.isPending}>
-                {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
                 Create
               </Button>
             </DialogFooter>
@@ -151,7 +151,7 @@ export default function AdminMetadataSchemasPage() {
                     </div>
                   </div>
                   <Button variant="ghost" size="sm" className="text-red-600" onClick={() => del.mutate(s.id)}>
-                    <Trash2 className="mr-1 h-3 w-3" /> Delete
+                    <Trash2 className="me-1 h-3 w-3" /> Delete
                   </Button>
                 </div>
               ))}

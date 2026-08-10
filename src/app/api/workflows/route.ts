@@ -109,6 +109,7 @@ export const POST = createApiHandler(
             stepName: step.name,
             approverId,
             status: 'pending',
+            stepMode: step.mode, // 'any' = first-approver-wins; 'all' = unanimous
             dueAt: new Date(Date.now() + step.dueInHours * 3600_000),
           },
         });

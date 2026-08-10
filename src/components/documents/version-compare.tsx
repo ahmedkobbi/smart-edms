@@ -55,7 +55,7 @@ export function VersionCompare({ docId, versions }: { docId: string; versions: a
             </Select>
           </div>
           <Button onClick={() => refetch()} disabled={isLoading || fromN === toN}>
-            {isLoading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <GitCompare className="mr-2 h-3.5 w-3.5" />}
+            {isLoading ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <GitCompare className="me-2 h-3.5 w-3.5" />}
             Compare
           </Button>
         </div>
@@ -70,7 +70,7 @@ export function VersionCompare({ docId, versions }: { docId: string; versions: a
               <Badge variant="outline">v{data.from.versionNumber}</Badge>
               <span className="text-muted-foreground">→</span>
               <Badge variant="outline">v{data.to.versionNumber}</Badge>
-              <div className="flex gap-2 ml-auto">
+              <div className="flex gap-2 ms-auto">
                 <span className="flex items-center gap-1 text-emerald-600">
                   <Plus className="h-3 w-3" /> {data.stats.added}
                 </span>
@@ -100,7 +100,7 @@ export function VersionCompare({ docId, versions }: { docId: string; versions: a
                         ''
                       }`}
                     >
-                      <span className="text-muted-foreground select-none w-8 text-right flex-shrink-0">
+                      <span className="text-muted-foreground select-none w-8 text-end flex-shrink-0">
                         {line.lineNumber}
                       </span>
                       <span className="select-none flex-shrink-0">

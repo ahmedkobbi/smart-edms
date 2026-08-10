@@ -90,7 +90,7 @@ export function AuditTimeline({ events, locale = 'en' }: { events: TimelineEvent
   return (
     <div className="relative">
       {/* Vertical line */}
-      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800" />
+      <div className="absolute start-4 top-0 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800" />
 
       <div className="space-y-1">
         {events.map((event, index) => {
@@ -104,7 +104,7 @@ export function AuditTimeline({ events, locale = 'en' }: { events: TimelineEvent
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: Math.min(index * 0.02, 0.3), duration: 0.25 }}
-              className="relative flex items-start gap-4 pl-0 pb-3"
+              className="relative flex items-start gap-4 ps-0 pb-3"
             >
               {/* Node */}
               <div className={cn(

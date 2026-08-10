@@ -47,7 +47,7 @@ export default function AdminBillingPage() {
                 </Badge>
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-end">
               <p className="text-xs text-muted-foreground">Period</p>
               <p className="text-sm font-medium">
                 {sub.currentPeriodStart ? new Date(sub.currentPeriodStart).toLocaleDateString() : '—'}

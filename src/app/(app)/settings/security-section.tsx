@@ -93,7 +93,7 @@ export function SecuritySection({ mfaEnabled }: { mfaEnabled: boolean }) {
             <div className="flex items-center gap-2">
               {mfaEnabled ? (
                 <>
-                  <Badge variant="default" className="bg-emerald-600"><ShieldCheck className="mr-1 h-3 w-3" /> Enabled</Badge>
+                  <Badge variant="default" className="bg-emerald-600"><ShieldCheck className="me-1 h-3 w-3" /> Enabled</Badge>
                   <span className="text-sm text-muted-foreground">TOTP active</span>
                 </>
               ) : (
@@ -104,7 +104,7 @@ export function SecuritySection({ mfaEnabled }: { mfaEnabled: boolean }) {
               )}
             </div>
             <Button variant="outline" size="sm" onClick={openMfaDialog}>
-              <KeyRound className="mr-2 h-3.5 w-3.5" />
+              <KeyRound className="me-2 h-3.5 w-3.5" />
               {mfaEnabled ? 'Manage MFA' : 'Enable MFA'}
             </Button>
           </div>
@@ -130,7 +130,7 @@ export function SecuritySection({ mfaEnabled }: { mfaEnabled: boolean }) {
             <Input id="newPw" type="password" value={pwNew} onChange={(e) => setPwNew(e.target.value)} />
           </div>
           <Button size="sm" onClick={() => changePw.mutate()} disabled={!pwCurrent || !pwNew || changePw.isPending}>
-            {changePw.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+            {changePw.isPending && <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" />}
             Update password
           </Button>
         </CardContent>
@@ -183,7 +183,7 @@ export function SecuritySection({ mfaEnabled }: { mfaEnabled: boolean }) {
                 </Alert>
               )}
               <Button onClick={() => enableMfa.mutate()} disabled={mfaToken.length !== 6 || enableMfa.isPending} className="w-full">
-                {enableMfa.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {enableMfa.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
                 Enable MFA
               </Button>
             </div>
@@ -204,7 +204,7 @@ export function SecuritySection({ mfaEnabled }: { mfaEnabled: boolean }) {
                 />
               </div>
               <Button onClick={() => disableMfa.mutate()} disabled={mfaToken.length !== 6 || disableMfa.isPending} variant="destructive" className="w-full">
-                {disableMfa.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {disableMfa.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
                 Disable MFA
               </Button>
             </div>

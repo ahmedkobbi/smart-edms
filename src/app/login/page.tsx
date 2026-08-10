@@ -77,19 +77,19 @@ export default function LoginPage() {
       {/* Animated gradient orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
-          className="absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl opacity-20"
+          className="absolute -top-40 -end-40 w-96 h-96 rounded-full blur-3xl opacity-20"
           style={{ background: 'radial-gradient(circle, #0ea5e9, transparent 70%)' }}
           animate={{ x: [0, 30, 0], y: [0, -20, 0] }}
           transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
-          className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-3xl opacity-20"
+          className="absolute -bottom-40 -start-40 w-96 h-96 rounded-full blur-3xl opacity-20"
           style={{ background: 'radial-gradient(circle, #6366f1, transparent 70%)' }}
           animate={{ x: [0, -30, 0], y: [0, 20, 0] }}
           transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
-          className="absolute top-1/2 left-1/2 w-72 h-72 rounded-full blur-3xl opacity-10"
+          className="absolute top-1/2 start-1/2 w-72 h-72 rounded-full blur-3xl opacity-10"
           style={{ background: 'radial-gradient(circle, #10b981, transparent 70%)' }}
           animate={{ x: [0, 20, 0], y: [0, -30, 0] }}
           transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
@@ -165,7 +165,7 @@ export default function LoginPage() {
               >
                 <Label htmlFor="email" className="text-sm font-medium">{t('auth.email')}</Label>
                 <div className="relative group">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
+                  <Mail className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
                   <Input
                     id="email"
                     type="email"
@@ -189,7 +189,7 @@ export default function LoginPage() {
               >
                 <Label htmlFor="password" className="text-sm font-medium">{t('auth.password')}</Label>
                 <div className="relative group">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
+                  <Lock className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
@@ -203,7 +203,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -220,7 +220,7 @@ export default function LoginPage() {
               >
                 <Label htmlFor="mfaToken" className="text-sm font-medium">{t('auth.mfaToken')}</Label>
                 <div className="relative group">
-                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
+                  <KeyRound className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
                   <Input
                     id="mfaToken"
                     type="text"

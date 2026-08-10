@@ -15,7 +15,8 @@ const patchSchema = z.object({
 });
 
 export const PATCH = createApiHandler(
-  { requiredPermission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
+  {
+    requireStepUp: true, requiredPermission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
   async (req: NextRequest, ctx, params) => {
     const body = patchSchema.parse(await req.json());
     const vocab = await db.controlledVocabulary.findFirst({ where: { id: params!.id, tenantId: ctx.tenantId } });
@@ -34,7 +35,8 @@ export const PATCH = createApiHandler(
 );
 
 export const DELETE = createApiHandler(
-  { requiredPermission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
+  {
+    requireStepUp: true, requiredPermission: PERMISSIONS.ADMIN_POLICIES_MANAGE },
   async (req: NextRequest, ctx, params) => {
     const vocab = await db.controlledVocabulary.findFirst({ where: { id: params!.id, tenantId: ctx.tenantId } });
     if (!vocab) throw ApiError.notFound('not_found', 'Vocabulary not found');

@@ -25,6 +25,7 @@ import { logger } from '@/lib/config/logger';
 export const POST = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_TENANT_MANAGE,
+    requireStepUp: true,
     rateLimit: { max: 1, windowMs: 5 * 60_000 }, // max 1 per 5 minutes
     audit: { eventType: 'admin.search.reindex', action: 'create', resourceType: 'tenant', alwaysAudit: true },
   },

@@ -11,6 +11,7 @@ import { PERMISSIONS } from '@/lib/auth/permissions';
 export const DELETE = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_API_KEYS_MANAGE,
+    requireStepUp: true,
     audit: { eventType: 'admin.apikey.revoke', action: 'delete', resourceType: 'api-key', alwaysAudit: true },
   },
   async (req: NextRequest, ctx, params) => {

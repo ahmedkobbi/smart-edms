@@ -168,7 +168,7 @@ export function RedactionEditor({ docId, previewUrl, mimeType, onClose }: Redact
                       x:{formatPercent(r.x)} y:{formatPercent(r.y)} w:{formatPercent(r.w)} h:{formatPercent(r.h)}
                     </span>
                     {r.reason && <span className="text-muted-foreground truncate">— {r.reason}</span>}
-                    <Button variant="ghost" size="sm" className="ml-auto h-6 text-red-600" onClick={() => removeRegion(i)}>
+                    <Button variant="ghost" size="sm" className="ms-auto h-6 text-red-600" onClick={() => removeRegion(i)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
@@ -183,7 +183,7 @@ export function RedactionEditor({ docId, previewUrl, mimeType, onClose }: Redact
                 disabled={regions.length === 0 || applyRedaction.isPending}
                 className="btn-premium"
               >
-                {applyRedaction.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Check className="mr-2 h-3.5 w-3.5" />}
+                {applyRedaction.isPending ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <Check className="me-2 h-3.5 w-3.5" />}
                 Apply redaction ({regions.length})
               </Button>
             </div>

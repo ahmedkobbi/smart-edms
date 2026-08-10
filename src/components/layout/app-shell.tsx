@@ -7,10 +7,12 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { DualSpinner } from '@/components/ui/premium';
+import { useI18n } from '@/i18n/use-i18n';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { session, status } = useSessionData();
   const router = useRouter();
+  const { t } = useI18n();
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -27,7 +29,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className="flex flex-col items-center gap-4"
         >
           <DualSpinner />
-          <p className="text-sm text-muted-foreground animate-pulse">Loading Smart EDMS…</p>
+          <p className="text-sm text-muted-foreground animate-pulse">{t('common.loadingApp')}</p>
         </motion.div>
       </div>
     );
@@ -38,9 +40,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Skip to content — accessibility (WCAG 2.4.1) */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-slate-900 focus:text-white focus:rounded-md focus:text-sm"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:start-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-slate-900 focus:text-white focus:rounded-md focus:text-sm"
       >
-        Skip to main content
+        {t('common.skipToContent')}
       </a>
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">

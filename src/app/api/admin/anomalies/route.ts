@@ -27,7 +27,8 @@ export const GET = createApiHandler(
 );
 
 export const POST = createApiHandler(
-  { requiredPermission: PERMISSIONS.ADMIN_VIEW },
+  {
+    requireStepUp: true, requiredPermission: PERMISSIONS.ADMIN_VIEW },
   async (req: NextRequest, ctx, params) => {
     const body = await req.json().catch(() => ({}));
     const anomaly = await db.securityAnomaly.findFirst({

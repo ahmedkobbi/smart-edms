@@ -18,7 +18,8 @@ const patchSchema = z.object({
 });
 
 export const PATCH = createApiHandler(
-  { requiredPermission: PERMISSIONS.ADMIN_WEBHOOKS_MANAGE },
+  {
+    requireStepUp: true, requiredPermission: PERMISSIONS.ADMIN_WEBHOOKS_MANAGE },
   async (req: NextRequest, ctx, params) => {
     const body = patchSchema.parse(await req.json());
     const webhook = await db.webhook.findFirst({ where: { id: params!.id, tenantId: ctx.tenantId } });
@@ -38,7 +39,8 @@ export const PATCH = createApiHandler(
 );
 
 export const DELETE = createApiHandler(
-  { requiredPermission: PERMISSIONS.ADMIN_WEBHOOKS_MANAGE },
+  {
+    requireStepUp: true, requiredPermission: PERMISSIONS.ADMIN_WEBHOOKS_MANAGE },
   async (req: NextRequest, ctx, params) => {
     const webhook = await db.webhook.findFirst({ where: { id: params!.id, tenantId: ctx.tenantId } });
     if (!webhook) throw ApiError.notFound('not_found', 'Webhook not found');

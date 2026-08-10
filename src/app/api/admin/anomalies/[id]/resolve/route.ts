@@ -10,7 +10,8 @@ import { PERMISSIONS } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 
 export const POST = createApiHandler(
-  { requiredPermission: PERMISSIONS.ADMIN_VIEW },
+  {
+    requireStepUp: true, requiredPermission: PERMISSIONS.ADMIN_VIEW },
   async (req: NextRequest, ctx, params) => {
     const body = await req.json().catch(() => ({}));
     const anomaly = await db.securityAnomaly.findFirst({

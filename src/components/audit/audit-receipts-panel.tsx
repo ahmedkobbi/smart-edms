@@ -40,7 +40,7 @@ export function AuditReceiptsPanel() {
           <CardDescription>Periodic integrity snapshots with HMAC signature</CardDescription>
         </div>
         <Button variant="outline" size="sm" onClick={() => generate.mutate()} disabled={generate.isPending}>
-          {generate.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Plus className="mr-2 h-3.5 w-3.5" />}
+          {generate.isPending ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <Plus className="me-2 h-3.5 w-3.5" />}
           Generate (last 24h)
         </Button>
       </CardHeader>

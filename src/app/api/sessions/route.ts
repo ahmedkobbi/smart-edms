@@ -1,14 +1,16 @@
 /**
  * Smart EDMS — Session management
- * GET    /api/sessions              list current user's sessions
- * DELETE /api/sessions/:id          revoke a specific session
- * DELETE /api/sessions              revoke all other sessions
+ * GET    /api/sessions              list current user's sessions (from audit log)
+ * DELETE /api/sessions              revoke ALL sessions for the current user
+ *                                  (sets sessionsRevokedAt = now; all JWTs with
+ *                                   iat < now become invalid on next request)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler } from '@/lib/api/handler';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
+import { revokeAllUserSessions } from '@/lib/auth/session-revocation';
 
 export const GET = createApiHandler(
   {},
@@ -32,13 +34,22 @@ export const GET = createApiHandler(
       },
     });
 
-    const sessions = recentLogins.map((l) => ({
-      id: l.id,
-      ip: l.actorIp,
-      userAgent: l.actorUserAgent,
-      lastActivity: l.createdAt,
-      current: false, // can't determine without session-bound tracking
-    }));
+    const currentJti = ctx.session.user.jti;
+    const sessions = recentLogins.map((l) => {
+      let jti: string | undefined;
+      try {
+        const meta = JSON.parse(l.metadata || '{}');
+        jti = meta.jti;
+      } catch {}
+      return {
+        id: l.id,
+        ip: l.actorIp,
+        userAgent: l.actorUserAgent,
+        lastActivity: l.createdAt,
+        current: jti === currentJti,
+        jti,
+      };
+    });
 
     return NextResponse.json({ sessions });
   },
@@ -49,9 +60,11 @@ export const DELETE = createApiHandler(
     audit: { eventType: 'session.revoke_all', action: 'delete', resourceType: 'session', alwaysAudit: true },
   },
   async (req: NextRequest, ctx) => {
-    // For JWT sessions, "revoking all others" requires rotating the JWT secret
-    // OR using a session blacklist. We log the request and instruct the user
-    // to change their password (which rotates the session).
+    // Mass-revoke: sets sessionsRevokedAt = now on the user row.
+    // All JWTs with iat < now become invalid on the next request.
+    // The current session is also revoked (user must sign in again).
+    await revokeAllUserSessions(ctx.userId, 'user_initiated');
+
     await recordAuditEvent({
       tenantId: ctx.tenantId,
       actorId: ctx.userId,
@@ -59,16 +72,17 @@ export const DELETE = createApiHandler(
       actorIp: ctx.ip,
       actorUserAgent: ctx.userAgent,
       correlationId: ctx.correlationId,
-      eventType: 'session.revoke_requested',
+      eventType: 'session.revoke_all',
       action: 'delete',
       resourceType: 'session',
       result: 'allow',
-      metadata: { reason: 'user_initiated' },
+      metadata: { reason: 'user_initiated', revokedJti: ctx.session.user.jti },
     });
 
     return NextResponse.json({
       ok: true,
-      message: 'Session revocation requested. To force-terminate all sessions, change your password in Settings → Security.',
+      message: 'All sessions revoked. You will need to sign in again.',
+      redirect: '/login',
     });
   },
 );

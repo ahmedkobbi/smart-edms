@@ -77,7 +77,7 @@ export default function AdminSsoProvidersPage() {
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="mr-2 h-4 w-4" /> New provider</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New provider</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
@@ -136,7 +136,7 @@ export default function AdminSsoProvidersPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
               <Button onClick={() => create.mutate()} disabled={!form.name || !form.clientId || create.isPending}>
-                {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
                 Create
               </Button>
             </DialogFooter>
@@ -175,7 +175,7 @@ export default function AdminSsoProvidersPage() {
                       {p.enabled ? 'Disable' : 'Enable'}
                     </Button>
                     <Button variant="ghost" size="sm" className="h-7 text-xs text-red-600" onClick={() => del.mutate(p.id)}>
-                      <Trash2 className="mr-1 h-3 w-3" /> Delete
+                      <Trash2 className="me-1 h-3 w-3" /> Delete
                     </Button>
                   </div>
                 </div>

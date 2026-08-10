@@ -46,6 +46,7 @@ const patchSchema = z.object({
 export const PATCH = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_USERS_MANAGE,
+    requireStepUp: true,
     audit: { eventType: 'admin.user.update', action: 'update', resourceType: 'user', alwaysAudit: true },
   },
   async (req: NextRequest, ctx, params) => {
@@ -122,6 +123,7 @@ export const PATCH = createApiHandler(
 export const DELETE = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_USERS_MANAGE,
+    requireStepUp: true,
     audit: { eventType: 'admin.user.suspend', action: 'delete', resourceType: 'user', alwaysAudit: true },
   },
   async (req: NextRequest, ctx, params) => {

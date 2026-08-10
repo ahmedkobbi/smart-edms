@@ -79,7 +79,7 @@ export default function DashboardPage() {
       <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StaggerItem>
           <GlassCard className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl opacity-10 bg-blue-500" />
+            <div className="absolute top-0 end-0 w-24 h-24 rounded-full blur-2xl opacity-10 bg-blue-500" />
             <div className="flex items-center justify-between mb-2 relative">
               <p className="text-xs font-medium text-muted-foreground">{t('dashboard.totalDocuments')}</p>
               <span className="text-blue-500"><FileText className="h-4 w-4" /></span>
@@ -89,7 +89,7 @@ export default function DashboardPage() {
         </StaggerItem>
         <StaggerItem>
           <GlassCard className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl opacity-10 bg-emerald-500" />
+            <div className="absolute top-0 end-0 w-24 h-24 rounded-full blur-2xl opacity-10 bg-emerald-500" />
             <div className="flex items-center justify-between mb-2 relative">
               <p className="text-xs font-medium text-muted-foreground">{t('dashboard.myDocuments')}</p>
               <span className="text-emerald-500"><FileCheck className="h-4 w-4" /></span>
@@ -99,7 +99,7 @@ export default function DashboardPage() {
         </StaggerItem>
         <StaggerItem>
           <GlassCard className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl opacity-10 bg-amber-500" />
+            <div className="absolute top-0 end-0 w-24 h-24 rounded-full blur-2xl opacity-10 bg-amber-500" />
             <div className="flex items-center justify-between mb-2 relative">
               <p className="text-xs font-medium text-muted-foreground">{t('dashboard.pendingApprovals')}</p>
               <span className="text-amber-500"><GitBranch className="h-4 w-4" /></span>
@@ -111,7 +111,7 @@ export default function DashboardPage() {
         </StaggerItem>
         <StaggerItem>
           <GlassCard className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl opacity-10 bg-red-500" />
+            <div className="absolute top-0 end-0 w-24 h-24 rounded-full blur-2xl opacity-10 bg-red-500" />
             <div className="flex items-center justify-between mb-2 relative">
               <p className="text-xs font-medium text-muted-foreground">{t('dashboard.activeLegalHolds')}</p>
               <span className="text-red-500"><FileLock className="h-4 w-4" /></span>

@@ -83,7 +83,7 @@ export function SavedSearchesBar({ onApply }: { onApply: (query: Record<string, 
         </div>
       ) : (
         <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowInput(true)}>
-          <Bookmark className="mr-1 h-3 w-3" /> Save current search
+          <Bookmark className="me-1 h-3 w-3" /> Save current search
         </Button>
       )}
     </div>

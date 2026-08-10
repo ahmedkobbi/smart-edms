@@ -64,7 +64,7 @@ export default function FoldersPage() {
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="mr-2 h-4 w-4" /> New folder</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New folder</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -86,7 +86,7 @@ export default function FoldersPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
               <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>
-                {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
                 Create
               </Button>
             </DialogFooter>
@@ -123,7 +123,7 @@ export default function FoldersPage() {
                   <div className="flex-1 min-w-0">
                     <button
                       onClick={() => setCurrentFolder(f.id)}
-                      className="font-medium hover:underline text-left"
+                      className="font-medium hover:underline text-start"
                     >
                       {f.name}
                     </button>

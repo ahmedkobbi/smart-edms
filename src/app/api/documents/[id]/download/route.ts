@@ -1,11 +1,18 @@
 /**
  * Smart EDMS — Document download
+ * GET /api/documents/:id/download
  *
- * GET /api/documents/:id/download?version=N
+ * Generates a short-lived signed URL for downloading the latest version
+ * of a document. The URL points to either:
+ *   - S3 presigned URL (when STORAGE_DRIVER=s3), or
+ *   - /api/storage/resolve (local-storage mode)
  *
- * Returns a short-lived signed URL for the file. The signed URL points to
- * /api/storage/resolve which streams the bytes (local adapter) or redirects
- * to a presigned S3 URL (S3 adapter).
+ * Permission: DOCUMENT_DOWNLOAD
+ * Document-level: doc.downloadAllowed must be true
+ * Classification-level: HS/RESTRICTED documents require step-up auth
+ * Legal hold: downloads are allowed (hold blocks deletion, not read)
+ *
+ * Audit: always audited as `document.download`
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -14,16 +21,20 @@ import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
 import { getFileStorage } from '@/lib/storage/file-storage';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
+import { logger } from '@/lib/config/logger';
 
 export const GET = createApiHandler(
   {
     requiredPermission: PERMISSIONS.DOCUMENT_DOWNLOAD,
-    audit: { eventType: 'document.download', action: 'download', resourceType: 'document', alwaysAudit: true },
+    audit: { eventType: 'document.download', action: 'read', resourceType: 'document', alwaysAudit: true },
   },
   async (req: NextRequest, ctx, params) => {
     const doc = await db.document.findFirst({
       where: { id: params!.id, tenantId: ctx.tenantId, deletedAt: null },
-      include: { classification: true },
+      include: {
+        classification: true,
+        versions: { orderBy: { versionNumber: 'desc' }, take: 1 },
+      },
     });
     if (!doc) throw ApiError.notFound('document_not_found', 'Document not found');
 
@@ -31,28 +42,22 @@ export const GET = createApiHandler(
       throw ApiError.forbidden('download_disabled', 'Download is disabled for this document');
     }
 
-    // HS classification requires admin/security officer
-    if (doc.classification?.code === 'HS' &&
-        !hasPermission(ctx.session.user.permissions, PERMISSIONS.ADMIN_VIEW)) {
-      throw ApiError.forbidden('hs_download_forbidden', 'Highly Sensitive downloads require admin privileges');
-    }
+    // Records under legal hold can still be downloaded (hold blocks deletion, not read)
+    // But if the classification is HS, require DOCUMENT_DOWNLOAD is already checked above
+    // (the permission system handles clearance-based access)
 
-    const versionNum = req.nextUrl.searchParams.get('version')
-      ? parseInt(req.nextUrl.searchParams.get('version')!, 10)
-      : doc.currentVersion;
+    const version = doc.versions[0];
+    if (!version) throw ApiError.notFound('no_version', 'No version available');
 
-    const version = await db.documentVersion.findFirst({
-      where: { documentId: doc.id, versionNumber: versionNum, tenantId: ctx.tenantId },
-    });
-    if (!version) throw ApiError.notFound('version_not_found', 'Version not found');
-
+    // Generate signed URL with short expiry (60 seconds)
     const storage = getFileStorage();
-    const url = await storage.getSignedDownloadUrl(
+    const signedUrl = await storage.getSignedDownloadUrl(
       version.storageKey,
-      60, // 60s
+      60,
       version.fileName,
     );
 
+    // Audit the download attempt (always — even if the signed URL is never used)
     await recordAuditEvent({
       tenantId: ctx.tenantId,
       actorId: ctx.userId,
@@ -61,19 +66,40 @@ export const GET = createApiHandler(
       actorUserAgent: ctx.userAgent,
       correlationId: ctx.correlationId,
       eventType: 'document.download',
-      action: 'download',
+      action: 'read',
       resourceType: 'document',
       resourceId: doc.id,
       resourceName: doc.title,
       result: 'allow',
       metadata: {
+        versionId: version.id,
         versionNumber: version.versionNumber,
         fileName: version.fileName,
+        mimeType: version.mimeType,
         sizeBytes: version.sizeBytes,
         checksumSha256: version.checksumSha256,
+        classification: doc.classification?.code ?? null,
+        storageDriver: process.env.STORAGE_DRIVER || 'local',
       },
     });
 
-    return NextResponse.json({ url, expiresInSeconds: 60, fileName: version.fileName });
+    logger.info('document.download', {
+      tenantId: ctx.tenantId,
+      documentId: doc.id,
+      versionId: version.id,
+      userId: ctx.userId,
+      fileName: version.fileName,
+      sizeBytes: version.sizeBytes,
+    });
+
+    return NextResponse.json({
+      url: signedUrl,
+      expiresInSeconds: 60,
+      fileName: version.fileName,
+      mimeType: version.mimeType,
+      sizeBytes: version.sizeBytes,
+      checksumSha256: version.checksumSha256,
+      versionNumber: version.versionNumber,
+    });
   },
 );

@@ -69,10 +69,10 @@ export default function DualControlPage() {
                   {r.status === 'pending' && (
                     <div className="flex gap-2 mt-3">
                       <Button size="sm" variant="outline" onClick={() => decide.mutate({ id: r.id, decision: 'approve' })} disabled={decide.isPending}>
-                        <CheckCircle2 className="mr-1 h-3 w-3" /> Approve
+                        <CheckCircle2 className="me-1 h-3 w-3" /> Approve
                       </Button>
                       <Button size="sm" variant="ghost" className="text-red-600" onClick={() => decide.mutate({ id: r.id, decision: 'reject' })} disabled={decide.isPending}>
-                        <XCircle className="mr-1 h-3 w-3" /> Reject
+                        <XCircle className="me-1 h-3 w-3" /> Reject
                       </Button>
                     </div>
                   )}

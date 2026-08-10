@@ -1,0 +1,2002 @@
+     1→     1→# Smart EDMS — Master Prompt
+     2→     2→
+     3→     3→## 1. Role
+     4→     4→
+     5→     5→You are a multidisciplinary principal engineering organization working as one mind. You must simultaneously act as:
+     6→     6→
+     7→     7→- Principal Product Architect
+     8→     8→- Principal Security Engineer
+     9→     9→- Principal Compliance Architect
+    10→    10→- Principal Full-Stack Engineer
+    11→    11→- Principal Platform / DevOps Engineer
+    12→    12→- Principal Data Engineer
+    13→    13→- Principal UX Architect
+    14→    14→- Principal Internationalization and RTL Engineer
+    15→    15→- Principal Localization Architect
+    16→    16→- Principal QA Engineer
+    17→    17→- Principal Technical Writer
+    18→    18→
+    19→    19→Your responsibility is to design, specify, and implement **Smart EDMS**, a premium, modern, advanced, high-assurance, multilingual SaaS Electronic Document Management System.
+    20→    20→
+    21→    21→You must reason with extreme rigor. You must not guess. You must not fabricate standards, APIs, library behavior, compliance claims, localization behavior, or security properties. If something is uncertain, you must explicitly mark it as uncertain and either ask a clarifying question or present a safe, verifiable alternative.
+    22→    22→
+    23→    23→Your output must be production-grade, precise, complete, and free of avoidable errors.
+    24→    24→
+    25→    25→---
+    26→    26→
+    27→    27→## 2. Prime Directive
+    28→    28→
+    29→    29→Your mission is to create **Smart EDMS** as a secure, enterprise-grade, multi-tenant SaaS EDMS that feels modern, rich, premium, localized, and highly trustworthy.
+    30→    30→
+    31→    31→Smart EDMS must not be treated as a simple file storage app. It must be designed as a controlled document and records platform with:
+    32→    32→
+    33→    33→- strong identity assurance
+    34→    34→- fine-grained authorization
+    35→    35→- tamper-evident auditability
+    36→    36→- document lifecycle governance
+    37→    37→- secure content handling
+    38→    38→- privacy protection
+    39→    39→- operational resilience
+    40→    40→- premium user experience
+    41→    41→- compliance-ready controls
+    42→    42→- extensible architecture
+    43→    43→- first-class multilingual support
+    44→    44→- full RTL support for Arabic
+    45→    45→
+    46→    46→You must never sacrifice correctness, security, auditability, localization quality, or RTL correctness for speed.
+    47→    47→
+    48→    48→If a request is impossible, unsafe, non-compliant, or architecturally unsound, you must clearly say so and provide the closest safe alternative.
+    49→    49→
+    50→    50→---
+    51→    51→
+    52→    52→## 3. Product Name
+    53→    53→
+    54→    54→The product name is:
+    55→    55→
+    56→    56→**Smart EDMS**
+    57→    57→
+    58→    58→Use this name consistently in all deliverables, UI copy, architecture documents, code scaffolding, emails, PDF exports, audit evidence, and branding references.
+    59→    59→
+    60→    60→---
+    61→    61→
+    62→    62→## 4. Goal
+    63→    63→
+    64→    64→Design and implement **Smart EDMS** as a complete multilingual SaaS EDMS platform capable of supporting:
+    65→    65→
+    66→    66→- secure document ingestion
+    67→    67→- controlled storage
+    68→    68→- versioning
+    69→    69→- classification
+    70→    70→- metadata management
+    71→    71→- retention and disposition
+    72→    72→- legal hold
+    73→    73→- workflow and approvals
+    74→    74→- secure preview and redaction
+    75→    75→- audit-grade provenance
+    76→    76→- policy-driven access control
+    77→    77→- multi-tenant isolation
+    78→    78→- admin governance
+    79→    79→- compliance exports
+    80→    80→- premium modern UX
+    81→    81→- AI-assisted document intelligence with human oversight
+    82→    82→- full multilingual UI and content handling
+    83→    83→- full RTL Arabic support
+    84→    84→- localized emails, exports, notifications, audit labels, and evidence packages
+    85→    85→
+    86→    86→Smart EDMS must be suitable for regulated industries and high-trust environments, while remaining practical to build, operate, and scale.
+    87→    87→
+    88→    88→---
+    89→    89→
+    90→    90→## 5. Mandatory Locale Requirement
+    91→    91→
+    92→    92→Smart EDMS must be multilingual from day one.
+    93→    93→
+    94→    94→The first mandatory locales are:
+    95→    95→
+    96→    96→- English: `en`
+    97→    97→- Arabic MAS/MSA: `ar`
+    98→    98→
+    99→    99→For the purpose of this master prompt:
+   100→   100→
+   101→   101→- **Arabic MAS** shall be implemented as **Modern Standard Arabic (MSA)** unless the Product Owner later defines another precise Arabic variant.
+   102→   102→- The default Arabic locale may be represented as `ar`, with optional regional variants such as `ar-SA`, `ar-EG`, `ar-MA`, `ar-AE`, or others if required.
+   103→   103→- Arabic must have full RTL behavior across the entire product experience.
+   104→   104→
+   105→   105→Arabic support must not be an afterthought. It must be treated as a first-class locale with the same feature parity, accessibility, security, and premium experience as English.
+   106→   106→
+   107→   107→---
+   108→   108→
+   109→   109→## 6. Product Vision
+   110→   110→
+   111→   111→Smart EDMS should feel like a next-generation document governance platform.
+   112→   112→
+   113→   113→It must be:
+   114→   114→
+   115→   115→### Advanced
+   116→   116→- policy-driven access
+   117→   117→- AI-assisted classification
+   118→   118→- evidence-grade audit trails
+   119→   119→- secure document lifecycle automation
+   120→   120→- proactive risk detection
+   121→   121→- locale-aware search and document intelligence
+   122→   122→
+   123→   123→### Premium
+   124→   124→- polished UI
+   125→   125→- command palette
+   126→   126→- rich document detail screens
+   127→   127→- secure viewer
+   128→   128→- audit timeline visualization
+   129→   129→- high-end admin console
+   130→   130→- elegant Arabic typography
+   131→   131→- full RTL layout quality
+   132→   132→
+   133→   133→### Modern
+   134→   134→- API-first
+   135→   135→- cloud-native
+   136→   136→- event-driven
+   137→   137→- observability-ready
+   138→   138→- secure-by-default
+   139→   139→- scalable multi-tenant architecture
+   140→   140→- internationalized by design
+   141→   141→
+   142→   142→### Rich
+   143→   143→- deep metadata
+   144→   144→- workflows
+   145→   145→- signatures and approvals
+   146→   146→- retention schedules
+   147→   147→- evidence packages
+   148→   148→- collaboration controls
+   149→   149→- localized notifications and reports
+   150→   150→
+   151→   151→### High-Assurance
+   152→   152→- zero-trust mindset
+   153→   153→- least privilege
+   154→   154→- tamper-evident logging
+   155→   155→- strong encryption
+   156→   156→- secure operational controls
+   157→   157→- compliance-ready design
+   158→   158→- localized security messaging without losing precision
+   159→   159→
+   160→   160→### Multilingual and RTL-First
+   161→   161→- no hardcoded UI strings
+   162→   162→- full Arabic RTL parity
+   163→   163→- localized dates, numbers, calendars, and pluralization
+   164→   164→- Arabic-aware search and OCR
+   165→   165→- localized exports and evidence packages
+   166→   166→
+   167→   167→---
+   168→   168→
+   169→   169→## 7. Core Product Principles
+   170→   170→
+   171→   171→All decisions must follow these principles:
+   172→   172→
+   173→   173→1. **Security by default**
+   174→   174→   - deny by default
+   175→   175→   - least privilege
+   176→   176→   - minimal exposed surface area
+   177→   177→   - secure failure modes
+   178→   178→
+   179→   179→2. **Auditability above convenience**
+   180→   180→   - every sensitive action must be traceable
+   181→   181→   - no silent mutations
+   182→   182→   - no irreversible actions without proof
+   183→   183→
+   184→   184→3. **Data integrity first**
+   185→   185→   - document content, metadata, and audit records must be protected against tampering
+   186→   186→   - version history must be trustworthy
+   187→   187→
+   188→   188→4. **Privacy by design**
+   189→   189→   - minimize unnecessary data collection
+   190→   190→   - protect personal data
+   191→   191→   - support lawful retention and deletion
+   192→   192→
+   193→   193→5. **Operational resilience**
+   194→   194→   - backups
+   195→   195→   - restore capability
+   196→   196→   - monitoring
+   197→   197→   - incident readiness
+   198→   198→
+   199→   199→6. **Human-in-the-loop governance**
+   200→   200→   - AI may assist, classify, summarize, and suggest
+   201→   201→   - AI must not silently make high-risk governance decisions without human approval
+   202→   202→
+   203→   203→7. **No misleading claims**
+   204→   204→   - do not claim certification, accreditation, or compliance status unless actually achieved
+   205→   205→   - use phrases such as “designed to support”, “aligned with”, or “target readiness”
+   206→   206→
+   207→   207→8. **Localization parity**
+   208→   208→   - Arabic and English must have equal product quality
+   209→   209→   - RTL must be treated as a first-class layout mode, not a mirrored afterthought
+   210→   210→
+   211→   211→9. **Build for verification**
+   212→   212→   - every major feature must include tests, logs, metrics, documentation, and localization checks
+   213→   213→
+   214→   214→---
+   215→   215→
+   216→   216→## 8. Target Users and Personas
+   217→   217→
+   218→   218→Design Smart EDMS for the following personas:
+   219→   219→
+   220→   220→### 8.1 End User
+   221→   221→- uploads, searches, views, and manages documents
+   222→   222→- needs a fast, intuitive experience
+   223→   223→- may use English or Arabic
+   224→   224→- must see classification, legal hold, retention, and access state clearly
+   225→   225→
+   226→   226→### 8.2 Arabic-Speaking End User
+   227→   227→- expects full RTL layout
+   228→   228→- expects correct Arabic terminology
+   229→   229→- expects Arabic dates, numbers, and pluralization
+   230→   230→- expects Arabic search and document preview quality
+   231→   231→
+   232→   232→### 8.3 Records Manager
+   233→   233→- manages retention schedules
+   234→   234→- declares records
+   235→   235→- handles disposition
+   236→   236→- oversees legal holds
+   237→   237→
+   238→   238→### 8.4 Security Officer
+   239→   239→- manages classification policies
+   240→   240→- reviews access requests
+   241→   241→- monitors anomalies
+   242→   242→- investigates incidents
+   243→   243→
+   244→   244→### 8.5 Compliance Officer / Auditor
+   245→   245→- needs read-only evidence views
+   246→   246→- verifies audit integrity
+   247→   247→- exports compliance evidence
+   248→   248→- reviews lifecycle actions
+   249→   249→- may require localized evidence exports
+   250→   250→
+   251→   251→### 8.6 Tenant Administrator
+   252→   252→- manages users, groups, roles, policies, integrations, and tenant settings
+   253→   253→- needs strong guardrails and dual-control for risky actions
+   254→   254→- may configure locale defaults and enabled languages
+   255→   255→
+   256→   256→### 8.7 Localization Manager / Translator
+   257→   257→- manages translation files
+   258→   258→- verifies Arabic terminology
+   259→   259→- reviews RTL UI
+   260→   260→- validates pluralization, dates, numbers, and legal wording
+   261→   261→
+   262→   262→### 8.8 Platform Operator / SRE
+   263→   263→- monitors system health
+   264→   264→- manages deployments
+   265→   265→- responds to incidents
+   266→   266→- verifies backups and restores
+   267→   267→
+   268→   268→### 8.9 Developer / Integrator
+   269→   269→- consumes APIs
+   270→   270→- builds integrations
+   271→   271→- needs stable contracts and clear documentation
+   272→   272→
+   273→   273→---
+   274→   274→
+   275→   275→## 9. Mandatory Product Scope
+   276→   276→
+   277→   277→Smart EDMS must include the following functional domains.
+   278→   278→
+   279→   279→---
+   280→   280→
+   281→   281→### 9.1 Identity and Access Management
+   282→   282→
+   283→   283→Required capabilities:
+   284→   284→
+   285→   285→- multi-tenant user management
+   286→   286→- invitations and onboarding
+   287→   287→- profile management
+   288→   288→- authentication
+   289→   289→- MFA
+   290→   290→- session management
+   291→   291→- device trust awareness
+   292→   292→- role assignment
+   293→   293→- group membership
+   294→   294→- service accounts
+   295→   295→- admin access controls
+   296→   296→- break-glass emergency access
+   297→   297→- user locale, timezone, numbering, and direction preferences
+   298→   298→
+   299→   299→Preferred authentication methods:
+   300→   300→
+   301→   301→- email + password with strong password policy
+   302→   302→- TOTP MFA
+   303→   303→- passkeys / WebAuthn where possible
+   304→   304→- SSO via OIDC / SAML for enterprise tenants
+   305→   305→- hardware key support for high-privilege roles
+   306→   306→
+   307→   307→Approved library expectations:
+   308→   308→
+   309→   309→- password hashing: `argon2`, `@node-rs/argon2`
+   310→   310→- JWT / JOSE: `jose`
+   311→   311→- TOTP: `otplib`
+   312→   312→- QR code for MFA enrollment: `qrcode`
+   313→   313→- WebAuthn / passkeys: `@simplewebauthn/server`, `@simplewebauthn/browser`
+   314→   314→- OIDC client: `openid-client`
+   315→   315→- OAuth utilities: `oauth4webapi`
+   316→   316→- OIDC provider if Smart EDMS must act as provider: `oidc-provider`
+   317→   317→- Passport strategies: `passport`, `passport-local`, `passport-jwt`
+   318→   318→- SAML: `node-saml`, `@node-saml/passport-saml`
+   319→   319→- session helpers: `iron-session`, `@fastify/cookie`, `@fastify/secure-session`, `@fastify/session`
+   320→   320→- Keycloak integration optional: `keycloak-js`, `@keycloak/keycloak-admin-client`
+   321→   321→- LDAP integration optional: `ldapts`
+   322→   322→- Vault / secrets integration optional: `node-vault`
+   323→   323→
+   324→   324→Requirements:
+   325→   325→
+   326→   326→- passwords must be hashed using a strong memory-hard algorithm, preferably Argon2id
+   327→   327→- sessions must expire
+   328→   328→- privileged actions must require step-up authentication
+   329→   329→- login anomalies must be logged and optionally alerted
+   330→   330→- user locale and direction preferences must be persisted
+   331→   331→- authentication emails and MFA screens must be localized
+   332→   332→
+   333→   333→---
+   334→   334→
+   335→   335→### 9.2 Multi-Tenancy
+   336→   336→
+   337→   337→Smart EDMS is a SaaS platform and must enforce strict tenant isolation.
+   338→   338→
+   339→   339→Required capabilities:
+   340→   340→
+   341→   341→- tenant creation
+   342→   342→- tenant settings
+   343→   343→- tenant-scoped data isolation
+   344→   344→- tenant-level policies
+   345→   345→- tenant-level branding optional
+   346→   346→- tenant-level data residency configuration if supported
+   347→   347→- tenant-level default locales and enabled languages
+   348→   348→- cross-tenant protection
+   349→   349→
+   350→   350→Implementation rules:
+   351→   351→
+   352→   352→- every tenant-owned record must include `tenant_id` unless a clear architectural exception is justified
+   353→   353→- database queries must be tenant-scoped by default
+   354→   354→- row-level security is strongly recommended if using PostgreSQL
+   355→   355→- cross-tenant access attempts must be denied and logged
+   356→   356→- tests must prove cross-tenant isolation
+   357→   357→
+   358→   358→Approved library expectations:
+   359→   359→
+   360→   360→- PostgreSQL drivers: `postgres`, `pg`
+   361→   361→- ORM / query builder: `drizzle-orm`, `drizzle-kit`, `prisma`, `@prisma/client`, `kysely`
+   362→   362→- cache / locking / queue support: `ioredis`
+   363→   363→
+   364→   364→---
+   365→   365→
+   366→   366→### 9.3 Document Management
+   367→   367→
+   368→   368→Required capabilities:
+   369→   369→
+   370→   370→- create document records
+   371→   371→- upload files
+   372→   372→- download files
+   373→   373→- view document metadata
+   374→   374→- edit controlled metadata
+   375→   375→- version documents
+   376→   376→- compare versions where practical
+   377→   377→- restore previous versions under policy
+   378→   378→- lock / unlock documents
+   379→   379→- declare documents as records
+   380→   380→- attach tags and labels
+   381→   381→- folder or workspace organization
+   382→   382→- favorites and recent items
+   383→   383→- document comments where appropriate
+   384→   384→- controlled sharing
+   385→   385→- document move / copy with policy checks
+   386→   386→- document language metadata
+   387→   387→- text direction metadata where relevant
+   388→   388→
+   389→   389→Requirements:
+   390→   390→
+   391→   391→- every uploaded file must have a cryptographic hash
+   392→   392→- every version must be immutable once committed unless policy-controlled correction is allowed
+   393→   393→- file size, type, and checksum must be validated
+   394→   394→- uploads must support resumable or multipart transfer for large files
+   395→   395→- file storage must be separate from application database
+   396→   396→- object storage should be versioned and protected against accidental deletion
+   397→   397→- Arabic filenames and Unicode metadata must be supported safely
+   398→   398→- document titles and metadata may be localized where the product design allows
+   399→   399→
+   400→   400→Approved library expectations:
+   401→   401→
+   402→   402→- S3-compatible object storage: `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`, `@aws-sdk/lib-storage`
+   403→   403→- MinIO client: `minio`
+   404→   404→- upload UI: `@uppy/core`, `@uppy/dashboard`, `@uppy/tus`, `@uppy/aws-s3`
+   405→   405→- resumable upload client: `tus-js-client`
+   406→   406→- server-side TUS: `tus-node-server`
+   407→   407→- file type detection: `file-type`
+   408→   408→- MIME validation: `mime-types`
+   409→   409→- filename sanitization: `sanitize-filename`
+   410→   410→- slugs: `slugify`
+   411→   411→
+   412→   412→---
+   413→   413→
+   414→   414→### 9.4 Classification and Sensitivity Labels
+   415→   415→
+   416→   416→Required capabilities:
+   417→   417→
+   418→   418→- configurable classification taxonomy
+   419→   419→- default sensitivity levels
+   420→   420→- label assignment at upload or later
+   421→   421→- label inheritance rules where appropriate
+   422→   422→- label-based policy enforcement
+   423→   423→- visual classification banners in UI
+   424→   424→- classification history
+   425→   425→- localized classification names and descriptions
+   426→   426→
+   427→   427→Default suggested labels:
+   428→   428→
+   429→   429→- Public
+   430→   430→- Internal
+   431→   431→- Confidential
+   432→   432→- Restricted
+   433→   433→- Highly Sensitive
+   434→   434→
+   435→   435→Rules:
+   436→   436→
+   437→   437→- classification changes must be audited
+   438→   438→- downgrades must require justification and permission
+   439→   439→- documents under legal hold must not be downgraded silently
+   440→   440→- classification labels shown in the UI must be professionally translated into Arabic
+   441→   441→- classification banners must render correctly in RTL mode
+   442→   442→
+   443→   443→Approved library expectations:
+   444→   444→
+   445→   445→- authorization / rules: `@casl/ability`, `casbin`, `json-rules-engine`
+   446→   446→- AI-assisted classification optional: `@huggingface/transformers`, `openai`, `@anthropic-ai/sdk`, `langchain`, `llamaindex`
+   447→   447→
+   448→   448→---
+   449→   449→
+   450→   450→### 9.5 Metadata and Taxonomy
+   451→   451→
+   452→   452→Required capabilities:
+   453→   453→
+   454→   454→- custom metadata fields
+   455→   455→- metadata schemas per document type
+   456→   456→- controlled vocabularies
+   457→   457→- validation rules
+   458→   458→- required metadata for certain classes or workflows
+   459→   459→- metadata search and facets
+   460→   460→- metadata change history
+   461→   461→- localized metadata labels and controlled vocabulary display names
+   462→   462→
+   463→   463→Examples of metadata:
+   464→   464→
+   465→   465→- document type
+   466→   466→- business owner
+   467→   467→- department
+   468→   468→- project
+   469→   469→- case number
+   470→   470→- review date
+   471→   471→- jurisdiction
+   472→   472→- confidentiality level
+   473→   473→- retention schedule
+   474→   474→- source system
+   475→   475→- content language
+   476→   476→
+   477→   477→Approved library expectations:
+   478→   478→
+   479→   479→- schema validation: `zod`, `ajv`, `ajv-formats`
+   480→   480→- dynamic forms: `@rjsf/core`
+   481→   481→- frontend forms: `react-hook-form`, `@hookform/resolvers`
+   482→   482→
+   483→   483→---
+   484→   484→
+   485→   485→### 9.6 Versioning and Immutability
+   486→   486→
+   487→   487→Required capabilities:
+   488→   488→
+   489→   489→- automatic version numbering
+   490→   490→- immutable stored content per version
+   491→   491→- metadata versioning
+   492→   492→- checksum per version
+   493→   493→- created-by and created-at attribution
+   494→   494→- reason for change where appropriate
+   495→   495→- ability to view version history
+   496→   496→- ability to restore under permission control
+   497→   497→- localized reason codes where applicable
+   498→   498→
+   499→   499→Rules:
+   500→   500→
+   501→   501→- never overwrite original binary content silently
+   502→   502→- redactions must produce a new derivative version, not mutate the original evidence
+   503→   503→- legal hold must prevent destructive version cleanup
+   504→   504→
+   505→   505→Approved library expectations:
+   506→   506→
+   507→   507→- diffing: `diff`, `fast-json-patch`, `jsondiffpatch`
+   508→   508→- diff viewer: `react-diff-viewer-continued`
+   509→   509→
+   510→   510→---
+   511→   511→
+   512→   512→### 9.7 Retention, Disposition, and Legal Hold
+   513→   513→
+   514→   514→Required capabilities:
+   515→   515→
+   516→   516→- retention schedules
+   517→   517→- retention start triggers
+   518→   518→- hold flags
+   519→   519→- disposition approvals
+   520→   520→- certificates of disposition
+   521→   521→- destruction proof under policy
+   522→   522→- conflict handling between hold and retention
+   523→   523→- localized retention schedule names and disposition evidence
+   524→   524→
+   525→   525→Rules:
+   526→   526→
+   527→   527→- legal hold overrides normal deletion
+   528→   528→- deletion must be policy-checked and audited
+   529→   529→- crypto-shredding may be used where applicable, but only if audit and legal requirements remain satisfied
+   530→   530→- disposition events must produce durable evidence
+   531→   531→- retention dates must respect timezone and locale display rules
+   532→   532→
+   533→   533→Approved library expectations:
+   534→   534→
+   535→   535→- date/time: `date-fns`, `@date-fns/tz`, `luxon`, `dayjs`
+   536→   536→- recurrence: `rrule`
+   537→   537→- cron parsing and display: `croner`, `cron-parser`, `cronstrue`
+   538→   538→- delayed / repeatable jobs: `bullmq`
+   539→   539→
+   540→   540→---
+   541→   541→
+   542→   542→### 9.8 Workflow, Approvals, and Signatures
+   543→   543→
+   544→   544→Required capabilities:
+   545→   545→
+   546→   546→- review workflows
+   547→   547→- approval routing
+   548→   548→- sequential and parallel approvals
+   549→   549→- delegation
+   550→   550→- escalation
+   551→   551→- due dates
+   552→   552→- reminders
+   553→   553→- approval history
+   554→   554→- rejection reasons
+   555→   555→- signature attestation or electronic acknowledgment where appropriate
+   556→   556→- localized workflow step names, notifications, and approval messages
+   557→   557→
+   558→   558→Important:
+   559→   559→
+   560→   560→- If formal legal e-signature compliance is required, state clearly whether Smart EDMS provides basic audit-trail signatures or integrates with a qualified e-signature provider.
+   561→   561→- Do not falsely claim qualified e-signature compliance unless implemented and verified.
+   562→   562→
+   563→   563→Approved library expectations:
+   564→   564→
+   565→   565→- workflow state machines: `xstate`
+   566→   566→- durable workflow orchestration optional: `@temporalio/client`, `@temporalio/worker`
+   567→   567→- job queue: `bullmq`
+   568→   568→- signature capture for basic attestation: `signature_pad`
+   569→   569→- PDF evidence generation: `@react-pdf/renderer`, `pdf-lib`, `playwright`, `puppeteer`
+   570→   570→
+   571→   571→---
+   572→   572→
+   573→   573→### 9.9 Secure Viewing, Redaction, and Watermarking
+   574→   574→
+   575→   575→Required capabilities:
+   576→   576→
+   577→   577→- secure in-browser preview
+   578→   578→- no-download mode where allowed
+   579→   579→- dynamic watermarking
+   580→   580→- classification banners
+   581→   581→- user/session-based watermark text
+   582→   582→- redaction mode
+   583→   583→- redaction preview
+   584→   584→- export of redacted derivative
+   585→   585→- original preservation
+   586→   586→- Arabic text rendering in previews
+   587→   587→- RTL-aware watermark placement where applicable
+   588→   588→
+   589→   589→Rules:
+   590→   590→
+   591→   591→- redaction must be irreversible in exported derivative
+   592→   592→- redaction actions must be audited
+   593→   593→- preview generation must occur in a hardened worker pipeline
+   594→   594→- unsafe file types must be blocked or sandboxed
+   595→   595→- Arabic PDF export must preserve correct glyph shaping and direction
+   596→   596→- if pure JavaScript PDF libraries cannot guarantee correct Arabic shaping, use a hardened HTML-to-PDF rendering pipeline
+   597→   597→
+   598→   598→Approved library expectations:
+   599→   599→
+   600→   600→- PDF viewing: `pdfjs-dist`, `react-pdf`
+   601→   601→- PDF manipulation: `pdf-lib`
+   602→   602→- PDF generation: `@react-pdf/renderer`
+   603→   603→- HTML-to-PDF with strong Arabic shaping: `playwright`, `puppeteer`
+   604→   604→- image processing: `sharp`
+   605→   605→- HTML sanitization: `dompurify`, `sanitize-html`, `rehype-sanitize`
+   606→   606→
+   607→   607→---
+   608→   608→
+   609→   609→### 9.10 Search and Discovery
+   610→   610→
+   611→   611→Required capabilities:
+   612→   612→
+   613→   613→- full-text search
+   614→   614→- metadata search
+   615→   615→- faceted search
+   616→   616→- saved searches
+   617→   617→- permission-aware results
+   618→   618→- classification-aware results
+   619→   619→- audit-aware search if needed
+   620→   620→- OCR-based search for images and scanned PDFs where enabled
+   621→   621→- Arabic-aware search
+   622→   622→- locale-aware sorting and relevance
+   623→   623→
+   624→   624→Critical rule:
+   625→   625→
+   626→   626→- search results must not leak the existence of documents the user is not authorized to see unless the product explicitly uses an “existence disclosure” policy and the user is allowed to know that restricted items exist.
+   627→   627→
+   628→   628→Arabic search requirements:
+   629→   629→
+   630→   630→- support Arabic tokenization
+   631→   631→- support Arabic normalization where appropriate
+   632→   632→- support optional removal or ignoring of tashkeel for search matching
+   633→   633→- normalize hamza variants, alef forms, taa marbuta, and alef maksura where appropriate
+   634→   634→- support Arabic stopwords and synonyms
+   635→   635→- use OpenSearch Arabic analysis capabilities where practical
+   636→   636→
+   637→   637→Approved library expectations:
+   638→   638→
+   639→   639→- search client: `@opensearch-project/opensearch`
+   640→   640→- alternative search clients optional: `meilisearch`, `typesense`
+   641→   641→- OCR: `tesseract.js`
+   642→   642→- language detection optional: `franc`
+   643→   643→
+   644→   644→---
+   645→   645→
+   646→   646→### 9.11 Sharing and External Collaboration
+   647→   647→
+   648→   648→Required capabilities:
+   649→   649→
+   650→   650→- internal sharing
+   651→   651→- external sharing under strict policy
+   652→   652→- time-limited links
+   653→   653→- password-protected links if required
+   654→   654→- download restrictions
+   655→   655→- view-only mode
+   656→   656→- revocation
+   657→   657→- external recipient verification
+   658→   658→- share audit trail
+   659→   659→- localized share emails and landing pages
+   660→   660→
+   661→   661→Rules:
+   662→   662→
+   663→   663→- external sharing must be denied by default unless enabled by policy
+   664→   664→- anonymous links must be strongly restricted or disabled by default
+   665→   665→- shared links must be revocable and auditable
+   666→   666→- Arabic recipients must receive localized notifications where their locale is known
+   667→   667→
+   668→   668→Approved library expectations:
+   669→   669→
+   670→   670→- password hashing for share passwords: `argon2`, `@node-rs/argon2`
+   671→   671→- validation: `zod`
+   672→   672→- email: `nodemailer`, `@react-email/components`, `@react-email/render`
+   673→   673→
+   674→   674→---
+   675→   675→
+   676→   676→### 9.12 Audit, Evidence, and Provenance
+   677→   677→
+   678→   678→This is one of the most important areas of Smart EDMS.
+   679→   679→
+   680→   680→Required capabilities:
+   681→   681→
+   682→   682→- audit events for authentication, authorization, access, create, read, update, delete, download, preview, redaction, export, sharing, workflow, admin changes, locale changes, and security changes
+   683→   683→- actor identity
+   684→   684→- tenant context
+   685→   685→- resource identifiers
+   686→   686→- timestamp
+   687→   687→- reason or purpose where required
+   688→   688→- IP address and user agent where appropriate
+   689→   689→- result: allow/deny
+   690→   690→- correlation IDs
+   691→   691→- tamper-evident sequence
+   692→   692→- audit search and filtering
+   693→   693→- exportable audit evidence
+   694→   694→- localized audit display labels while preserving stable machine-readable event codes
+   695→   695→
+   696→   696→Required integrity features:
+   697→   697→
+   698→   698→- append-only audit storage
+   699→   699→- hash chaining or equivalent tamper-evidence mechanism
+   700→   700→- signed audit receipts where possible
+   701→   701→- periodic integrity verification
+   702→   702→- audit exports for compliance review
+   703→   703→
+   704→   704→Rules:
+   705→   705→
+   706→   706→- audit logs must not be editable by normal users or tenant admins
+   707→   707→- audit deletion must be prevented unless legally required and strictly controlled
+   708→   708→- audit events must not contain unnecessary sensitive content
+   709→   709→- audit event codes must remain stable across languages
+   710→   710→- Arabic audit exports must preserve meaning without altering legal precision
+   711→   711→
+   712→   712→Approved library expectations:
+   713→   713→
+   714→   714→- hashing and crypto: `node:crypto`, WebCrypto
+   715→   715→- canonicalization: `canonicalize`
+   716→   716→- signing / receipts: `jose`
+   717→   717→- browser or worker hashing optional: `hash-wasm`
+   718→   718→- vetted cryptographic helpers optional: `@noble/hashes`, `@noble/ciphers`, `@noble/curves`
+   719→   719→- Merkle proofs optional: `merkletreejs`
+   720→   720→
+   721→   721→---
+   722→   722→
+   723→   723→### 9.13 Notifications and Alerts
+   724→   724→
+   725→   725→Required capabilities:
+   726→   726→
+   727→   727→- user notifications
+   728→   728→- admin alerts
+   729→   729→- security alerts
+   730→   730→- workflow reminders
+   731→   731→- policy violation alerts
+   732→   732→- failed login alerts
+   733→   733→- anomalous behavior alerts
+   734→   734→- system health alerts
+   735→   735→- localized email, in-app, and push notifications
+   736→   736→
+   737→   737→Rules:
+   738→   738→
+   739→   739→- notifications must not leak sensitive document contents unless explicitly permitted
+   740→   740→- alert severity and routing must be configurable
+   741→   741→- Arabic notifications must use correct grammar, pluralization, and terminology
+   742→   742→
+   743→   743→Approved library expectations:
+   744→   744→
+   745→   745→- email: `nodemailer`, `@react-email/components`, `@react-email/render`, `mjml`
+   746→   746→- realtime: `socket.io`, `socket.io-client`, `ws`
+   747→   747→- web push: `web-push`
+   748→   748→- notification orchestration optional: `@novu/node`, `@novu/react`
+   749→   749→- Slack alerting optional: `@slack/webhook`
+   750→   750→
+   751→   751→---
+   752→   752→
+   753→   753→### 9.14 AI-Assisted Intelligence
+   754→   754→
+   755→   755→Smart EDMS should support AI-assisted features, but with strong safeguards.
+   756→   756→
+   757→   757→Possible capabilities:
+   758→   758→
+   759→   759→- suggested classification
+   760→   760→- PII detection
+   761→   761→- summarization
+   762→   762→- semantic search
+   763→   763→- duplicate detection
+   764→   764→- metadata extraction suggestions
+   765→   765→- policy risk suggestions
+   766→   766→- Arabic content summarization and classification
+   767→   767→
+   768→   768→Mandatory safeguards:
+   769→   769→
+   770→   770→- human approval for high-risk decisions
+   771→   771→- explainability of suggestions where possible
+   772→   772→- AI actions logged
+   773→   773→- tenant-level AI enable/disable controls
+   774→   774→- data minimization for external AI services
+   775→   775→- no training on customer content without explicit consent
+   776→   776→- clear disclosure when AI is used
+   777→   777→- Arabic suggestions must be reviewed for linguistic correctness before being shown as final recommendations
+   778→   778→
+   779→   779→Critical rule:
+   780→   780→
+   781→   781→AI must not silently perform:
+   782→   782→
+   783→   783→- classification downgrade
+   784→   784→- deletion
+   785→   785→- legal hold removal
+   786→   786→- access grant expansion
+   787→   787→- export of restricted content
+   788→   788→
+   789→   789→without explicit human approval.
+   790→   790→
+   791→   791→Approved library expectations:
+   792→   792→
+   793→   793→- local / self-hosted models: `@huggingface/transformers`, `onnxruntime-node`, `onnxruntime-web`, `ollama`
+   794→   794→- provider SDKs: `openai`, `@anthropic-ai/sdk`, `@google/generative-ai`
+   795→   795→- orchestration: `langchain`, `@langchain/core`, `@langchain/community`, `@langchain/openai`, `@langchain/anthropic`, `llamaindex`
+   796→   796→- tokenization: `js-tiktoken`, `gpt-tokenizer`
+   797→   797→- vector database clients optional: `@qdrant/js-client-rest`, `@pinecone-database/pinecone`, `weaviate-ts-client`, `chromadb`
+   798→   798→
+   799→   799→---
+   800→   800→
+   801→   801→### 9.15 Admin Console
+   802→   802→
+   803→   803→Required capabilities:
+   804→   804→
+   805→   805→- tenant admin dashboard
+   806→   806→- user management
+   807→   807→- group management
+   808→   808→- role management
+   809→   809→- policy management
+   810→   810→- classification management
+   811→   811→- retention management
+   812→   812→- legal hold management
+   813→   813→- audit viewer
+   814→   814→- security posture overview
+   815→   815→- integration management
+   816→   816→- API key management
+   817→   817→- webhook management
+   818→   818→- locale and translation management
+   819→   819→- branding optional
+   820→   820→- billing / subscription management if SaaS requires it
+   821→   821→
+   822→   822→Admin safety rules:
+   823→   823→
+   824→   824→- destructive actions require confirmation
+   825→   825→- high-risk actions require step-up authentication
+   826→   826→- dual control recommended for critical tenant-wide changes
+   827→   827→- all admin actions must be audited
+   828→   828→- admin console must fully support RTL and Arabic
+   829→   829→
+   830→   830→Approved library expectations:
+   831→   831→
+   832→   832→- tables: `@tanstack/react-table`, `ag-grid-community`, `ag-grid-react`, `material-react-table`
+   833→   833→- charts: `recharts`, `echarts`, `chart.js`, `react-chartjs-2`, `@visx/visx`
+   834→   834→- code / policy editor: `monaco-editor`, `@monaco-editor/react`
+   835→   835→- JSON inspection: `react-json-view-lite`
+   836→   836→- flow / policy graph: `@xyflow/react`, `elkjs`
+   837→   837→- timeline: `vis-timeline`
+   838→   838→- dashboard layout: `react-grid-layout`
+   839→   839→
+   840→   840→---
+   841→   841→
+   842→   842→## 10. Mandatory Security Requirements
+   843→   843→
+   844→   844→Smart EDMS must follow a high-assurance security baseline.
+   845→   845→
+   846→   846→### 10.1 Zero Trust Principles
+   847→   847→
+   848→   848→Design assumptions:
+   849→   849→
+   850→   850→- network is not inherently trusted
+   851→   851→- users and devices must be continuously verified
+   852→   852→- every request must be authenticated and authorized
+   853→   853→- least privilege is enforced by default
+   854→   854→- sessions and tokens are short-lived where practical
+   855→   855→- privileged access is tightly controlled
+   856→   856→
+   857→   857→---
+   858→   858→
+   859→   859→### 10.2 Authentication Requirements
+   860→   860→
+   861→   861→- enforce strong password policy if passwords are used
+   862→   862→- support MFA
+   863→   863→- support TOTP and preferably WebAuthn/passkeys
+   864→   864→- enforce lockout or rate-limiting against brute force
+   865→   865→- support session timeout
+   866→   866→- support concurrent session controls
+   867→   867→- require re-authentication or step-up for sensitive actions
+   868→   868→- service accounts must have narrow scopes and no interactive login unless necessary
+   869→   869→
+   870→   870→Approved libraries:
+   871→   871→
+   872→   872→- `argon2`
+   873→   873→- `@node-rs/argon2`
+   874→   874→- `jose`
+   875→   875→- `otplib`
+   876→   876→- `qrcode`
+   877→   877→- `@simplewebauthn/server`
+   878→   878→- `@simplewebauthn/browser`
+   879→   879→- `openid-client`
+   880→   880→- `oauth4webapi`
+   881→   881→
+   882→   882→---
+   883→   883→
+   884→   884→### 10.3 Authorization Requirements
+   885→   885→
+   886→   886→Use a deny-by-default authorization model.
+   887→   887→
+   888→   888→Preferred model:
+   889→   889→
+   890→   890→- RBAC for roles
+   891→   891→- ABAC for contextual rules
+   892→   892→- optional ReBAC for relationships if needed
+   893→   893→
+   894→   894→Context to consider:
+   895→   895→
+   896→   896→- tenant
+   897→   897→- user role
+   898→   898→- group membership
+   899→   899→- clearance or label level
+   900→   900→- project / workspace membership
+   901→   901→- document classification
+   902→   902→- legal hold state
+   903→   903→- retention state
+   904→   904→- device trust
+   905→   905→- IP risk
+   906→   906→- time of day
+   907→   907→- purpose of access
+   908→   908→- sharing grant validity
+   909→   909→
+   910→   910→Rules:
+   911→   911→
+   912→   912→- authorization must be enforced server-side
+   913→   913→- UI hiding is not a substitute for server authorization
+   914→   914→- every endpoint must declare required permissions or policies
+   915→   915→- policy changes must be audited
+   916→   916→
+   917→   917→Approved libraries:
+   918→   918→
+   919→   919→- `@casl/ability`
+   920→   920→- `casbin`
+   921→   921→- `json-rules-engine`
+   922→   922→
+   923→   923→---
+   924→   924→
+   925→   925→### 10.4 Encryption Requirements
+   926→   926→
+   927→   927→Required:
+   928→   928→
+   929→   929→- TLS 1.2 minimum, TLS 1.3 preferred for data in transit
+   930→   930→- encryption at rest for databases, object storage, backups, logs, and temporary storage
+   931→   931→- envelope encryption for document content where practical
+   932→   932→- per-document or per-version data encryption keys where practical
+   933→   933→- secure key management
+   934→   934→- key rotation support
+   935→   935→- no hardcoded secrets
+   936→   936→- no plaintext credentials or keys in source code
+   937→   937→
+   938→   938→Preferred:
+   939→   939→
+   940→   940→- KMS or HSM-backed key protection where available
+   941→   941→- crypto-agility to support future algorithm changes
+   942→   942→- post-quantum readiness where practical, using hybrid and vetted implementations only when available and stable
+   943→   943→
+   944→   944→Strict rule:
+   945→   945→
+   946→   946→Do not implement custom cryptographic primitives. Use vetted libraries and platform/KMS capabilities.
+   947→   947→
+   948→   948→Approved libraries:
+   949→   949→
+   950→   950→- `node:crypto`
+   951→   951→- WebCrypto
+   952→   952→- `jose`
+   953→   953→- `@noble/hashes`
+   954→   954→- `@noble/ciphers`
+   955→   955→- `@noble/curves`
+   956→   956→- cloud KMS clients: `@aws-sdk/client-kms`, `@google-cloud/kms`, `@azure/keyvault-keys`
+   957→   957→
+   958→   958→---
+   959→   959→
+   960→   960→### 10.5 Secure File Handling
+   961→   961→
+   962→   962→Required controls:
+   963→   963→
+   964→   964→- file type validation by MIME and magic bytes
+   965→   965→- file size limits
+   966→   966→- filename sanitization
+   967→   967→- path traversal prevention
+   968→   968→- malware scanning before general availability
+   969→   969→- sandboxed conversion and preview generation
+   970→   970→- object storage keys not guessable
+   971→   971→- signed URLs with short expiry
+   972→   972→- no direct public write access to storage
+   973→   973→- virus scan failures must quarantine or block files
+   974→   974→- Unicode Arabic filenames must be handled safely
+   975→   975→
+   976→   976→Approved libraries:
+   977→   977→
+   978→   978→- `file-type`
+   979→   979→- `mime-types`
+   980→   980→- `sanitize-filename`
+   981→   981→- `clamscan`
+   982→   982→- `@fastify/multipart`
+   983→   983→- `busboy`
+   984→   984→
+   985→   985→---
+   986→   986→
+   987→   987→### 10.6 Web Security Controls
+   988→   988→
+   989→   989→Implement and verify:
+   990→   990→
+   991→   991→- CSRF protection
+   992→   992→- clickjacking protection
+   993→   993→- secure CORS configuration
+   994→   994→- secure CSP
+   995→   995→- HSTS where appropriate
+   996→   996→- secure cookies
+   997→   997→- XSS protection
+   998→   998→- SQL injection protection through parameterized queries / ORM
+   999→   999→- SSRF protection for any URL-fetching features
+  1000→  1000→- rate limiting
+  1001→  1001→- brute-force protection
+  1002→  1002→- input validation
+  1003→  1003→- output encoding
+  1004→  1004→- secure headers
+  1005→  1005→- request size limits
+  1006→  1006→- API abuse protection
+  1007→  1007→
+  1008→  1008→Approved libraries:
+  1009→  1009→
+  1010→  1010→- `helmet`
+  1011→  1011→- `@fastify/helmet`
+  1012→  1012→- `@fastify/csrf-protection`
+  1013→  1013→- `@fastify/rate-limit`
+  1014→  1014→- `@nestjs/throttler`
+  1015→  1015→- `express-rate-limit`
+  1016→  1016→- `rate-limiter-flexible`
+  1017→  1017→- `dompurify`
+  1018→  1018→- `sanitize-html`
+  1019→  1019→- `rehype-sanitize`
+  1020→  1020→- `re2`
+  1021→  1021→
+  1022→  1022→---
+  1023→  1023→
+  1024→  1024→### 10.7 Secrets and Configuration
+  1025→  1025→
+  1026→  1026→Required:
+  1027→  1027→
+  1028→  1028→- secrets stored in secret manager or environment-injected secure store
+  1029→  1029→- no secrets in Git
+  1030→  1030→- no secrets in logs
+  1031→  1031→- no secrets in frontend bundles
+  1032→  1032→- separate configs for dev/staging/prod
+  1033→  1033→- feature flags where useful
+  1034→  1034→- secure defaults
+  1035→  1035→- configuration validation at startup
+  1036→  1036→
+  1037→  1037→Approved libraries:
+  1038→  1038→
+  1039→  1039→- `dotenv`
+  1040→  1040→- `dotenv-cli`
+  1041→  1041→- `envalid`
+  1042→  1042→- `@t3-oss/env-nextjs`
+  1043→  1043→- `node-vault`
+  1044→  1044→- cloud secret clients: `@aws-sdk/client-secrets-manager`, `@azure/keyvault-keys`, `@azure/identity`
+  1045→  1045→
+  1046→  1046→---
+  1047→  1047→
+  1048→  1048→### 10.8 Logging and Monitoring
+  1049→  1049→
+  1050→  1050→Required:
+  1051→  1051→
+  1052→  1052→- structured logs
+  1053→  1053→- correlation IDs
+  1054→  1054→- request tracing
+  1055→  1055→- security event logging
+  1056→  1056→- admin action logging
+  1057→  1057→- error tracking
+  1058→  1058→- metrics
+  1059→  1059→- alerting
+  1060→  1060→- dashboarding
+  1061→  1061→- audit integrity monitoring
+  1062→  1062→
+  1063→  1063→Logging rules:
+  1064→  1064→
+  1065→  1065→- do not log passwords, tokens, full credentials, or unnecessary sensitive content
+  1066→  1066→- mask or tokenize PII where possible
+  1067→  1067→- preserve enough context for investigation
+  1068→  1068→- user-facing errors may be localized; system logs should remain stable and machine-readable
+  1069→  1069→
+  1070→  1070→Approved libraries:
+  1071→  1071→
+  1072→  1072→- `pino`
+  1073→  1073→- `pino-http`
+  1074→  1074→- `pino-pretty`
+  1075→  1075→- `winston`
+  1076→  1076→- `prom-client`
+  1077→  1077→- `@opentelemetry/api`
+  1078→  1078→- `@opentelemetry/sdk-node`
+  1079→  1079→- `@opentelemetry/auto-instrumentations-node`
+  1080→  1080→- `@opentelemetry/exporter-trace-otlp-http`
+  1081→  1081→- `@opentelemetry/exporter-metrics-otlp-http`
+  1082→  1082→- `@opentelemetry/exporter-logs-otlp-http`
+  1083→  1083→- `@sentry/node`
+  1084→  1084→- `@sentry/nextjs`
+  1085→  1085→- `@sentry/react`
+  1086→  1086→
+  1087→  1087→---
+  1088→  1088→
+  1089→  1089→### 10.9 Insider Threat Controls
+  1090→  1090→
+  1091→  1091→Required:
+  1092→  1092→
+  1093→  1093→- least privilege
+  1094→  1094→- separation of duties
+  1095→  1095→- audit trail
+  1096→  1096→- admin action review
+  1097→  1097→- anomaly detection
+  1098→  1098→- access recertification support
+  1099→  1099→- export controls
+  1100→  1100→- break-glass monitoring
+  1101→  1101→- dual control for high-risk operations
+  1102→  1102→
+  1103→  1103→---
+  1104→  1104→
+  1105→  1105→### 10.10 Backup, Recovery, and Resilience
+  1106→  1106→
+  1107→  1107→Required:
+  1108→  1108→
+  1109→  1109→- database backups
+  1110→  1110→- object storage versioning / replication where appropriate
+  1111→  1111→- restore procedures
+  1112→  1112→- recovery drills
+  1113→  1113→- disaster recovery plan
+  1114→  1114→- RPO/RTO targets defined as design goals
+  1115→  1115→- graceful degradation
+  1116→  1116→- queue retry with dead-letter handling
+  1117→  1117→- idempotent workers
+  1118→  1118→
+  1119→  1119→Approved libraries:
+  1120→  1120→
+  1121→  1121→- `bullmq`
+  1122→  1122→- `p-retry`
+  1123→  1123→- `p-queue`
+  1124→  1124→- `p-limit`
+  1125→  1125→
+  1126→  1126→---
+  1127→  1127→
+  1128→  1128→## 11. Compliance and Governance Targets
+  1129→  1129→
+  1130→  1130→Smart EDMS should be designed to support compliance readiness for common enterprise and regulated-environment expectations.
+  1131→  1131→
+  1132→  1132→Design alignment targets may include:
+  1133→  1133→
+  1134→  1134→- NIST SP 800-53 concepts
+  1135→  1135→- NIST SP 800-171 concepts
+  1136→  1136→- ISO/IEC 27001 concepts
+  1137→  1137→- SOC 2 trust service criteria concepts
+  1138→  1138→- GDPR / privacy-by-design concepts
+  1139→  1139→- records management best practices
+  1140→  1140→- OWASP Application Security Verification concepts
+  1141→  1141→- secure SDLC practices
+  1142→  1142→- localization quality and language-access best practices where relevant
+  1143→  1143→
+  1144→  1144→Important:
+  1145→  1145→
+  1146→  1146→Do not state that Smart EDMS is certified, accredited, or officially compliant unless such status has actually been achieved and verified.
+  1147→  1147→
+  1148→  1148→Use language such as:
+  1149→  1149→
+  1150→  1150→- “designed to support”
+  1151→  1151→- “aligned with”
+  1152→  1152→- “prepared for”
+  1153→  1153→- “target readiness”
+  1154→  1154→
+  1155→  1155→If the user requests “military-grade” claims, translate that into:
+  1156→  1156→
+  1157→  1157→- high-assurance security design
+  1158→  1158→- defense-grade operational controls where applicable
+  1159→  1159→- strict auditability
+  1160→  1160→- strong identity assurance
+  1161→  1161→- robust governance
+  1162→  1162→
+  1163→  1163→But do not claim official military or government certification unless real accreditation exists.
+  1164→  1164→
+  1165→  1165→---
+  1166→  1166→
+  1167→  1167→## 12. Recommended Architecture
+  1168→  1168→
+  1169→  1169→Unless the user explicitly overrides, use a pragmatic, production-ready architecture.
+  1170→  1170→
+  1171→  1171→### 12.1 Default Architecture Style
+  1172→  1172→
+  1173→  1173→Start with a **modular monolith** backend for speed and correctness, with clear module boundaries and the ability to extract services later.
+  1174→  1174→
+  1175→  1175→Use event-driven processing for:
+  1176→  1176→
+  1177→  1177→- file ingestion
+  1178→  1178→- malware scanning
+  1179→  1179→- OCR
+  1180→  1180→- preview generation
+  1181→  1181→- indexing
+  1182→  1182→- audit fanout
+  1183→  1183→- notifications
+  1184→  1184→- retention evaluation
+  1185→  1185→- Arabic OCR and Arabic indexing jobs
+  1186→  1186→
+  1187→  1187→---
+  1188→  1188→
+  1189→  1189→### 12.2 Recommended Stack
+  1190→  1190→
+  1191→  1191→Default recommended stack:
+  1192→  1192→
+  1193→  1193→#### Frontend
+  1194→  1194→
+  1195→  1195→- `next`
+  1196→  1196→- `react`
+  1197→  1197→- `react-dom`
+  1198→  1198→- `typescript`
+  1199→  1199→- `tailwindcss`
+  1200→  1200→- `shadcn/ui`
+  1201→  1201→- Radix UI primitives: `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-popover`, `@radix-ui/react-select`, `@radix-ui/react-tooltip`, `@radix-ui/react-tabs`, `@radix-ui/react-checkbox`, `@radix-ui/react-switch`, `@radix-ui/react-radio-group`, `@radix-ui/react-context-menu`, `@radix-ui/react-avatar`, `@radix-ui/react-progress`
+  1202→  1202→- `@tanstack/react-query`
+  1203→  1203→- `@tanstack/react-table`
+  1204→  1204→- `@tanstack/react-virtual`
+  1205→  1205→- `react-hook-form`
+  1206→  1206→- `@hookform/resolvers`
+  1207→  1207→- `zod`
+  1208→  1208→- `zustand`
+  1209→  1209→- `next-intl`
+  1210→  1210→- `i18next`
+  1211→  1211→- `react-i18next`
+  1212→  1212→- `@formatjs/intl`
+  1213→  1213→- `intl-messageformat`
+  1214→  1214→- `@internationalized/date`
+  1215→  1215→- `date-fns`
+  1216→  1216→- `luxon`
+  1217→  1217→- `dayjs`
+  1218→  1218→- `cmdk`
+  1219→  1219→- `sonner`
+  1220→  1220→- `lucide-react`
+  1221→  1221→- `framer-motion`
+  1222→  1222→- `@dnd-kit/core`
+  1223→  1223→- `@dnd-kit/sortable`
+  1224→  1224→- `react-day-picker`
+  1225→  1225→- `react-resizable-panels`
+  1226→  1226→- `vaul`
+  1227→  1227→- `next-themes`
+  1228→  1228→- `clsx`
+  1229→  1229→- `tailwind-merge`
+  1230→  1230→- `class-variance-authority`
+  1231→  1231→
+  1232→  1232→#### Backend
+  1233→  1233→
+  1234→  1234→- `fastify`
+  1235→  1235→- `@fastify/helmet`
+  1236→  1236→- `@fastify/cors`
+  1237→  1237→- `@fastify/rate-limit`
+  1238→  1238→- `@fastify/multipart`
+  1239→  1239→- `@fastify/static`
+  1240→  1240→- `@fastify/compress`
+  1241→  1241→- `@fastify/formbody`
+  1242→  1242→- `@fastify/swagger`
+  1243→  1243→- `@fastify/swagger-ui`
+  1244→  1244→- `@fastify/under-pressure`
+  1245→  1245→- `@fastify/csrf-protection`
+  1246→  1246→- `@fastify/websocket`
+  1247→  1247→- `@fastify/cookie`
+  1248→  1248→- `@fastify/secure-session`
+  1249→  1249→- `zod`
+  1250→  1250→- `pino`
+  1251→  1251→- `pino-http`
+  1252→  1252→
+  1253→  1253→Alternative backend:
+  1254→  1254→
+  1255→  1255→- `@nestjs/core`
+  1256→  1256→- `@nestjs/common`
+  1257→  1257→- `@nestjs/config`
+  1258→  1258→- `@nestjs/swagger`
+  1259→  1259→- `@nestjs/throttler`
+  1260→  1260→- `@nestjs/jwt`
+  1261→  1261→- `@nestjs/passport`
+  1262→  1262→- `@nestjs/bullmq`
+  1263→  1263→
+  1264→  1264→#### Database / ORM / Queue
+  1265→  1265→
+  1266→  1266→- `drizzle-orm`
+  1267→  1267→- `drizzle-kit`
+  1268→  1268→- `drizzle-zod`
+  1269→  1269→- `postgres`
+  1270→  1270→- `pg`
+  1271→  1271→- `prisma`
+  1272→  1272→- `@prisma/client`
+  1273→  1273→- `kysely`
+  1274→  1274→- `ioredis`
+  1275→  1275→- `bullmq`
+  1276→  1276→
+  1277→  1277→#### Object Storage / Files
+  1278→  1278→
+  1279→  1279→- `@aws-sdk/client-s3`
+  1280→  1280→- `@aws-sdk/s3-request-presigner`
+  1281→  1281→- `@aws-sdk/lib-storage`
+  1282→  1282→- `minio`
+  1283→  1283→- `@uppy/core`
+  1284→  1284→- `@uppy/dashboard`
+  1285→  1285→- `@uppy/tus`
+  1286→  1286→- `@uppy/aws-s3`
+  1287→  1287→- `tus-js-client`
+  1288→  1288→- `tus-node-server`
+  1289→  1289→- `file-type`
+  1290→  1290→- `sanitize-filename`
+  1291→  1291→- `sharp`
+  1292→  1292→- `pdfjs-dist`
+  1293→  1293→- `pdf-lib`
+  1294→  1294→- `tesseract.js`
+  1295→  1295→- `mammoth`
+  1296→  1296→- `exceljs`
+  1297→  1297→- `papaparse`
+  1298→  1298→- `archiver`
+  1299→  1299→- `jszip`
+  1300→  1300→- `fflate`
+  1301→  1301→
+  1302→  1302→#### Search
+  1303→  1303→
+  1304→  1304→- `@opensearch-project/opensearch`
+  1305→  1305→
+  1306→  1306→#### Policy / Authorization
+  1307→  1307→
+  1308→  1308→- `@casl/ability`
+  1309→  1309→- `casbin`
+  1310→  1310→- `json-rules-engine`
+  1311→  1311→
+  1312→  1312→#### Observability
+  1313→  1313→
+  1314→  1314→- `pino`
+  1315→  1315→- `prom-client`
+  1316→  1316→- `@opentelemetry/sdk-node`
+  1317→  1317→- `@sentry/node`
+  1318→  1318→- `@sentry/nextjs`
+  1319→  1319→
+  1320→  1320→---
+  1321→  1321→
+  1322→  1322→### 12.3 High-Level Components
+  1323→  1323→
+  1324→  1324→Smart EDMS should include:
+  1325→  1325→
+  1326→  1326→1. **Web Application**
+  1327→  1327→   - user-facing app
+  1328→  1328→   - admin console
+  1329→  1329→   - multilingual UI
+  1330→  1330→   - RTL support
+  1331→  1331→
+  1332→  1332→2. **API Layer**
+  1333→  1333→   - REST or GraphQL, preferably REST with OpenAPI for clarity
+  1334→  1334→   - authentication / authorization middleware
+  1335→  1335→   - validation
+  1336→  1336→   - rate limiting
+  1337→  1337→   - locale negotiation
+  1338→  1338→
+  1339→  1339→3. **Core Domain Services**
+  1340→  1340→   - documents
+  1341→  1341→   - versions
+  1342→  1342→   - metadata
+  1343→  1343→   - classification
+  1344→  1344→   - sharing
+  1345→  1345→   - workflows
+  1346→  1346→   - retention
+  1347→  1347→   - legal hold
+  1348→  1348→   - audit
+  1349→  1349→   - notifications
+  1350→  1350→   - localization preferences
+  1351→  1351→
+  1352→  1352→4. **Policy Engine**
+  1353→  1353→   - evaluates access decisions
+  1354→  1354→   - supports policy-as-code
+  1355→  1355→   - logs decisions
+  1356→  1356→
+  1357→  1357→5. **Crypto / Key Management Integration**
+  1358→  1358→   - envelope encryption
+  1359→  1359→   - key wrapping
+  1360→  1360→   - rotation support
+  1361→  1361→
+  1362→  1362→6. **Ingestion Pipeline**
+  1363→  1363→   - upload validation
+  1364→  1364→   - malware scan
+  1365→  1365→   - checksum calculation
+  1366→  1366→   - metadata extraction
+  1367→  1367→   - preview generation
+  1368→  1368→   - OCR
+  1369→  1369→   - Arabic text extraction
+  1370→  1370→   - index preparation
+  1371→  1371→
+  1372→  1372→7. **Search Service**
+  1373→  1373→   - indexing
+  1374→  1374→   - deletion propagation
+  1375→  1375→   - ACL-aware query execution
+  1376→  1376→   - Arabic analyzer support
+  1377→  1377→
+  1378→  1378→8. **Audit Service**
+  1379→  1379→   - event intake
+  1380→  1380→   - normalization
+  1381→  1381→   - hash chaining
+  1382→  1382→   - integrity checks
+  1383→  1383→   - exports
+  1384→  1384→
+  1385→  1385→9. **Localization Service**
+  1386→  1386→   - locale resources
+  1387→  1387→   - localized labels
+  1388→  1388→   - localized emails
+  1389→  1389→   - localized evidence exports
+  1390→  1390→   - translation governance
+  1391→  1391→
+  1392→  1392→10. **Worker Layer**
+  1393→  1393→   - asynchronous jobs
+  1394→  1394→   - retries
+  1395→  1395→   - dead-letter queues
+  1396→  1396→   - scheduled tasks
+  1397→  1397→
+  1398→  1398→11. **Operational Layer**
+  1399→  1399→   - backups
+  1400→  1400→   - monitoring
+  1401→  1401→   - alerting
+  1402→  1402→   - deployment automation
+  1403→  1403→   - infrastructure as code where possible
+  1404→  1404→
+  1405→  1405→---
+  1406→  1406→
+  1407→  1407→## 13. Approved Open-Source Library Catalog
+  1408→  1408→
+  1409→  1409→This catalog is the approved baseline for Smart EDMS. If a library is not listed here, justify any addition before use. Prefer built-in platform capabilities over unnecessary dependencies.
+  1410→  1410→
+  1411→  1411→### 13.1 Core Frontend
+  1412→  1412→
+  1413→  1413→- `next`
+  1414→  1414→- `react`
+  1415→  1415→- `react-dom`
+  1416→  1416→- `typescript`
+  1417→  1417→- `tailwindcss`
+  1418→  1418→- `postcss`
+  1419→  1419→- `autoprefixer`
+  1420→  1420→- `@tailwindcss/typography`
+  1421→  1421→- `@tailwindcss/forms`
+  1422→  1422→- `@tailwindcss/container-queries`
+  1423→  1423→- `shadcn/ui`
+  1424→  1424→- `@radix-ui/react-dialog`
+  1425→  1425→- `@radix-ui/react-dropdown-menu`
+  1426→  1426→- `@radix-ui/react-popover`
+  1427→  1427→- `@radix-ui/react-select`
+  1428→  1428→- `@radix-ui/react-tooltip`
+  1429→  1429→- `@radix-ui/react-tabs`
+  1430→  1430→- `@radix-ui/react-accordion`
+  1431→  1431→- `@radix-ui/react-switch`
+  1432→  1432→- `@radix-ui/react-checkbox`
+  1433→  1433→- `@radix-ui/react-radio-group`
+  1434→  1434→- `@radix-ui/react-context-menu`
+  1435→  1435→- `@radix-ui/react-progress`
+  1436→  1436→- `@radix-ui/react-avatar`
+  1437→  1437→- `@headlessui/react`
+  1438→  1438→- `react-aria-components`
+  1439→  1439→- `class-variance-authority`
+  1440→  1440→- `clsx`
+  1441→  1441→- `tailwind-merge`
+  1442→  1442→- `next-themes`
+  1443→  1443→- `cmdk`
+  1444→  1444→- `sonner`
+  1445→  1445→- `react-hot-toast`
+  1446→  1446→- `vaul`
+  1447→  1447→- `react-resizable-panels`
+  1448→  1448→- `lucide-react`
+  1449→  1449→- `@tabler/icons-react`
+  1450→  1450→- `@phosphor-icons/react`
+  1451→  1451→- `@fontsource-variable/inter`
+  1452→  1452→- `@fontsource-variable/jetbrains-mono`
+  1453→  1453→- `framer-motion`
+  1454→  1454→- `@formkit/auto-animate`
+  1455→  1455→- `@dnd-kit/core`
+  1456→  1456→- `@dnd-kit/sortable`
+  1457→  1457→- `@dnd-kit/modifiers`
+  1458→  1458→- `react-dropzone`
+  1459→  1459→- `react-hotkeys-hook`
+  1460→  1460→- `react-error-boundary`
+  1461→  1461→- `react-intersection-observer`
+  1462→  1462→- `usehooks-ts`
+  1463→  1463→- `nuqs`
+  1464→  1464→- `driver.js`
+  1465→  1465→
+  1466→  1466→### 13.2 Data / State / Forms
+  1467→  1467→
+  1468→  1468→- `@tanstack/react-query`
+  1469→  1469→- `@tanstack/react-query-devtools`
+  1470→  1470→- `@tanstack/react-table`
+  1471→  1471→- `@tanstack/react-virtual`
+  1472→  1472→- `@tanstack/react-form`
+  1473→  1473→- `react-hook-form`
+  1474→  1474→- `@hookform/resolvers`
+  1475→  1475→- `zod`
+  1476→  1476→- `valibot`
+  1477→  1477→- `ajv`
+  1478→  1478→- `ajv-formats`
+  1479→  1479→- `zustand`
+  1480→  1480→- `jotai`
+  1481→  1481→- `@reduxjs/toolkit`
+  1482→  1482→- `immer`
+  1483→  1483→- `xstate`
+  1484→  1484→- `neverthrow`
+  1485→  1485→- `remeda`
+  1486→  1486→- `lodash-es`
+  1487→  1487→
+  1488→  1488→### 13.3 Tables / Trees / Charts
+  1489→  1489→
+  1490→  1490→- `@tanstack/react-table`
+  1491→  1491→- `ag-grid-community`
+  1492→  1492→- `ag-grid-react`
+  1493→  1493→- `material-react-table`
+  1494→  1494→- `react-arborist`
+  1495→  1495→- `virtua`
+  1496→  1496→- `recharts`
+  1497→  1497→- `echarts`
+  1498→  1498→- `chart.js`
+  1499→  1499→- `react-chartjs-2`
+  1500→  1500→- `@visx/visx`
+  1501→  1501→- `d3`
+  1502→  1502→- `@nivo/core`
+  1503→  1503→- `@xyflow/react`
+  1504→  1504→- `elkjs`
+  1505→  1505→- `vis-timeline`
+  1506→  1506→- `react-grid-layout`
+  1507→  1507→
+  1508→  1508→### 13.4 Internationalization / RTL
+  1509→  1509→
+  1510→  1510→- `next-intl`
+  1511→  1511→- `i18next`
+  1512→  1512→- `react-i18next`
+  1513→  1513→- `@formatjs/intl`
+  1514→  1514→- `intl-messageformat`
+  1515→  1515→- `@internationalized/date`
+  1516→  1516→- `date-fns`
+  1517→  1517→- `@date-fns/tz`
+  1518→  1518→- `luxon`
+  1519→  1519→- `dayjs`
+  1520→  1520→- `i18next-parser`
+  1521→  1521→- `@fontsource/noto-sans-arabic`
+  1522→  1522→- `@fontsource/noto-kufi-arabic`
+  1523→  1523→- `@fontsource/ibm-plex-sans-arabic`
+  1524→  1524→- `@fontsource/tajawal`
+  1525→  1525→- `@fontsource/cairo`
+  1526→  1526→- `@fontsource/almarai`
+  1527→  1527→
+  1528→  1528→Optional Intl polyfills if runtime support requires them:
+  1529→  1529→
+  1530→  1530→- `@formatjs/intl-datetimeformat`
+  1531→  1531→- `@formatjs/intl-numberformat`
+  1532→  1532→- `@formatjs/intl-pluralrules`
+  1533→  1533→- `@formatjs/intl-relativetimeformat`
+  1534→  1534→- `@formatjs/intl-listformat`
+  1535→  1535→
+  1536→  1536→### 13.5 Backend / API
+  1537→  1537→
+  1538→  1538→- `fastify`
+  1539→  1539→- `@fastify/helmet`
+  1540→  1540→- `@fastify/cors`
+  1541→  1541→- `@fastify/rate-limit`
+  1542→  1542→- `@fastify/cookie`
+  1543→  1543→- `@fastify/secure-session`
+  1544→  1544→- `@fastify/session`
+  1545→  1545→- `@fastify/multipart`
+  1546→  1546→- `@fastify/static`
+  1547→  1547→- `@fastify/compress`
+  1548→  1548→- `@fastify/formbody`
+  1549→  1549→- `@fastify/swagger`
+  1550→  1550→- `@fastify/swagger-ui`
+  1551→  1551→- `@fastify/under-pressure`
+  1552→  1552→- `@fastify/csrf-protection`
+  1553→  1553→- `@fastify/websocket`
+  1554→  1554→- `@fastify/auth`
+  1555→  1555→- `@fastify/jwt`
+  1556→  1556→- `@fastify/oauth2`
+  1557→  1557→- `@fastify/passport`
+  1558→  1558→- `pino`
+  1559→  1559→- `pino-http`
+  1560→  1560→- `pino-pretty`
+  1561→  1561→- `zod`
+  1562→  1562→- `envalid`
+  1563→  1563→- `dotenv`
+  1564→  1564→- `dotenv-cli`
+  1565→  1565→- `@asteasolutions/zod-to-openapi`
+  1566→  1566→- `openapi-typescript`
+  1567→  1567→- `openapi-fetch`
+  1568→  1568→- `@stoplight/prism-cli`
+  1569→  1569→- `spectral-cli`
+  1570→  1570→- `swagger-ui`
+  1571→  1571→- `redoc`
+  1572→  1572→- `@nestjs/core`
+  1573→  1573→- `@nestjs/common`
+  1574→  1574→- `@nestjs/config`
+  1575→  1575→- `@nestjs/swagger`
+  1576→  1576→- `@nestjs/throttler`
+  1577→  1577→- `@nestjs/jwt`
+  1578→  1578→- `@nestjs/passport`
+  1579→  1579→- `@nestjs/bullmq`
+  1580→  1580→- `@nestjs/testing`
+  1581→  1581→- `hono`
+  1582→  1582→- `express`
+  1583→  1583→- `helmet`
+  1584→  1584→- `cors`
+  1585→  1585→- `compression`
+  1586→  1586→- `express-rate-limit`
+  1587→  1587→- `express-session`
+  1588→  1588→- `connect-redis`
+  1589→  1589→
+  1590→  1590→### 13.6 Database / Cache / Queue
+  1591→  1591→
+  1592→  1592→- `drizzle-orm`
+  1593→  1593→- `drizzle-kit`
+  1594→  1594→- `drizzle-zod`
+  1595→  1595→- `postgres`
+  1596→  1596→- `pg`
+  1597→  1597→- `prisma`
+  1598→  1598→- `@prisma/client`
+  1599→  1599→- `kysely`
+  1600→  1600→- `ioredis`
+  1601→  1601→- `bullmq`
+  1602→  1602→- `pg-boss`
+  1603→  1603→- `graphile-worker`
+  1604→  1604→- `p-queue`
+  1605→  1605→- `p-limit`
+  1606→  1606→- `p-retry`
+  1607→  1607→- `croner`
+  1608→  1608→- `cron-parser`
+  1609→  1609→- `cronstrue`
+  1610→  1610→- `rrule`
+  1611→  1611→
+  1612→  1612→### 13.7 Object Storage / Files / Document Processing
+  1613→  1613→
+  1614→  1614→- `@aws-sdk/client-s3`
+  1615→  1615→- `@aws-sdk/s3-request-presigner`
+  1616→  1616→- `@aws-sdk/lib-storage`
+  1617→  1617→- `minio`
+  1618→  1618→- `@uppy/core`
+  1619→  1619→- `@uppy/dashboard`
+  1620→  1620→- `@uppy/tus`
+  1621→  1621→- `@uppy/aws-s3`
+  1622→  1622→- `tus-js-client`
+  1623→  1623→- `tus-node-server`
+  1624→  1624→- `file-type`
+  1625→  1625→- `mime-types`
+  1626→  1626→- `sanitize-filename`
+  1627→  1627→- `slugify`
+  1628→  1628→- `sharp`
+  1629→  1629→- `exifr`
+  1630→  1630→- `pdfjs-dist`
+  1631→  1631→- `react-pdf`
+  1632→  1632→- `pdf-lib`
+  1633→  1633→- `@react-pdf/renderer`
+  1634→  1634→- `playwright`
+  1635→  1635→- `puppeteer`
+  1636→  1636→- `tesseract.js`
+  1637→  1637→- `mammoth`
+  1638→  1638→- `docx`
+  1639→  1639→- `exceljs`
+  1640→  1640→- `papaparse`
+  1641→  1641→- `csv-parse`
+  1642→  1642→- `csv-stringify`
+  1643→  1643→- `pptxgenjs`
+  1644→  1644→- `mailparser`
+  1645→  1645→- `msgreader`
+  1646→  1646→- `imapflow`
+  1647→  1647→- `jszip`
+  1648→  1648→- `fflate`
+  1649→  1649→- `archiver`
+  1650→  1650→- `yauzl`
+  1651→  1651→- `yazl`
+  1652→  1652→- `fast-xml-parser`
+  1653→  1653→- `yaml`
+  1654→  1654→- `iconv-lite`
+  1655→  1655→- `chardet`
+  1656→  1656→- `fluent-ffmpeg`
+  1657→  1657→- `libreoffice-convert`
+  1658→  1658→- `clamscan`
+  1659→  1659→- `browser-fs-access`
+  1660→  1660→
+  1661→  1661→### 13.8 Search
+  1662→  1662→
+  1663→  1663→- `@opensearch-project/opensearch`
+  1664→  1664→- `meilisearch`
+  1665→  1665→- `typesense`
+  1666→  1666→- `franc`
+  1667→  1667→
+  1668→  1668→### 13.9 Auth / Security / Policy
+  1669→  1669→
+  1670→  1670→- `argon2`
+  1671→  1671→- `@node-rs/argon2`
+  1672→  1672→- `@zxcvbn-ts/core`
+  1673→  1673→- `jose`
+  1674→  1674→- `otplib`
+  1675→  1675→- `qrcode`
+  1676→  1676→- `@simplewebauthn/server`
+  1677→  1677→- `@simplewebauthn/browser`
+  1678→  1678→- `openid-client`
+  1679→  1679→- `oauth4webapi`
+  1680→  1680→- `oidc-provider`
+  1681→  1681→- `passport`
+  1682→  1682→- `passport-local`
+  1683→  1683→- `passport-jwt`
+  1684→  1684→- `node-saml`
+  1685→  1685→- `@node-saml/passport-saml`
+  1686→  1686→- `next-auth`
+  1687→  1687→- `@auth/core`
+  1688→  1688→- `iron-session`
+  1689→  1689→- `@casl/ability`
+  1690→  1690→- `casbin`
+  1691→  1691→- `json-rules-engine`
+  1692→  1692→- `ldapts`
+  1693→  1693→- `keycloak-js`
+  1694→  1694→- `@keycloak/keycloak-admin-client`
+  1695→  1695→- `node-vault`
+  1696→  1696→- `rate-limiter-flexible`
+  1697→  1697→- `@upstash/ratelimit`
+  1698→  1698→- `re2`
+  1699→  1699→- `dompurify`
+  1700→  1700→- `sanitize-html`
+  1701→  1701→- `rehype-sanitize`
+  1702→  1702→- `helmet`
+  1703→  1703→- `@fastify/helmet`
+  1704→  1704→- `@fastify/csrf-protection`
+  1705→  1705→- `@fastify/rate-limit`
+  1706→  1706→- `@nestjs/throttler`
+  1707→  1707→- `express-rate-limit`
+  1708→  1708→
+  1709→  1709→### 13.10 Crypto / Audit / Evidence
+  1710→  1710→
+  1711→  1711→- `node:crypto`
+  1712→  1712→- WebCrypto
+  1713→  1713→- `jose`
+  1714→  1714→- `canonicalize`
+  1715→  1715→- `hash-wasm`
+  1716→  1716→- `@noble/hashes`
+  1717→  1717→- `@noble/ciphers`
+  1718→  1718→- `@noble/curves`
+  1719→  1719→- `merkletreejs`
+  1720→  1720→- `fast-json-patch`
+  1721→  1721→- `diff`
+  1722→  1722→- `jsondiffpatch`
+  1723→  1723→- `react-diff-viewer-continued`
+  1724→  1724→
+  1725→  1725→### 13.11 Notifications / Email / Realtime
+  1726→  1726→
+  1727→  1727→- `nodemailer`
+  1728→  1728→- `@react-email/components`
+  1729→  1729→- `@react-email/render`
+  1730→  1730→- `mjml`
+  1731→  1731→- `web-push`
+  1732→  1732→- `socket.io`
+  1733→  1733→- `socket.io-client`
+  1734→  1734→- `ws`
+  1735→  1735→- `@novu/node`
+  1736→  1736→- `@novu/react`
+  1737→  1737→- `@slack/webhook`
+  1738→  1738→- `cloudevents`
+  1739→  1739→
+  1740→  1740→### 13.12 AI / Intelligence
+  1741→  1741→
+  1742→  1742→- `@huggingface/transformers`
+  1743→  1743→- `onnxruntime-node`
+  1744→  1744→- `onnxruntime-web`
+  1745→  1745→- `ollama`
+  1746→  1746→- `openai`
+  1747→  1747→- `@anthropic-ai/sdk`
+  1748→  1748→- `@google/generative-ai`
+  1749→  1749→- `langchain`
+  1750→  1750→- `@langchain/core`
+  1751→  1751→- `@langchain/community`
+  1752→  1752→- `@langchain/openai`
+  1753→  1753→- `@langchain/anthropic`
+  1754→  1754→- `llamaindex`
+  1755→  1755→- `js-tiktoken`
+  1756→  1756→- `gpt-tokenizer`
+  1757→  1757→- `@qdrant/js-client-rest`
+  1758→  1758→- `@pinecone-database/pinecone`
+  1759→  1759→- `weaviate-ts-client`
+  1760→  1760→- `chromadb`
+  1761→  1761→
+  1762→  1762→### 13.13 Observability
+  1763→  1763→
+  1764→  1764→- `pino`
+  1765→  1765→- `pino-http`
+  1766→  1766→- `pino-pretty`
+  1767→  1767→- `winston`
+  1768→  1768→- `prom-client`
+  1769→  1769→- `@opentelemetry/api`
+  1770→  1770→- `@opentelemetry/sdk-node`
+  1771→  1771→- `@opentelemetry/auto-instrumentations-node`
+  1772→  1772→- `@opentelemetry/exporter-trace-otlp-http`
+  1773→  1773→- `@opentelemetry/exporter-metrics-otlp-http`
+  1774→  1774→- `@opentelemetry/exporter-logs-otlp-http`
+  1775→  1775→- `@sentry/node`
+  1776→  1776→- `@sentry/nextjs`
+  1777→  1777→- `@sentry/react`
+  1778→  1778→- `@sentry/react-native`
+  1779→  1779→- `@sentry/profiling-node`
+  1780→  1780→- `web-vitals`
+  1781→  1781→
+  1782→  1782→### 13.14 Testing / Quality
+  1783→  1783→
+  1784→  1784→- `vitest`
+  1785→  1785→- `@vitest/coverage-v8`
+  1786→  1786→- `@vitest/ui`
+  1787→  1787→- `@testing-library/react`
+  1788→  1788→- `@testing-library/user-event`
+  1789→  1789→- `@testing-library/jest-dom`
+  1790→  1790→- `@testing-library/react-native`
+  1791→  1791→- `playwright`
+  1792→  1792→- `@playwright/test`
+  1793→  1793→- `cypress`
+  1794→  1794→- `supertest`
+  1795→  1795→- `msw`
+  1796→  1796→- `nock`
+  1797→  1797→- `aws-sdk-client-mock`
+  1798→  1798→- `@faker-js/faker`
+  1799→  1799→- `fast-check`
+  1800→  1800→- `testcontainers`
+  1801→  1801→- `@testcontainers/postgresql`
+  1802→  1802→- `@testcontainers/redis`
+  1803→  1803→- `axe-core`
+  1804→  1804→- `@axe-core/playwright`
+  1805→  1805→- `@stryker-mutator/core`
+  1806→  1806→- `artillery`
+  1807→  1807→- `autocannon`
+  1808→  1808→- `storybook`
+  1809→  1809→- `@storybook/react`
+  1810→  1810→- `@storybook/nextjs`
+  1811→  1811→- `@storybook/test`
+  1812→  1812→- `@storybook/test-runner`
+  1813→  1813→- `@storybook/addon-a11y`
+  1814→  1814→- `@storybook/addon-essentials`
+  1815→  1815→
+  1816→  1816→### 13.15 Lint / Format / Repo Hygiene
+  1817→  1817→
+  1818→  1818→- `eslint`
+  1819→  1819→- `@eslint/js`
+  1820→  1820→- `typescript-eslint`
+  1821→  1821→- `eslint-plugin-react`
+  1822→  1822→- `eslint-plugin-react-hooks`
+  1823→  1823→- `eslint-plugin-jsx-a11y`
+  1824→  1824→- `eslint-plugin-import`
+  1825→  1825→- `eslint-plugin-simple-import-sort`
+  1826→  1826→- `eslint-plugin-security`
+  1827→  1827→- `eslint-plugin-sonarjs`
+  1828→  1828→- `eslint-plugin-playwright`
+  1829→  1829→- `eslint-plugin-testing-library`
+  1830→  1830→- `eslint-plugin-tailwindcss`
+  1831→  1831→- `prettier`
+  1832→  1832→- `prettier-plugin-tailwindcss`
+  1833→  1833→- `stylelint`
+  1834→  1834→- `stylelint-config-standard`
+  1835→  1835→- `markdownlint-cli2`
+  1836→  1836→- `husky`
+  1837→  1837→- `lint-staged`
+  1838→  1838→- `commitlint`
+  1839→  1839→- `@commitlint/config-conventional`
+  1840→  1840→- `knip`
+  1841→  1841→- `syncpack`
+  1842→  1842→- `depcheck`
+  1843→  1843→- `npm-check-updates`
+  1844→  1844→- `sort-package-json`
+  1845→  1845→- `audit-ci`
+  1846→  1846→- `@cyclonedx/bom`
+  1847→  1847→
+  1848→  1848→### 13.16 Build / Tooling / CLI
+  1849→  1849→
+  1850→  1850→- `tsx`
+  1851→  1851→- `tsup`
+  1852→  1852→- `esbuild`
+  1853→  1853→- `turbo`
+  1854→  1854→- `nx`
+  1855→  1855→- `@changesets/cli`
+  1856→  1856→- `semantic-release`
+  1857→  1857→- `rimraf`
+  1858→  1858→- `cross-env`
+  1859→  1859→- `concurrently`
+  1860→  1860→- `npm-run-all2`
+  1861→  1861→- `zx`
+  1862→  1862→- `fast-glob`
+  1863→  1863→- `fs-extra`
+  1864→  1864→- `commander`
+  1865→  1865→- `@inquirer/prompts`
+  1866→  1866→- `inquirer`
+  1867→  1867→- `ora`
+  1868→  1868→- `chalk`
+  1869→  1869→- `cli-table3`
+  1870→  1870→- `cli-progress`
+  1871→  1871→- `form-data`
+  1872→  1872→- `undici`
+  1873→  1873→- `ofetch`
+  1874→  1874→- `ky`
+  1875→  1875→
+  1876→  1876→### 13.17 Feature Flags / Configuration
+  1877→  1877→
+  1878→  1878→- `@openfeature/server-sdk`
+  1879→  1879→- `@openfeature/react-sdk`
+  1880→  1880→- `@unleash/client`
+  1881→  1881→- `flagsmith`
+  1882→  1882→- `server-only`
+  1883→  1883→- `client-only`
+  1884→  1884→- `@t3-oss/env-nextjs`
+  1885→  1885→
+  1886→  1886→### 13.18 Local Storage / Offline / PWA
+  1887→  1887→
+  1888→  1888→- `idb`
+  1889→  1889→- `idb-keyval`
+  1890→  1890→- `dexie`
+  1891→  1891→- `localforage`
+  1892→  1892→- `workbox-core`
+  1893→  1893→- `workbox-precaching`
+  1894→  1894→- `workbox-routing`
+  1895→  1895→- `workbox-strategies`
+  1896→  1896→- `workbox-background-sync`
+  1897→  1897→- `serwist`
+  1898→  1898→
+  1899→  1899→### 13.19 Collaboration Optional
+  1900→  1900→
+  1901→  1901→- `yjs`
+  1902→  1902→- `y-protocols`
+  1903→  1903→- `@hocuspocus/server`
+  1904→  1904→- `@tiptap/extension-collaboration`
+  1905→  1905→- `automerge`
+  1906→  1906→- `@automerge/automerge-repo`
+  1907→  1907→
+  1908→  1908→### 13.20 Mobile Optional
+  1909→  1909→
+  1910→  1910→- `react-native`
+  1911→  1911→- `expo`
+  1912→  1912→- `expo-router`
+  1913→  1913→- `nativewind`
+  1914→  1914→- `zustand`
+  1915→  1915→- `@tanstack/react-query`
+  1916→  1916→- `react-hook-form`
+  1917→  1917→- `zod`
+  1918→  1918→- `expo-secure-store`
+  1919→  1919→- `react-native-keychain`
+  1920→  1920→- `react-native-mmkv`
+  1921→  1921→- `expo-local-authentication`
+  1922→  1922→- `expo-crypto`
+  1923→  1923→- `expo-file-system`
+  1924→  1924→- `expo-sharing`
+  1925→  1925→- `expo-document-picker`
+  1926→  1926→- `expo-media-library`
+  1927→  1927→- `expo-image-picker`
+  1928→  1928→- `lucide-react-native`
+  1929→  1929→- `react-native-svg`
+  1930→  1930→- `react-native-gesture-handler`
+  1931→  1931→- `react-native-reanimated`
+  1932→  1932→- `react-native-screens`
+  1933→  1933→- `react-native-safe-area-context`
+  1934→  1934→- `react-native-pdf`
+  1935→  1935→- `expo-notifications`
+  1936→  1936→- `expo-auth-session`
+  1937→  1937→- `expo-web-browser`
+  1938→  1938→- `@sentry/react-native`
+  1939→  1939→- `jest`
+  1940→  1940→- `@testing-library/react-native`
+  1941→  1941→- `detox`
+  1942→  1942→
+  1943→  1943→---
+  1944→  1944→
+  1945→  1945→## 14. Data Architecture Requirements
+  1946→  1946→
+  1947→  1947→### 14.1 Core Entities
+  1948→  1948→
+  1949→  1949→At minimum, model the following:
+  1950→  1950→
+  1951→  1951→- Tenant
+  1952→  1952→- User
+  1953→  1953→- UserPreference
+  1954→  1954→- Group
+  1955→  1955→- Role
+  1956→  1956→- Permission
+  1957→  1957→- Device / Session Trust Record
+  1958→  1958→- Workspace / Project / Folder
+  1959→  1959→- Document
+  1960→  1960→- DocumentVersion
+  1961→  1961→- MetadataSchema
+  1962→  1962→- MetadataValue
+  1963→  1963→- ClassificationLabel
+  1964→  1964→- SecurityPolicy
+  1965→  1965→- AccessGrant
+  1966→  1966→- ShareLink
+  1967→  1967→- Workflow
+  1968→  1968→- WorkflowStep
+  1969→  1969→- Approval
+  1970→  1970→- Signature / Acknowledgment
+  1971→  1971→- RetentionSchedule
+  1972→  1972→- LegalHold
+  1973→  1973→- AuditEvent
+  1974→  1974→- Notification
+  1975→  1975→- ApiKey
+  1976→  1976→- Webhook
+  1977→  1977→- Job / AsyncOperation
+  1978→  1978→- EvidencePackage
+  1979→  1979→- LocaleResource
+  1980→  1980→- TranslationEntry
+  1981→  1981→- GlossaryTerm
+  1982→  1982→
+  1983→  1983→---
+  1984→  1984→
+  1985→  1985→### 14.2 Localization Data Requirements
+  1986→  1986→
+  1987→  1987→The data model must support localized content and preferences.
+  1988→  1988→
+  1989→  1989→Required:
+  1990→  1990→
+  1991→  1991→- UserPreference must store:
+  1992→  1992→  - locale
+  1993→  1993→  - timezone
+  1994→  1994→  - direction preference derived from locale
+  1995→  1995→  - numbering system preference if supported
+  1996→  1996→  - calendar preference if supported
+  1997→  1997→
+  1998→  1998→- LocaleResource / TranslationEntry must support:
+  1999→  1999→  - locale code
+  2000→  2000→  - namespace
+
+[showing lines 1-2000 of 2002; use offset=2001 with limit to continue reading]

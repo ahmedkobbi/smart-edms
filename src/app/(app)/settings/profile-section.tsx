@@ -44,7 +44,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 text-sm">
       <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium text-right">{value}</span>
+      <span className="font-medium text-end">{value}</span>
     </div>
   );
 }

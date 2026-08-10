@@ -88,7 +88,7 @@ export function TopBar() {
               className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-800 transition-colors"
             >
               <Search className="h-4 w-4" />
-              <span className="flex-1 text-left">{t('common.search')}…</span>
+              <span className="flex-1 text-start">{t('common.search')}…</span>
               <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded">
                 <Command className="h-2.5 w-2.5" />K
               </kbd>
@@ -100,10 +100,10 @@ export function TopBar() {
             <ThemeToggle />
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label="Notifications">
+                <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label={t('common.notifications')}>
                   <Bell className="h-4 w-4" />
                   {notifData?.unreadCount ? (
-                    <span className="absolute top-1 right-1 h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium flex items-center justify-center">
+                    <span className="absolute top-1 end-1 h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium flex items-center justify-center">
                       {notifData.unreadCount > 99 ? '99+' : notifData.unreadCount}
                     </span>
                   ) : null}
@@ -111,7 +111,7 @@ export function TopBar() {
               </PopoverTrigger>
               <PopoverContent className="w-80 p-0" align="end">
                 <div className="flex items-center justify-between p-3 border-b border-slate-200 dark:border-slate-800">
-                  <p className="text-sm font-medium">Notifications</p>
+                  <p className="text-sm font-medium">{t('common.notifications')}</p>
                   {notifData?.unreadCount ? (
                     <Button
                       variant="ghost"
@@ -119,7 +119,7 @@ export function TopBar() {
                       className="h-7 text-xs"
                       onClick={() => readAll.mutate()}
                     >
-                      Mark all read
+                      {t('common.markAllRead')}
                     </Button>
                   ) : null}
                 </div>
@@ -149,7 +149,7 @@ export function TopBar() {
                     </div>
                   ) : (
                     <div className="p-8 text-center text-sm text-muted-foreground">
-                      No notifications
+                      {t('common.noNotifications')}
                     </div>
                   )}
                 </ScrollArea>
@@ -177,11 +177,11 @@ export function TopBar() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push('/settings')}>
                   <UserIcon className="ms-2 h-4 w-4" />
-                  Profile
+                  {t('common.profile')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.push('/settings/security')}>
                   <Settings className="ms-2 h-4 w-4" />
-                  Security
+                  {t('common.security')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -189,7 +189,7 @@ export function TopBar() {
                   className="text-red-600 dark:text-red-400"
                 >
                   <LogOut className="ms-2 h-4 w-4" />
-                  Sign out
+                  {t('common.signOut')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

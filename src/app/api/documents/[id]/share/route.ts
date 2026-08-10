@@ -70,6 +70,72 @@ export const POST = createApiHandler(
       throw ApiError.forbidden('sharing_blocked_by_classification', 'External sharing is blocked for this classification');
     }
 
+    // --- Tenant-level sharing policy enforcement ---
+    // Master prompt §9.11: "external sharing must be denied by default
+    // unless enabled by policy" and "anonymous links must be strongly
+    // restricted or disabled by default".
+    //
+    // Tenant settings shape:
+    //   settings.sharing.externalEnabled (boolean, default false)
+    //   settings.sharing.anonymousEnabled (boolean, default false)
+    //   settings.sharing.maxExpiryHours (number, default 168 = 7 days)
+    //   settings.sharing.requirePassword (boolean, default true for external)
+    const tenant = await db.tenant.findUnique({
+      where: { id: ctx.tenantId },
+      select: { settings: true },
+    });
+    let sharingPolicy: {
+      externalEnabled?: boolean;
+      anonymousEnabled?: boolean;
+      maxExpiryHours?: number;
+      requirePassword?: boolean;
+    } = {};
+    try {
+      const settings = JSON.parse((tenant as any)?.settings || '{}');
+      sharingPolicy = settings?.sharing ?? {};
+    } catch {
+      // Use defaults below
+    }
+
+    // External sharing = recipient is NOT an internal user (recipientEmail
+    // is set, OR recipientUserId is not provided). Default DENY.
+    const isExternalShare = !!body.recipientEmail || !body.recipientUserId;
+    const isAnonymousShare = !body.recipientEmail && !body.recipientUserId;
+
+    if (isExternalShare && sharingPolicy.externalEnabled !== true) {
+      throw ApiError.forbidden(
+        'external_sharing_disabled',
+        'External sharing is disabled for this tenant. Enable it in Tenant Settings → Sharing.',
+      );
+    }
+    if (isAnonymousShare && sharingPolicy.anonymousEnabled !== true) {
+      throw ApiError.forbidden(
+        'anonymous_sharing_disabled',
+        'Anonymous share links are disabled. Specify a recipient email or internal user.',
+      );
+    }
+
+    // Enforce max expiry
+    const maxExpiryHours = sharingPolicy.maxExpiryHours ?? 168; // 7 days default
+    if (body.expiresAt) {
+      const expiry = new Date(body.expiresAt);
+      const maxExpiry = new Date(Date.now() + maxExpiryHours * 3600_000);
+      if (expiry > maxExpiry) {
+        throw ApiError.badRequest(
+          'expiry_too_long',
+          `Share link expiry exceeds the tenant maximum of ${maxExpiryHours} hours.`,
+        );
+      }
+    }
+
+    // Enforce password requirement for external shares
+    if (isExternalShare && sharingPolicy.requirePassword !== false && !body.password) {
+      throw ApiError.badRequest(
+        'password_required',
+        'External share links must have a password. Set a password or disable the requirement in Tenant Settings.',
+      );
+    }
+
     const token = randomToken(32);
     const passwordHash = body.password ? await hashPassword(body.password) : null;
 
