@@ -42,6 +42,54 @@ export const GET = createApiHandler(
       throw ApiError.forbidden('download_disabled', 'Download is disabled for this document');
     }
 
+    // --- Classification.defaultPolicy enforcement (§9.4) ---
+    const { evaluateClassificationPolicy, evaluatePolicies, buildPolicyContext } = await import('@/lib/auth/policy-engine');
+    const classDownloadPolicy = evaluateClassificationPolicy(doc.classification?.defaultPolicy, 'download');
+    if (classDownloadPolicy.decision === 'deny') {
+      throw ApiError.forbidden('download_blocked_by_classification_policy', classDownloadPolicy.reason);
+    }
+
+    // --- ABAC policy evaluation (document-specific) ---
+    let docTags: string[] = [];
+    try { docTags = JSON.parse(doc.tags || '[]'); } catch {}
+    const policyCtx = buildPolicyContext({
+      tenantId: ctx.tenantId,
+      actorId: ctx.userId,
+      actorEmail: ctx.session.user.email,
+      actorIp: ctx.ip,
+      actorRoles: ctx.session.user.roles,
+      action: 'document:download',
+      resourceType: 'document',
+      resourceId: doc.id,
+      document: {
+        id: doc.id,
+        ownerId: doc.ownerId ?? undefined,
+        classificationCode: doc.classification?.code,
+        classificationLevel: doc.classification?.level,
+        tags: docTags,
+        state: doc.state,
+        isRecord: doc.isRecord,
+        legalHold: doc.legalHold,
+        folderId: doc.folderId ?? undefined,
+      },
+    });
+    const policyDecision = await evaluatePolicies(policyCtx);
+    if (policyDecision.decision === 'deny') {
+      const { alertPolicyViolation } = await import('@/lib/security/policy-alerts');
+      await alertPolicyViolation(ctx.tenantId, {
+        policyName: policyDecision.matchedPolicy?.name,
+        action: 'document:download',
+        resourceType: 'document',
+        resourceId: doc.id,
+        resourceName: doc.title,
+        actorId: ctx.userId,
+        actorEmail: ctx.session.user.email,
+        actorIp: ctx.ip,
+        reason: policyDecision.reason,
+      }).catch(() => {});
+      throw ApiError.forbidden('policy_denied', policyDecision.reason);
+    }
+
     // Records under legal hold can still be downloaded (hold blocks deletion, not read)
     // But if the classification is HS, require DOCUMENT_DOWNLOAD is already checked above
     // (the permission system handles clearance-based access)

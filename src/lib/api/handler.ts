@@ -22,6 +22,7 @@ import { apiRateLimiter, getClientIp } from '@/lib/security/rate-limit';
 import { recordAuditEvent, AuditEventInput } from '@/lib/audit/audit-service';
 import { logger, setRequestContext, clearRequestContext } from '@/lib/config/logger';
 import { isSessionRevoked, getUserSessionRevokeTimestamp } from '@/lib/auth/session-revocation';
+import { evaluatePolicies, buildPolicyContext, type PolicyEvaluationContext } from '@/lib/auth/policy-engine';
 import { sha256, timingSafeEqualStr } from '@/lib/auth/crypto';
 import { randomUUID } from 'crypto';
 import { db } from '@/lib/db';
@@ -51,6 +52,12 @@ interface CreateHandlerOptions {
   requiredPermission?: string;
   rateLimit?: { max: number; windowMs: number };
   requireStepUp?: boolean;
+  /** Whether to evaluate ABAC policies after RBAC passes (default: true). */
+  evaluatePolicies?: boolean;
+  /** Document attributes for document-specific policy evaluation. */
+  policyContext?: {
+    document?: PolicyEvaluationContext['document'];
+  };
   audit?: {
     eventType: string;
     action: string;
@@ -435,6 +442,70 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
         metadata: { path: req.nextUrl.pathname, method: req.method },
       });
       return localizedError(403, 'forbidden', `Missing permission: ${opts.requiredPermission}`, { permission: opts.requiredPermission });
+    }
+
+    // ABAC policy evaluation (runs AFTER RBAC passes)
+    // Policies are tenant-scoped rules that can deny or allow based on
+    // document attributes (classification, tags, state), actor context
+    // (role, IP, time of day), and resource type. Deny wins over allow.
+    //
+    // We only evaluate policies when:
+    //   1. The route declares a requiredPermission (so we have an action
+    //      string to match against), AND
+    //   2. The route opts in to policy evaluation via `opts.evaluatePolicies`
+    //      (default: true for routes with requiredPermission).
+    //
+    // Routes that need document-specific policy evaluation (e.g. download,
+    // preview, share) should pass `opts.policyContext` with the document
+    // attributes, OR call `evaluatePolicies()` manually inside the handler
+    // (when the document isn't known until the handler runs).
+    if (opts.requiredPermission && opts.evaluatePolicies !== false) {
+      const policyCtx = buildPolicyContext({
+        tenantId: session.user.tenantId,
+        actorId: session.user.id,
+        actorEmail: session.user.email,
+        actorIp: ctx.ip,
+        actorRoles: session.user.roles,
+        action: opts.requiredPermission,
+        resourceType: opts.audit?.resourceType,
+        resourceId: opts.audit?.resourceIdFromParams ? params[opts.audit.resourceIdFromParams] : undefined,
+        document: opts.policyContext?.document,
+      });
+      const policyDecision = await evaluatePolicies(policyCtx);
+      if (policyDecision.decision === 'deny') {
+        // Alert security officers about the policy violation
+        const { alertPolicyViolation } = await import('@/lib/security/policy-alerts');
+        await alertPolicyViolation(session.user.tenantId, {
+          policyName: policyDecision.matchedPolicy?.name,
+          action: opts.requiredPermission,
+          resourceType: opts.audit?.resourceType || 'unknown',
+          resourceId: (opts.audit?.resourceIdFromParams ? params[opts.audit.resourceIdFromParams] : undefined) || '',
+          actorId: session.user.id,
+          actorEmail: session.user.email,
+          actorIp: ctx.ip,
+          reason: policyDecision.reason,
+        }).catch(() => {});
+
+        await ctx.audit({
+          eventType: 'policy.deny',
+          action: req.method.toLowerCase(),
+          resourceType: opts.audit?.resourceType,
+          resourceId: opts.audit?.resourceIdFromParams ? params[opts.audit.resourceIdFromParams] : undefined,
+          resourceName: opts.audit?.resourceNameFromParams ? params[opts.audit.resourceNameFromParams] : undefined,
+          result: 'deny',
+          reason: policyDecision.reason,
+          metadata: {
+            path: req.nextUrl.pathname,
+            method: req.method,
+            policyName: policyDecision.matchedPolicy?.name,
+            policyId: policyDecision.matchedPolicy?.id,
+            evaluatedCount: policyDecision.evaluatedCount,
+          },
+        });
+        return localizedError(403, 'policy_denied', policyDecision.reason, {
+          policy: policyDecision.matchedPolicy?.name,
+        });
+      }
     }
 
     try {

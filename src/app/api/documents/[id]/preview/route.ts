@@ -30,6 +30,54 @@ export const GET = createApiHandler(
       throw ApiError.forbidden('preview_disabled', 'Preview is disabled for this document');
     }
 
+    // --- Classification.defaultPolicy enforcement (§9.4) ---
+    const { evaluateClassificationPolicy, evaluatePolicies, buildPolicyContext } = await import('@/lib/auth/policy-engine');
+    const classPreviewPolicy = evaluateClassificationPolicy(doc.classification?.defaultPolicy, 'preview');
+    if (classPreviewPolicy.decision === 'deny') {
+      throw ApiError.forbidden('preview_blocked_by_classification_policy', classPreviewPolicy.reason);
+    }
+
+    // --- ABAC policy evaluation (document-specific) ---
+    let docTags: string[] = [];
+    try { docTags = JSON.parse(doc.tags || '[]'); } catch {}
+    const policyCtx = buildPolicyContext({
+      tenantId: ctx.tenantId,
+      actorId: ctx.userId,
+      actorEmail: ctx.session.user.email,
+      actorIp: ctx.ip,
+      actorRoles: ctx.session.user.roles,
+      action: 'document:preview',
+      resourceType: 'document',
+      resourceId: doc.id,
+      document: {
+        id: doc.id,
+        ownerId: doc.ownerId ?? undefined,
+        classificationCode: doc.classification?.code,
+        classificationLevel: doc.classification?.level,
+        tags: docTags,
+        state: doc.state,
+        isRecord: doc.isRecord,
+        legalHold: doc.legalHold,
+        folderId: doc.folderId ?? undefined,
+      },
+    });
+    const policyDecision = await evaluatePolicies(policyCtx);
+    if (policyDecision.decision === 'deny') {
+      const { alertPolicyViolation } = await import('@/lib/security/policy-alerts');
+      await alertPolicyViolation(ctx.tenantId, {
+        policyName: policyDecision.matchedPolicy?.name,
+        action: 'document:preview',
+        resourceType: 'document',
+        resourceId: doc.id,
+        resourceName: doc.title,
+        actorId: ctx.userId,
+        actorEmail: ctx.session.user.email,
+        actorIp: ctx.ip,
+        reason: policyDecision.reason,
+      }).catch(() => {});
+      throw ApiError.forbidden('policy_denied', policyDecision.reason);
+    }
+
     const version = doc.versions[0];
     if (!version) throw ApiError.notFound('no_version', 'No version available');
 

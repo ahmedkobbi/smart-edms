@@ -66,8 +66,62 @@ export const POST = createApiHandler(
     if (!doc.shareAllowed) {
       throw ApiError.forbidden('sharing_disabled', 'Sharing is disabled for this document');
     }
+    // Hardcoded classification-code checks (legacy, kept for backwards compat)
     if (doc.classification?.code === 'RESTRICTED' || doc.classification?.code === 'HS') {
       throw ApiError.forbidden('sharing_blocked_by_classification', 'External sharing is blocked for this classification');
+    }
+
+    // --- Classification.defaultPolicy enforcement (§9.4) ---
+    // The classification's `defaultPolicy` JSON can deny share/download/preview
+    // per classification. This is a per-classification rule that supplements
+    // the tenant-level ABAC policies.
+    const { evaluateClassificationPolicy } = await import('@/lib/auth/policy-engine');
+    const classSharePolicy = evaluateClassificationPolicy(doc.classification?.defaultPolicy, 'share');
+    if (classSharePolicy.decision === 'deny') {
+      throw ApiError.forbidden('sharing_blocked_by_classification_policy', classSharePolicy.reason);
+    }
+
+    // --- ABAC policy evaluation (document-specific) ---
+    // Evaluate tenant policies against this document's attributes.
+    const { evaluatePolicies, buildPolicyContext } = await import('@/lib/auth/policy-engine');
+    let docTags: string[] = [];
+    try { docTags = JSON.parse(doc.tags || '[]'); } catch {}
+    const policyCtx = buildPolicyContext({
+      tenantId: ctx.tenantId,
+      actorId: ctx.userId,
+      actorEmail: ctx.session.user.email,
+      actorIp: ctx.ip,
+      actorRoles: ctx.session.user.roles,
+      action: 'document:share',
+      resourceType: 'document',
+      resourceId: doc.id,
+      document: {
+        id: doc.id,
+        ownerId: doc.ownerId ?? undefined,
+        classificationCode: doc.classification?.code,
+        classificationLevel: doc.classification?.level,
+        tags: docTags,
+        state: doc.state,
+        isRecord: doc.isRecord,
+        legalHold: doc.legalHold,
+        folderId: doc.folderId ?? undefined,
+      },
+    });
+    const policyDecision = await evaluatePolicies(policyCtx);
+    if (policyDecision.decision === 'deny') {
+      const { alertPolicyViolation } = await import('@/lib/security/policy-alerts');
+      await alertPolicyViolation(ctx.tenantId, {
+        policyName: policyDecision.matchedPolicy?.name,
+        action: 'document:share',
+        resourceType: 'document',
+        resourceId: doc.id,
+        resourceName: doc.title,
+        actorId: ctx.userId,
+        actorEmail: ctx.session.user.email,
+        actorIp: ctx.ip,
+        reason: policyDecision.reason,
+      }).catch(() => {});
+      throw ApiError.forbidden('policy_denied', policyDecision.reason);
     }
 
     // --- Tenant-level sharing policy enforcement ---

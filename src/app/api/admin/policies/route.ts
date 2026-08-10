@@ -52,6 +52,10 @@ export const POST = createApiHandler(
       },
     });
 
+    // Invalidate the policy cache so the new policy takes effect immediately
+    const { invalidatePolicyCache } = await import('@/lib/auth/policy-engine');
+    invalidatePolicyCache(ctx.tenantId);
+
     await recordAuditEvent({
       tenantId: ctx.tenantId,
       actorId: ctx.userId,

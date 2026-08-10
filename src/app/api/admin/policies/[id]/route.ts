@@ -45,6 +45,10 @@ export const PATCH = createApiHandler(
       },
     });
 
+    // Invalidate the policy cache so the update takes effect immediately
+    const { invalidatePolicyCache } = await import('@/lib/auth/policy-engine');
+    invalidatePolicyCache(ctx.tenantId);
+
     await recordAuditEvent({
       tenantId: ctx.tenantId,
       actorId: ctx.userId,
@@ -76,6 +80,10 @@ export const DELETE = createApiHandler(
     if (!policy) throw ApiError.notFound('not_found', 'Policy not found');
 
     await db.policy.delete({ where: { id: policy.id } });
+
+    // Invalidate the policy cache so the deletion takes effect immediately
+    const { invalidatePolicyCache } = await import('@/lib/auth/policy-engine');
+    invalidatePolicyCache(ctx.tenantId);
 
     await recordAuditEvent({
       tenantId: ctx.tenantId,
