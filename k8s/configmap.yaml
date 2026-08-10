@@ -1,0 +1,44 @@
+# Smart EDMS — Kubernetes ConfigMap
+#
+# Non-secret configuration. Secrets are in secret.yaml.
+# Apply: kubectl apply -f k8s/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smartedms-config
+  namespace: smartedms
+  labels:
+    app.kubernetes.io/name: smart-edms
+data:
+  # Database
+  DATABASE_URL: "postgresql://smartedms:smartedms@postgres:5432/smartedms?schema=public"
+
+  # Redis
+  REDIS_URL: "redis://redis:6379"
+
+  # NextAuth
+  NEXTAUTH_URL: "https://smartedms.example.com"
+
+  # Storage
+  STORAGE_DRIVER: "local"
+  STORAGE_LOCAL_ROOT: "/app/storage"
+
+  # SMTP
+  SMTP_PORT: "587"
+  SMTP_SECURE: "true"
+  SMTP_FROM: "Smart EDMS <noreply@smartedms.example.com>"
+
+  # NowPayments
+  NOWPAYMENTS_API_BASE: "https://api.nowpayments.io/v1"
+
+  # ClamAV
+  CLAMAV_PORT: "3310"
+
+  # OpenSearch
+  OPENSEARCH_HOST: "http://opensearch:9200"
+
+  # WebSocket
+  WS_SERVICE_URL: "http://ws-service:3003"
+
+  # Node
+  NODE_ENV: "production"

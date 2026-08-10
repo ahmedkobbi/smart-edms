@@ -1,0 +1,168 @@
+# Smart EDMS — App Deployment + Service
+#
+# The main Next.js application server.
+# Scales horizontally — rate limiting + challenge stores use Redis (shared).
+#
+# Apply: kubectl apply -f k8s/app.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smartedms-app
+  namespace: smartedms
+  labels:
+    app.kubernetes.io/name: smart-edms
+    app.kubernetes.io/component: app
+spec:
+  replicas: 2  # Minimum 2 for high availability
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: smart-edms
+      app.kubernetes.io/component: app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: smart-edms
+        app.kubernetes.io/component: app
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: app
+          image: smartedms:latest  # Replace with your registry image
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: smartedms-config
+            - secretRef:
+                name: smartedms-secrets
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+          volumeMounts:
+            - name: storage
+              mountPath: /app/storage
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: smartedms-storage
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smartedms-app
+  namespace: smartedms
+  labels:
+    app.kubernetes.io/name: smart-edms
+    app.kubernetes.io/component: app
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: smart-edms
+    app.kubernetes.io/component: app
+
+---
+# Worker Deployment — background job processing (OCR, webhooks, evidence, reindex)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smartedms-worker
+  namespace: smartedms
+  labels:
+    app.kubernetes.io/name: smart-edms
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1  # Scale up for higher job throughput
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: smart-edms
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: smart-edms
+        app.kubernetes.io/component: worker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: worker
+          image: smartedms:latest  # Same image as app
+          imagePullPolicy: Always
+          command: ["bun", "run", "src/worker/index.ts"]
+          envFrom:
+            - configMapRef:
+                name: smartedms-config
+            - secretRef:
+                name: smartedms-secrets
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 2000m  # OCR is CPU-intensive
+              memory: 2Gi
+          volumeMounts:
+            - name: storage
+              mountPath: /app/storage
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: smartedms-storage
+
+---
+# Persistent Volume Claim for document storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: smartedms-storage
+  namespace: smartedms
+  labels:
+    app.kubernetes.io/name: smart-edms
+spec:
+  accessModes:
+    - ReadWriteMany  # Multiple pods can read/write (requires NFS or similar)
+  resources:
+    requests:
+      storage: 100Gi
+  # storageClassName: fast-ssd  # Uncomment and set your storage class

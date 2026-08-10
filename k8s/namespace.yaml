@@ -1,0 +1,8 @@
+# Smart EDMS — Kubernetes Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: smartedms
+  labels:
+    app.kubernetes.io/name: smart-edms
+    app.kubernetes.io/part-of: smart-edms

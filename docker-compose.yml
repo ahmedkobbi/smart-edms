@@ -77,6 +77,41 @@ services:
       # Cron
       CRON_SECRET: ${CRON_SECRET:-}
 
+      # Metrics (bearer token for /api/metrics — generate: openssl rand -hex 32)
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+
+      # WebSocket internal secret (for /notify endpoint auth — generate: openssl rand -hex 32)
+      WS_INTERNAL_SECRET: ${WS_INTERNAL_SECRET:-}
+      WS_SERVICE_URL: ${WS_SERVICE_URL:-http://localhost:3003}
+
+      # SMTP (email delivery — if not set, emails are logged to console)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-Smart EDMS <noreply@smartedms.local>}
+
+      # Stripe (optional — card payments)
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_TRIAL: ${STRIPE_PRICE_TRIAL:-}
+      STRIPE_PRICE_STARTER: ${STRIPE_PRICE_STARTER:-}
+      STRIPE_PRICE_BUSINESS: ${STRIPE_PRICE_BUSINESS:-}
+      STRIPE_PRICE_ENTERPRISE: ${STRIPE_PRICE_ENTERPRISE:-}
+
+      # NowPayments (optional — crypto payments)
+      NOWPAYMENTS_API_KEY: ${NOWPAYMENTS_API_KEY:-}
+      NOWPAYMENTS_IPN_SECRET: ${NOWPAYMENTS_IPN_SECRET:-}
+      NOWPAYMENTS_API_BASE: ${NOWPAYMENTS_API_BASE:-https://api.nowpayments.io/v1}
+      NOWPAYMENTS_ALLOWED_IPS: ${NOWPAYMENTS_ALLOWED_IPS:-}
+
+      # OpenSearch (optional — production-grade FTS)
+      OPENSEARCH_HOST: ${OPENSEARCH_HOST:-}
+
+      # CORS (comma-separated origins, empty = same-origin only)
+      CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:-}
+
       # Node
       NODE_ENV: production
     volumes:

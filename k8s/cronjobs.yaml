@@ -1,0 +1,71 @@
+# Smart EDMS — Kubernetes CronJobs
+#
+# Scheduled tasks that hit the cron endpoints with the CRON_SECRET.
+# Adjust the schedule as needed.
+#
+# Apply: kubectl apply -f k8s/cronjobs.yaml
+---
+# Hourly: workflow escalation + anomaly detection + system health + retention
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: smartedms-cron-escalate
+  namespace: smartedms
+spec:
+  schedule: "0 * * * *"  # Every hour
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: cron
+              image: curlimages/curl:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  curl -s -f -H "X-Cron-Secret: ${CRON_SECRET}" \
+                    http://smartedms-app/api/cron/escalate
+              env:
+                - name: CRON_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: smartedms-secrets
+                      key: CRON_SECRET
+
+---
+# Hourly: billing reconciliation (sync missed NowPayments webhooks + expire stale invoices)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: smartedms-cron-billing
+  namespace: smartedms
+spec:
+  schedule: "15 * * * *"  # 15 minutes past every hour (offset from main cron)
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: cron
+              image: curlimages/curl:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  curl -s -f -H "X-Cron-Secret: ${CRON_SECRET}" \
+                    http://smartedms-app/api/cron/billing-reconcile
+              env:
+                - name: CRON_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: smartedms-secrets
+                      key: CRON_SECRET

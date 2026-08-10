@@ -1,0 +1,86 @@
+feat: production deployment artifacts + NowPayments E2E contract tests
+
+## #4: Production deployment artifacts
+
+### Dockerfile updates
+- Added undici to the runner stage (required for SSRF DNS pinning)
+- Added PWA icon generation step (`scripts/generate-icons.ts`) in build stage
+- Improved health check start period (10s → 15s) for slower cold starts
+- Enhanced documentation comments
+
+### docker-compose.yml updates
+- Added all new env vars: METRICS_TOKEN, WS_INTERNAL_SECRET, WS_SERVICE_URL,
+  SMTP_*, STRIPE_*, NOWPAYMENTS_*, OPENSEARCH_HOST, CORS_ALLOW_ORIGIN
+- All new env vars default to empty (opt-in) with clear inline comments
+
+### .env.production.template (new)
+- Complete production env template with 60+ variables
+- Organized by category: REQUIRED, RECOMMENDED, STORAGE, PAYMENTS,
+  SECURITY, OPTIONAL FEATURES, SEED, DO NOT CHANGE
+- Inline generation instructions (openssl rand -hex 32)
+
+### Kubernetes manifests (new — k8s/)
+- `namespace.yaml` — isolated `smartedms` namespace
+- `configmap.yaml` — non-secret configuration (DB URL, Redis URL, etc.)
+- `secret.yaml` — secret values (NEXTAUTH_SECRET, KEK, CRON_SECRET, etc.)
+  with placeholder values + security warnings
+- `app.yaml` — app Deployment (2 replicas) + worker Deployment (1 replica)
+  + ClusterIP Service + PersistentVolumeClaim (100Gi) + securityContext
+  (runAsNonRoot) + resource limits + readiness/liveness probes
+- `infrastructure.yaml` — PostgreSQL StatefulSet + Redis StatefulSet +
+  Services + Ingress (TLS via cert-manager) + HorizontalPodAutoscaler
+  (2-10 replicas, CPU>70% scale) + PodDisruptionBudget (minAvailable: 1)
+- `cronjobs.yaml` — hourly cron escalate + billing reconcile CronJobs
+- `README.md` — comprehensive deployment guide with quick start, scaling,
+  managed services table (AWS/GCP/Azure), TLS setup, monitoring, rollback,
+  and troubleshooting
+
+### Deployment verification script (new)
+`scripts/verify-deployment.sh` — 15-check verification:
+- Health endpoint (200 + status in body)
+- Security headers (6 headers: X-Frame-Options, X-Content-Type-Options,
+  HSTS, CSP, COOP, X-Robots-Tag)
+- PWA manifest (200 + icons in body)
+- Error pages (404 HTML, API 404 JSON with error envelope)
+- Auth (unauthenticated /api/dashboard rejected with 401/403)
+- Login page (200 + "Smart EDMS" branding)
+- API root (service info JSON)
+- CSP report endpoint (204)
+- Color-coded output + pass/fail summary + exit code
+
+## #5: NowPayments E2E contract tests
+
+New `tests/unit/nowpayments-e2e.test.ts` — 50 tests covering the full
+payment flow as contract tests (test the logic without hitting the real
+NowPayments API):
+
+1. **Zero Client Trust** (6 tests) — server-side price computation for
+   all plans + billing cycles; rejects unknown plans; annual < 12× monthly
+2. **Idempotency** (3 tests) — UUID format; same key → same hash;
+   different keys → different hashes
+3. **Webhook Signature Verification** (7 tests) — correct signature passes;
+   wrong secret rejected; tampered body (status change) rejected; tampered
+   body (amount change) rejected; missing signature rejected; missing
+   secret rejected; key order independence
+4. **Status Machine** (10 tests) — all valid transitions allowed;
+   confirmed→pending rejected; failed→confirmed rejected;
+   expired→anything rejected; refunded→anything rejected; terminal status
+   detection
+5. **Underpayment Protection** (5 tests) — full payment OK; overpayment OK;
+   underpayment blocked; zero payment blocked; underpaid maps to
+   `confirming` not `confirmed`
+6. **Replay Protection** (3 tests) — same payment_id+status = same dedup
+   key; different status = different key; different payment_id = different
+   key
+7. **Status Mapping** (8 tests) — all NowPayments statuses mapped
+   correctly; unknown defaults to `waiting` (safe)
+8. **IP Allowlist** (2 tests) — any IP allowed when not configured;
+   non-allowlisted IPs rejected when configured
+9. **Plan Limits** (8 tests) — all 4 plans tested at limit + over-limit
+10. **Configuration Detection** (2 tests) — isNowPaymentsConfigured
+    returns boolean
+
+## Test results
+- TypeScript: 0 errors
+- ESLint: 0 errors (7 pre-existing a11y warnings)
+- Unit tests: 399/399 passing (349 + 50 new NowPayments contract tests)
