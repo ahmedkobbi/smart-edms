@@ -1,0 +1,61 @@
+feat: premium glassmorphism error pages for all HTTP status codes
+
+Every HTTP error response now gets a branded premium glassmorphism page
+instead of Next.js's default white error page. Covers 401, 403, 404, 500,
+and any unhandled error.
+
+## New error pages
+
+### 404 — `src/app/not-found.tsx`
+Premium glassmorphism page with `mesh-bg` + `glass-strong` card + gradient
+"404" text. Shows "Page not found" message with "Go to Dashboard" and
+"Search documents" buttons. Triggered by Next.js when a route doesn't exist.
+
+### 500 — `src/app/error.tsx` (app-level error boundary)
+Catches unhandled errors in any route segment below the root layout.
+Premium glassmorphism with amber warning icon, gradient "500" text,
+error digest ID for support reference, "Try again" (reset) and
+"Go to Dashboard" buttons. Client component — logs to console.
+
+### Global crash — `src/app/global-error.tsx`
+Last-resort fallback when the root layout itself crashes (e.g.
+ThemeProvider fails). Uses inline styles (no CSS variables, no Tailwind —
+renders outside the root layout) that match the dark glassmorphism
+aesthetic. Inline `backdrop-filter: blur(40px) saturate(180%)` +
+gradient text via `background-clip: text`.
+
+### 401 / 403 — `src/app/unauthorized/page.tsx`
+Premium glassmorphism page for auth errors. Differentiates between
+401 (session expired — shows "Sign in" CTA) and 403 (access denied —
+shows "Go to Dashboard" CTA). Reads `code` and `message` from URL
+query params (set by the API client on 401 response).
+
+### Loading — `src/app/loading.tsx`
+Route-level loading fallback with DualSpinner + "Loading…" text.
+Shown by Next.js App Router while a route segment is rendering.
+
+### API 404 — `src/app/api/[...path]/route.ts`
+Catch-all for any `/api/*` route that doesn't have a specific handler.
+Returns JSON `{ error: { code: "not_found", message: "API endpoint not found" } }`
+with status 404. Handles GET, POST, PATCH, PUT, DELETE. Ensures API
+clients always get JSON (not HTML) even for non-existent endpoints.
+
+## Client-side 401 redirect
+
+Updated `src/lib/api/client.ts` to auto-redirect to `/unauthorized` when
+a 401 response is received. The redirect includes the error code + message
+as query params so the unauthorized page can display the specific reason
+("Your session has expired", "Session revoked", etc.).
+
+Previously, a 401 would silently throw an `ApiRequestError` that the
+calling component might not handle gracefully — the user would see a
+broken UI with no explanation. Now they get a premium error page with
+a clear "Sign in" CTA.
+
+## Test results
+- TypeScript: 0 errors
+- ESLint: 0 errors (7 pre-existing a11y warnings)
+- Unit tests: 349/349 passing
+- E2e tests: 5/5 auth + 4/4 documents passed
+- Manual: 404 HTML page returns 404 + glassmorphism UI ✅
+- Manual: /api/nonexistent returns JSON 404 (not HTML) ✅
