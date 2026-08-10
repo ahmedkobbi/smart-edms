@@ -27,6 +27,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { formatBytes, truncateHash } from '@/lib/utils/format';
 import { VersionCompare } from '@/components/documents/version-compare';
 import { RedactionEditor } from '@/components/documents/redaction-editor';
+import { CollaborationPanel } from '@/components/documents/collaboration-panel';
 
 interface DocDetail {
   document: {
@@ -265,6 +266,7 @@ export default function DocumentDetailPage() {
           <TabsTrigger value="comments">Comments</TabsTrigger>
           <TabsTrigger value="audit">Audit</TabsTrigger>
           <TabsTrigger value="share">Share</TabsTrigger>
+          <TabsTrigger value="collab">Collab</TabsTrigger>
           <TabsTrigger value="ai">AI</TabsTrigger>
         </TabsList>
 
@@ -485,6 +487,22 @@ export default function DocumentDetailPage() {
         {/* Share */}
         <TabsContent value="share" className="space-y-4">
           <ShareManager docId={params.id} shares={sharesData?.shares ?? []} classifications={[]} doc={doc} />
+        </TabsContent>
+
+        {/* Collaboration */}
+        <TabsContent value="collab" className="space-y-4">
+          {hasPermission(perms, PERMISSIONS.DOCUMENT_UPDATE) && !doc.isLocked ? (
+            <CollaborationPanel docId={params.id} tenantId={session?.user?.tenantId || ''} />
+          ) : (
+            <Card className="glass-card border-0">
+              <CardContent className="p-6 text-center">
+                <Lock className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                <p className="text-sm font-medium">
+                  {doc.isLocked ? 'Document is locked' : 'No permission to edit'}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Preview */}

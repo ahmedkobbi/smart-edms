@@ -68,6 +68,7 @@ model Tenant {
   securityAnomalies      SecurityAnomaly[]
   userLocalePreferences  UserLocalePreference[]
   evidencePackages       EvidencePackage[]
+  collaborationSessions  CollaborationSession[]
 }
 
 // ============================================================================
@@ -1215,4 +1216,41 @@ model EvidencePackage {
 
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
+}
+
+// ============================================================================
+//  COLLABORATIVE EDITING
+// ============================================================================
+
+model CollaborationSession {
+  id           String   @id @default(cuid())
+  tenantId     String
+  documentId   String
+  startedBy    String
+  status       String   @default("active") // active | ended
+  participantCount Int  @default(0)
+  lastActivity DateTime @default(now())
+  createdAt    DateTime @default(now())
+  endedAt      DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, documentId])
+  @@index([tenantId, status])
+}
+
+model CollaborationPresence {
+  id           String   @id @default(cuid())
+  tenantId     String
+  sessionId    String
+  userId       String
+  userEmail    String
+  userName     String
+  color        String   @default("#0ea5e9")
+  cursorPos    Int      @default(0)
+  lastSeen     DateTime @default(now())
+  joinedAt     DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([tenantId, userId])
 }
