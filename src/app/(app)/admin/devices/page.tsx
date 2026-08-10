@@ -8,8 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Smartphone, Loader2, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function AdminDevicesPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -40,7 +42,7 @@ export default function AdminDevicesPage() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Devices</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('nav.devices')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Manage trusted devices for the current user.
         </p>

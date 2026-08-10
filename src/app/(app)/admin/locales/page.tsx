@@ -8,8 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Globe, BookOpen, CheckCircle2, Loader2, Languages } from 'lucide-react';
 import { locales, localeNames, localeFlags } from '@/i18n/config';
 import Link from 'next/link';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function AdminLocalesPage() {
+  const { t } = useI18n();
   const { data: transData, isLoading } = useQuery<any>({
     queryKey: ['translation-status'],
     queryFn: async () => {
@@ -31,7 +33,7 @@ export default function AdminLocalesPage() {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-          <Languages className="h-6 w-6" /> Locale &amp; Translation Management
+          <Languages className="h-6 w-6" /> {t('admin.locales')}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           Manage enabled languages, review translation status, and maintain terminology.

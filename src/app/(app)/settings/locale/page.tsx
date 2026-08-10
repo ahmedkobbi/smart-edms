@@ -10,8 +10,10 @@ import { Switch } from '@/components/ui/switch';
 import { Loader2, Globe, Clock, Calendar, Type } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { locales, localeNames, localeFlags } from '@/i18n/config';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function LocalePreferencesPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -38,7 +40,7 @@ export default function LocalePreferencesPage() {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Language &amp; Locale</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('admin.localePrefs')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Configure your preferred language, timezone, calendar, and formatting.
         </p>

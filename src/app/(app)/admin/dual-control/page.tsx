@@ -8,8 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { ShieldCheck, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function DualControlPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -32,7 +34,7 @@ export default function DualControlPage() {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-          <ShieldCheck className="h-6 w-6" /> Dual control
+          <ShieldCheck className="h-6 w-6" /> {t('admin.dualControl')}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           Destructive admin actions require approval from a second administrator.

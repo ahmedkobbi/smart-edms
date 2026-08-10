@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Code2, KeyRound, Webhook, Bot, Loader2, ExternalLink, Terminal } from 'lucide-react';
 import Link from 'next/link';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function DeveloperPage() {
+  const { t } = useI18n();
   const { data: keys } = useQuery<{ items: any[] }>({
     queryKey: ['admin-api-keys'],
     queryFn: () => api.get('/api/admin/api-keys'),
@@ -28,7 +30,7 @@ export default function DeveloperPage() {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-          <Code2 className="h-6 w-6" /> Developer
+          <Code2 className="h-6 w-6" /> {t('admin.developer')}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           API access, integrations, and developer resources.

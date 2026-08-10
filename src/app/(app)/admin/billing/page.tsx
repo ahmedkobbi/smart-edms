@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { CreditCard, Loader2, HardDrive, Users, FileText } from 'lucide-react';
 import { formatBytes } from '@/lib/utils/format';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function AdminBillingPage() {
+  const { t } = useI18n();
   const { data, isLoading } = useQuery<any>({
     queryKey: ['admin-billing'],
     queryFn: () => api.get('/api/admin/billing'),
@@ -24,7 +26,7 @@ export default function AdminBillingPage() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Billing &amp; subscription</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('nav.billing')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Plan, seats, storage usage, and subscription status.
         </p>

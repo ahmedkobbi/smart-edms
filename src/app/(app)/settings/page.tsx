@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProfileSection } from './profile-section';
 import { SecuritySection } from './security-section';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function SettingsPage() {
+  const { t } = useI18n();
   const { data } = useQuery<any>({
     queryKey: ['me'],
     queryFn: () => api.get('/api/me'),
@@ -17,7 +19,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('settings.title')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Manage your profile, security, and authentication.
         </p>

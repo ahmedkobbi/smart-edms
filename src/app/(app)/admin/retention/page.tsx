@@ -12,8 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Clock, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function AdminRetentionPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
@@ -53,7 +55,7 @@ export default function AdminRetentionPage() {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Retention schedules</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('nav.retention')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Define how long documents are kept and what happens when retention expires.
           </p>

@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Shield, ShieldAlert, ShieldCheck, Users, KeyRound, FileLock, Activity, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function SecurityPosturePage() {
+  const { t } = useI18n();
   const { data, isLoading } = useQuery<any>({
     queryKey: ['security-posture'],
     queryFn: () => api.get('/api/admin/security-posture'),
@@ -28,7 +30,7 @@ export default function SecurityPosturePage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Security posture</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('admin.securityPosture.title')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Real-time overview of tenant security health, anomalies, and risk indicators.
         </p>

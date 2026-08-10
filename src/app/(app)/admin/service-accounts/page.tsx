@@ -13,8 +13,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { PERMISSIONS } from '@/lib/auth/permissions.client';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function AdminServiceAccountsPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
@@ -52,7 +54,7 @@ export default function AdminServiceAccountsPage() {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Service accounts</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('nav.serviceAccounts')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Non-human identities for automation, integrations, and CI/CD pipelines.
           </p>

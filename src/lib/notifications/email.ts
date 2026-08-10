@@ -162,8 +162,18 @@ export async function sendFailedLoginAlert(
   to: string,
   ip: string,
   attemptCount: number,
+  locale: string = 'en',
 ): Promise<void> {
-  const html = wrapTemplate('Failed login attempts', `
+  const ar = locale === 'ar';
+  const html = wrapTemplate(ar ? 'محاولات دخول فاشلة' : 'Failed login attempts', ar ? `
+    <h1 dir="rtl">محاولات دخول فاشلة على حسابك</h1>
+    <div class="alert alert-warning">
+      تم تسجيل <strong>${attemptCount}</strong> محاولة دخول فاشلة على حساب Smart EDMS الخاص بك.
+    </div>
+    <p dir="rtl"><strong>عنوان IP:</strong> <code>${ip}</code></p>
+    <p dir="rtl">إذا لم تكن أنت، فكر في تغيير كلمة المرور فوراً وتفعيل المصادقة متعددة العوامل.</p>
+    <p dir="rtl">سيتم قفل حسابك مؤقتاً بعد 5 محاولات فاشلة.</p>
+  ` : `
     <h1>Failed login attempts on your account</h1>
     <div class="alert alert-warning">
       <strong>${attemptCount}</strong> failed login attempt(s) were recorded on your Smart EDMS account.
@@ -172,16 +182,27 @@ export async function sendFailedLoginAlert(
     <p>If this was not you, consider changing your password immediately and enabling MFA if you haven't already.</p>
     <p>Your account will be temporarily locked after 5 failed attempts.</p>
   `);
-  const text = `${attemptCount} failed login attempts on your account from IP ${ip}.\n\nIf this was not you, change your password and enable MFA.`;
-  await sendEmail({ to, subject: `[Smart EDMS] ${attemptCount} failed login attempts`, html, text });
+  const text = ar
+    ? `${attemptCount} محاولات دخول فاشلة من IP ${ip}.\n\nإذا لم تكن أنت، غيّر كلمة المرور وفعّل MFA.`
+    : `${attemptCount} failed login attempts on your account from IP ${ip}.\n\nIf this was not you, change your password and enable MFA.`;
+  await sendEmail({ to, subject: ar ? `[Smart EDMS] ${attemptCount} محاولات دخول فاشلة` : `[Smart EDMS] ${attemptCount} failed login attempts`, html, text });
 }
 
 export async function sendAccountLockedAlert(
   to: string,
   email: string,
   ip: string,
+  locale: string = 'en',
 ): Promise<void> {
-  const html = wrapTemplate('Account locked', `
+  const ar = locale === 'ar';
+  const html = wrapTemplate(ar ? 'تم قفل الحساب' : 'Account locked', ar ? `
+    <h1 dir="rtl">تم قفل الحساب</h1>
+    <div class="alert alert-danger">
+      تم قفل الحساب <strong>${email}</strong> بعد 5 محاولات دخول فاشلة.
+    </div>
+    <p dir="rtl"><strong>عنوان IP:</strong> <code>${ip}</code></p>
+    <p dir="rtl">سيتم فتح الحساب تلقائياً بعد 15 دقيقة. إذا كنت تعتقد أن هذا هجوم، اتصل بمسؤول النظام فوراً.</p>
+  ` : `
     <h1>Account locked</h1>
     <div class="alert alert-danger">
       The account <strong>${email}</strong> has been locked after 5 failed login attempts.
@@ -189,8 +210,8 @@ export async function sendAccountLockedAlert(
     <p><strong>IP address:</strong> <code>${ip}</code></p>
     <p>The account will be automatically unlocked after 15 minutes. If you believe this is an attack, contact your administrator immediately.</p>
   `);
-  const text = `Account ${email} locked after 5 failed logins from ${ip}. Auto-unlocks in 15 minutes.`;
-  await sendEmail({ to, subject: `[Smart EDMS] Account locked: ${email}`, html, text });
+  const text = ar ? `تم قفل الحساب ${email} بعد 5 محاولات فاشلة من ${ip}. يفتح تلقائياً خلال 15 دقيقة.` : `Account ${email} locked after 5 failed logins from ${ip}. Auto-unlocks in 15 minutes.`;
+  await sendEmail({ to, subject: ar ? `[Smart EDMS] تم قفل الحساب: ${email}` : `[Smart EDMS] Account locked: ${email}`, html, text });
 }
 
 export async function sendBreakGlassAlert(
@@ -268,8 +289,20 @@ export async function sendDispositionApprovalEmail(
 export async function sendPasswordResetEmail(
   to: string,
   resetUrl: string,
+  locale: string = 'en',
 ): Promise<void> {
-  const html = wrapTemplate('Password reset', `
+  const ar = locale === 'ar';
+  const html = wrapTemplate(ar ? 'إعادة تعيين كلمة المرور' : 'Password reset', ar ? `
+    <h1 dir="rtl">طلب إعادة تعيين كلمة المرور</h1>
+    <p dir="rtl">تلقينا طلباً لإعادة تعيين كلمة مرور Smart EDMS الخاصة بك.</p>
+    <div class="alert alert-info">
+      تنتهي صلاحية هذا الرابط خلال 30 دقيقة. إذا لم تطلب ذلك، يمكنك تجاهل هذا البريد بأمان.
+    </div>
+    <a href="${resetUrl}" class="btn">إعادة تعيين كلمة المرور</a>
+    <p style="font-size: 13px; color: #64748b; margin-top: 16px;" dir="rtl">
+      أو انسخ هذا الرابط: <code>${resetUrl}</code>
+    </p>
+  ` : `
     <h1>Password reset request</h1>
     <p>We received a request to reset your Smart EDMS password.</p>
     <div class="alert alert-info">
@@ -280,6 +313,6 @@ export async function sendPasswordResetEmail(
       Or copy this link: <code>${resetUrl}</code>
     </p>
   `);
-  const text = `Password reset request.\n\nReset your password: ${resetUrl}\n\nThis link expires in 30 minutes.`;
-  await sendEmail({ to, subject: '[Smart EDMS] Password reset', html, text });
+  const text = ar ? `طلب إعادة تعيين كلمة المرور.\n\nأعد تعيين كلمة المرور: ${resetUrl}\n\nتنتهي الصلاحية خلال 30 دقيقة.` : `Password reset request.\n\nReset your password: ${resetUrl}\n\nThis link expires in 30 minutes.`;
+  await sendEmail({ to, subject: ar ? '[Smart EDMS] إعادة تعيين كلمة المرور' : '[Smart EDMS] Password reset', html, text });
 }

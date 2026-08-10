@@ -12,8 +12,10 @@ import { RefreshCw, Loader2, Plus, CheckCircle2, XCircle, Clock } from 'lucide-r
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function AdminRecertificationPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
@@ -39,7 +41,7 @@ export default function AdminRecertificationPage() {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Access recertification</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('nav.recertification')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Periodic review of user access rights. Required for SOC 2 / ISO 27001 compliance.
           </p>

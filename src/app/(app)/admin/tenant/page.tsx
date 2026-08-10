@@ -11,8 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Building2, Palette, ToggleLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function AdminTenantPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [localState, setLocalState] = useState<{
@@ -69,7 +71,7 @@ export default function AdminTenantPage() {
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Tenant settings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('nav.tenantSettings')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Configure tenant identity, branding, and feature flags.
         </p>

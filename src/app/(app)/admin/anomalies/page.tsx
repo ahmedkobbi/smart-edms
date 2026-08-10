@@ -8,8 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Loader2, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function AdminAnomaliesPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -32,7 +34,7 @@ export default function AdminAnomaliesPage() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Security anomalies</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('nav.anomalies')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Auto-detected suspicious patterns. Resolve after investigation.
         </p>

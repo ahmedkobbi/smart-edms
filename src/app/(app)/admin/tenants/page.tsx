@@ -11,8 +11,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Building2, Loader2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function AdminTenantsPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
@@ -43,7 +45,7 @@ export default function AdminTenantsPage() {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Tenants</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('nav.tenants')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Multi-tenant onboarding. Each tenant is fully isolated.
           </p>

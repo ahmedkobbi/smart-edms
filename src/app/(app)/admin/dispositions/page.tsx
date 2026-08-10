@@ -12,8 +12,10 @@ import { ScrollText, Loader2, CheckCircle2, XCircle, FileCheck } from 'lucide-re
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function AdminDispositionsPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [selected, setSelected] = useState<any | null>(null);
@@ -46,7 +48,7 @@ export default function AdminDispositionsPage() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dispositions</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('nav.dispositions')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Review and approve end-of-lifecycle document dispositions. Executed deletes generate a certificate of destruction.
         </p>

@@ -13,8 +13,10 @@ import { LogIn, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function AdminSsoProvidersPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
@@ -68,7 +70,7 @@ export default function AdminSsoProvidersPage() {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">SSO providers</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('nav.ssoProviders')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Configure OIDC / SAML identity providers for enterprise sign-in.
           </p>

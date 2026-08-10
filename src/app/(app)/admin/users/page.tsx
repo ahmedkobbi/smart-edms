@@ -14,6 +14,7 @@ import { Users as UsersIcon, Loader2, Plus, ShieldCheck, Search } from 'lucide-r
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
+import { useI18n } from '@/i18n/use-i18n';
 
 interface UserItem {
   id: string;
@@ -32,6 +33,7 @@ interface UserItem {
 const SYSTEM_ROLES = ['tenant_admin', 'records_manager', 'security_officer', 'compliance_auditor', 'end_user', 'viewer'];
 
 export default function AdminUsersPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
@@ -59,7 +61,7 @@ export default function AdminUsersPage() {
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('admin.users.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Manage tenant users, roles, and access state.
           </p>

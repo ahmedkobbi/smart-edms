@@ -12,8 +12,10 @@ import { FolderOpen, Loader2, Plus, ChevronRight, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import Link from 'next/link';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function FoldersPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
@@ -55,7 +57,7 @@ export default function FoldersPage() {
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Folders</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('nav.folders')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Organize documents into a folder hierarchy.
           </p>

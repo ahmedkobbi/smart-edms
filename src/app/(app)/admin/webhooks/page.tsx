@@ -12,6 +12,7 @@ import { Webhook, Loader2, Plus, Trash2, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
+import { useI18n } from '@/i18n/use-i18n';
 
 const COMMON_EVENTS = [
   'document.created', 'document.updated', 'document.deleted', 'document.downloaded',
@@ -22,6 +23,7 @@ const COMMON_EVENTS = [
 ];
 
 export default function AdminWebhooksPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
@@ -56,7 +58,7 @@ export default function AdminWebhooksPage() {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Webhooks</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('nav.webhooks')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Outgoing HTTP notifications for system events. HMAC-signed with a shared secret.
           </p>

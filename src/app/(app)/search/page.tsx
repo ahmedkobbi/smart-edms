@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search as SearchIcon, Loader2, Filter } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { SavedSearchesBar } from '@/components/documents/saved-searches-bar';
+import { useI18n } from '@/i18n/use-i18n';
 
 interface SearchResult {
   items: any[];
@@ -26,6 +27,7 @@ interface SearchResult {
 }
 
 export default function SearchPage() {
+  const { t } = useI18n();
   const [q, setQ] = useState('');
   const [classificationId, setClassificationId] = useState('all');
   const [state, setState] = useState('all');
@@ -53,7 +55,7 @@ export default function SearchPage() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Search</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('common.search')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Permission-aware search across all documents in your tenant.
         </p>

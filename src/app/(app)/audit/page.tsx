@@ -16,6 +16,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { truncateHash } from '@/lib/utils/format';
 import { AuditReceiptsPanel } from '@/components/audit/audit-receipts-panel';
 import { AuditTimeline } from '@/components/audit/audit-timeline';
+import { useI18n } from '@/i18n/use-i18n';
 
 interface AuditItem {
   id: string;
@@ -43,6 +44,7 @@ interface VerifyResult {
 }
 
 export default function AuditPage() {
+  const { t } = useI18n();
   const { toast } = useToast();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -89,9 +91,9 @@ export default function AuditPage() {
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Audit log</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('audit.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Tamper-evident, hash-chained record of every sensitive action.
+            {t('audit.subtitle')}
           </p>
         </div>
         <div className="flex gap-2">
