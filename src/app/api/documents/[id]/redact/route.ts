@@ -18,6 +18,7 @@ import { createApiHandler, ApiError } from '@/lib/api/handler';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { getFileStorage, buildStorageKey } from '@/lib/storage/file-storage';
 import { sha256, sha1 } from '@/lib/auth/crypto';
+import { getDocumentDek, encryptWithDek } from '@/lib/storage/envelope-encryption';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { z } from 'zod';
 
@@ -80,12 +81,23 @@ export const POST = createApiHandler(
       const versionId = `${doc.id}_v${newVersionNumber}`;
       const storageKey = buildStorageKey(ctx.tenantId, doc.id, versionId, sourceVersion.fileName);
 
-      await storage.put(storageKey, redactedBuf, sourceVersion.mimeType, {
+      // Encrypt with document's DEK
+      const dek = await getDocumentDek(ctx.tenantId, doc.id);
+      let storeBuf = redactedBuf;
+      let encIv: string | undefined;
+      if (dek) {
+        const encrypted = encryptWithDek(dek, redactedBuf);
+        storeBuf = Buffer.from(encrypted.ciphertext, 'base64');
+        encIv = encrypted.iv;
+      }
+      await storage.put(storageKey, storeBuf, sourceVersion.mimeType, {
         tenantId: ctx.tenantId,
         documentId: doc.id,
         version: String(newVersionNumber),
         redacted: 'true',
         uploadedBy: ctx.userId,
+        encrypted: 'true',
+        iv: encIv || '',
       });
 
       const newVersion = await tx.documentVersion.create({
@@ -103,7 +115,7 @@ export const POST = createApiHandler(
           changeReason: body.reason || `Redacted ${body.regions.length} region(s)`,
           redacted: true,
           derivedFrom: sourceVersion.id,
-          metadata: sourceVersion.metadata,
+          metadata: JSON.stringify({ ...(JSON.parse(sourceVersion.metadata || '{}')), _encIv: encIv }),
         },
       });
 

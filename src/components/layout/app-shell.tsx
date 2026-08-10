@@ -35,10 +35,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex mesh-bg">
+      {/* Skip to content — accessibility (WCAG 2.4.1) */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-slate-900 focus:text-white focus:rounded-md focus:text-sm"
+      >
+        Skip to main content
+      </a>
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar />
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
+        <main id="main-content" className="flex-1 p-4 md:p-6 lg:p-8">
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}

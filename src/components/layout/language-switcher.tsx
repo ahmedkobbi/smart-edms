@@ -25,6 +25,13 @@ export function LanguageSwitcher() {
   function changeLocale(locale: Locale) {
     setCurrent(locale);
     localStorage.setItem(STORAGE_KEY, locale);
+    // Persist to server (best-effort)
+    fetch('/api/me/locale', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locale }),
+      credentials: 'same-origin',
+    }).catch(() => {});
     window.location.reload();
   }
 

@@ -20,7 +20,8 @@ import { logger } from '@/lib/config/logger';
 export const POST = createApiHandler(
   {
     requiredPermission: PERMISSIONS.ADMIN_TENANT_MANAGE,
-    rateLimit: { max: 1, windowMs: 60 * 60 * 1000 }, // max 1 per hour
+    requireStepUp: true,
+    rateLimit: { max: 1, windowMs: 60 * 60 * 1000 },
     audit: { eventType: 'admin.key_rotation', action: 'update', resourceType: 'tenant', alwaysAudit: true },
   },
   async (req: NextRequest, ctx) => {

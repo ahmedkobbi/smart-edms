@@ -43,11 +43,11 @@ export const POST = createApiHandler(
       throw ApiError.badRequest('insecure_url', 'Webhook URL must be HTTPS in production');
     }
 
-    // SSRF protection: block localhost / private ranges
-    const url = new URL(body.url);
-    const blocked = ['localhost', '127.0.0.1', '0.0.0.0', '::1'];
-    if (blocked.some((h) => url.hostname === h)) {
-      throw ApiError.badRequest('blocked_url', 'Webhook URL points to a blocked host');
+    // SSRF protection: block private/reserved IP ranges + cloud metadata
+    const { isAllowedOutboundUrl } = await import('@/lib/security/ssrf-guard');
+    const ssrfCheck = isAllowedOutboundUrl(body.url);
+    if (!ssrfCheck.allowed) {
+      throw ApiError.badRequest('blocked_url', `Webhook URL blocked: ${ssrfCheck.reason}`);
     }
 
     const secret = body.generateSecret ? randomToken(24) : null;

@@ -51,7 +51,12 @@ export const GET = createApiHandler(
 const createSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1).max(200),
-  password: z.string().min(8).optional(),
+  password: z.string().min(12).max(128)
+    .regex(/[A-Z]/, 'Must contain uppercase')
+    .regex(/[a-z]/, 'Must contain lowercase')
+    .regex(/[0-9]/, 'Must contain digit')
+    .regex(/[^A-Za-z0-9]/, 'Must contain special character')
+    .optional(),
   jobTitle: z.string().max(100).optional(),
   department: z.string().max(100).optional(),
   roleNames: z.array(z.string()).default([]),
@@ -127,9 +132,16 @@ export const POST = createApiHandler(
   },
 );
 
+import crypto from 'crypto';
+
 function generateTempPassword(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*';
+  const bytes = crypto.randomBytes(16);
   let pwd = '';
-  for (let i = 0; i < 16; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < 16; i++) pwd += chars[bytes[i] % chars.length];
+  if (!/[A-Z]/.test(pwd)) pwd = 'A' + pwd.slice(1);
+  if (!/[a-z]/.test(pwd)) pwd = pwd.slice(0, -1) + 'a';
+  if (!/[0-9]/.test(pwd)) pwd = pwd.slice(0, -2) + '3' + pwd.slice(-1);
+  if (!/[^A-Za-z0-9]/.test(pwd)) pwd = pwd.slice(0, -3) + '!' + pwd.slice(-2);
   return pwd;
 }

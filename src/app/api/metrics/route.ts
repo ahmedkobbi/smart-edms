@@ -5,15 +5,18 @@
  * Returns metrics in Prometheus text format for scraping by
  * Prometheus / Grafana / Datadog.
  *
- * Metrics exposed:
- *   - smart_edms_documents_total{tenant_id, state}
- *   - smart_edms_users_total{tenant_id, status}
- *   - smart_edms_audit_events_total{tenant_id, result}
- *   - smart_edms_active_legal_holds{tenant_id}
- *   - smart_edms_pending_workflows{tenant_id}
- *   - smart_edms_storage_bytes{tenant_id}
+ * Metrics exposed (aggregate only — no tenant_id labels to prevent data leakage):
+ *   - smart_edms_documents_total{state}
+ *   - smart_edms_users_total{status}
+ *   - smart_edms_audit_events_24h{result}
+ *   - smart_edms_active_legal_holds
+ *   - smart_edms_pending_workflows
+ *   - smart_edms_storage_bytes
  *   - smart_edms_uptime_seconds
  *   - smart_edms_process_memory_bytes
+ *
+ * Security: This endpoint requires no auth but only exposes aggregate metrics
+ * (no tenant_id labels). In production, restrict to internal network via firewall.
  */
 
 import { NextResponse } from 'next/server';
@@ -24,7 +27,6 @@ const startTime = Date.now();
 export async function GET() {
   const metrics: string[] = [];
 
-  // Help + type declarations
   metrics.push('# HELP smart_edms_uptime_seconds Process uptime in seconds');
   metrics.push('# TYPE smart_edms_uptime_seconds counter');
   metrics.push(`smart_edms_uptime_seconds ${Math.floor((Date.now() - startTime) / 1000)}`);
@@ -35,86 +37,71 @@ export async function GET() {
   metrics.push(`smart_edms_process_memory_bytes ${mem.heapUsed}`);
   metrics.push(`smart_edms_process_memory_rss_bytes ${mem.rss}`);
 
-  // Aggregate document counts per tenant + state
+  // Aggregate document counts by state (no tenant_id)
   try {
     const docStats = await db.document.groupBy({
-      by: ['tenantId', 'state'],
+      by: ['state'],
       where: { deletedAt: null },
       _count: true,
     });
-    metrics.push('# HELP smart_edms_documents_total Total documents by tenant and state');
+    metrics.push('# HELP smart_edms_documents_total Total documents by state');
     metrics.push('# TYPE smart_edms_documents_total gauge');
     for (const s of docStats) {
-      metrics.push(`smart_edms_documents_total{tenant_id="${s.tenantId}",state="${s.state}"} ${s._count}`);
+      metrics.push(`smart_edms_documents_total{state="${s.state}"} ${s._count}`);
     }
   } catch {}
 
-  // User counts
+  // Aggregate user counts by status
   try {
     const userStats = await db.user.groupBy({
-      by: ['tenantId', 'status'],
+      by: ['status'],
       _count: true,
     });
-    metrics.push('# HELP smart_edms_users_total Total users by tenant and status');
+    metrics.push('# HELP smart_edms_users_total Total users by status');
     metrics.push('# TYPE smart_edms_users_total gauge');
     for (const s of userStats) {
-      metrics.push(`smart_edms_users_total{tenant_id="${s.tenantId}",status="${s.status}"} ${s._count}`);
+      metrics.push(`smart_edms_users_total{status="${s.status}"} ${s._count}`);
     }
   } catch {}
 
   // Audit events by result (last 24h)
   try {
     const auditStats = await db.auditEvent.groupBy({
-      by: ['tenantId', 'result'],
+      by: ['result'],
       where: { createdAt: { gte: new Date(Date.now() - 24 * 3600_000) } },
       _count: true,
     });
-    metrics.push('# HELP smart_edms_audit_events_24h Audit events in last 24h by tenant and result');
+    metrics.push('# HELP smart_edms_audit_events_24h Audit events in last 24h by result');
     metrics.push('# TYPE smart_edms_audit_events_24h gauge');
     for (const s of auditStats) {
-      metrics.push(`smart_edms_audit_events_24h{tenant_id="${s.tenantId}",result="${s.result}"} ${s._count}`);
+      metrics.push(`smart_edms_audit_events_24h{result="${s.result}"} ${s._count}`);
     }
   } catch {}
 
-  // Active legal holds
+  // Active legal holds (aggregate)
   try {
-    const holdCounts = await db.legalHold.groupBy({
-      by: ['tenantId'],
-      where: { releasedAt: null },
-      _count: true,
-    });
-    metrics.push('# HELP smart_edms_active_legal_holds Active legal holds by tenant');
+    const holdCount = await db.legalHold.count({ where: { releasedAt: null } });
+    metrics.push('# HELP smart_edms_active_legal_holds Active legal holds (total)');
     metrics.push('# TYPE smart_edms_active_legal_holds gauge');
-    for (const s of holdCounts) {
-      metrics.push(`smart_edms_active_legal_holds{tenant_id="${s.tenantId}"} ${s._count}`);
-    }
+    metrics.push(`smart_edms_active_legal_holds ${holdCount}`);
   } catch {}
 
-  // Pending workflows
+  // Pending workflows (aggregate)
   try {
-    const wfCounts = await db.workflow.groupBy({
-      by: ['tenantId'],
-      where: { status: 'pending' },
-      _count: true,
-    });
-    metrics.push('# HELP smart_edms_pending_workflows Pending workflows by tenant');
+    const wfCount = await db.workflow.count({ where: { status: 'pending' } });
+    metrics.push('# HELP smart_edms_pending_workflows Pending workflows (total)');
     metrics.push('# TYPE smart_edms_pending_workflows gauge');
-    for (const s of wfCounts) {
-      metrics.push(`smart_edms_pending_workflows{tenant_id="${s.tenantId}"} ${s._count}`);
-    }
+    metrics.push(`smart_edms_pending_workflows ${wfCount}`);
   } catch {}
 
-  // Storage usage
+  // Storage usage (aggregate)
   try {
-    const storageStats = await db.documentVersion.groupBy({
-      by: ['tenantId'],
+    const storageStats = await db.documentVersion.aggregate({
       _sum: { sizeBytes: true },
     });
-    metrics.push('# HELP smart_edms_storage_bytes Total storage used by tenant');
+    metrics.push('# HELP smart_edms_storage_bytes Total storage used (all tenants)');
     metrics.push('# TYPE smart_edms_storage_bytes gauge');
-    for (const s of storageStats) {
-      metrics.push(`smart_edms_storage_bytes{tenant_id="${s.tenantId}"} ${s._sum.sizeBytes ?? 0}`);
-    }
+    metrics.push(`smart_edms_storage_bytes ${storageStats._sum.sizeBytes ?? 0}`);
   } catch {}
 
   return new NextResponse(metrics.join('\n') + '\n', {

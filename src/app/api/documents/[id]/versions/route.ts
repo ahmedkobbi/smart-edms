@@ -12,6 +12,7 @@ import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
 import { getFileStorage, buildStorageKey } from '@/lib/storage/file-storage';
 import { validateUploadedFile } from '@/lib/storage/file-validation';
 import { sha256, sha1 } from '@/lib/auth/crypto';
+import { getDocumentDek, encryptWithDek } from '@/lib/storage/envelope-encryption';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024;
@@ -79,11 +80,23 @@ export const POST = createApiHandler(
       const versionId = `${doc.id}_v${versionNumber}`;
       const storageKey = buildStorageKey(ctx.tenantId, doc.id, versionId, file.name);
       const mimeType = validation.detectedMime || file.type;
-      await storage.put(storageKey, buf, mimeType, {
+
+      // Encrypt with document's DEK (envelope encryption)
+      const dek = await getDocumentDek(ctx.tenantId, doc.id);
+      let encryptedBuf = buf;
+      let encIv: string | undefined;
+      if (dek) {
+        const encrypted = encryptWithDek(dek, buf);
+        encryptedBuf = Buffer.from(encrypted.ciphertext, 'base64');
+        encIv = encrypted.iv;
+      }
+      await storage.put(storageKey, encryptedBuf, mimeType, {
         tenantId: ctx.tenantId,
         documentId: doc.id,
         version: String(versionNumber),
         uploadedBy: ctx.userId,
+        encrypted: 'true',
+        iv: encIv || '',
       });
 
       const version = await tx.documentVersion.create({
@@ -99,7 +112,7 @@ export const POST = createApiHandler(
           checksumSha1,
           uploadedById: ctx.userId,
           changeReason,
-          metadata: doc.metadata,
+          metadata: JSON.stringify({ ...(JSON.parse(doc.metadata || '{}')), _encIv: encIv }),
         },
       });
 

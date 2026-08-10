@@ -23,7 +23,8 @@ import { logger } from '@/lib/config/logger';
 export const POST = createApiHandler(
   {
     requiredPermission: PERMISSIONS.DOCUMENT_DELETE,
-    rateLimit: { max: 3, windowMs: 60 * 60 * 1000 }, // max 3 per hour
+    requireStepUp: true,
+    rateLimit: { max: 3, windowMs: 60 * 60 * 1000 },
     audit: { eventType: 'document.crypto_shred', action: 'delete', resourceType: 'document', alwaysAudit: true },
   },
   async (req: NextRequest, ctx, params) => {
