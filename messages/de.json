@@ -53,7 +53,8 @@
     "quickActions": "Schnellaktionen",
     "working": "Wird verarbeitet…",
     "suspend": "Sperren",
-    "suspendUser": "Benutzer sperren"
+    "suspendUser": "Benutzer sperren",
+    "edit": "Bearbeiten"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -253,7 +254,25 @@
       "verificationCode": "Verification code",
       "backupCodes": "Backup codes (save now — shown once)",
       "disableMfa": "Disable MFA"
-    }
+    },
+    "name": "Name",
+    "namePlaceholder": "Ihr vollständiger Name",
+    "email": "E-Mail",
+    "jobTitle": "Position",
+    "jobTitlePlaceholder": "z.B. Senior Compliance Officer",
+    "department": "Abteilung",
+    "departmentPlaceholder": "z.B. Rechtsabteilung",
+    "avatarUrl": "Avatar-URL",
+    "avatarUrlHelp": "Eine öffentlich zugängliche Bild-URL. Leer lassen für Standard-Avatar.",
+    "status": "Status",
+    "created": "Konto erstellt",
+    "lastLogin": "Letzte Anmeldung",
+    "tenant": "Organisation",
+    "tenantDesc": "Die Organisation, zu der dieses Konto gehört.",
+    "profileDesc": "Ihre Kontoinformationen. Klicken Sie auf Bearbeiten, um Ihre Daten zu aktualisieren.",
+    "profileUpdated": "Profil aktualisiert",
+    "profileUpdatedDesc": "Ihre Änderungen wurden gespeichert.",
+    "profileUpdateFailed": "Profilaktualisierung fehlgeschlagen"
   },
   "emails": {
     "common": {

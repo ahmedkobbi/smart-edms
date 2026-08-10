@@ -53,7 +53,8 @@
     "quickActions": "Acciones rápidas",
     "working": "Procesando…",
     "suspend": "Suspender",
-    "suspendUser": "Suspender usuario"
+    "suspendUser": "Suspender usuario",
+    "edit": "Editar"
   },
   "nav": {
     "dashboard": "Panel",
@@ -253,7 +254,25 @@
       "verificationCode": "Verification code",
       "backupCodes": "Backup codes (save now — shown once)",
       "disableMfa": "Disable MFA"
-    }
+    },
+    "name": "Nombre",
+    "namePlaceholder": "Su nombre completo",
+    "email": "Correo electrónico",
+    "jobTitle": "Cargo",
+    "jobTitlePlaceholder": "ej. Oficial de Cumplimiento Senior",
+    "department": "Departamento",
+    "departmentPlaceholder": "ej. Asuntos Jurídicos",
+    "avatarUrl": "URL del avatar",
+    "avatarUrlHelp": "Una URL de imagen accesible públicamente. Dejar vacío para el avatar predeterminado.",
+    "status": "Estado",
+    "created": "Cuenta creada",
+    "lastLogin": "Último inicio de sesión",
+    "tenant": "Organización",
+    "tenantDesc": "La organización a la que pertenece esta cuenta.",
+    "profileDesc": "Información de su cuenta. Haga clic en Editar para actualizar sus datos.",
+    "profileUpdated": "Perfil actualizado",
+    "profileUpdatedDesc": "Sus cambios han sido guardados.",
+    "profileUpdateFailed": "Error al actualizar el perfil"
   },
   "emails": {
     "common": {

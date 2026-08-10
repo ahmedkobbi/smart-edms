@@ -53,7 +53,8 @@
     "quickActions": "Quick actions",
     "working": "Working…",
     "suspend": "Suspend",
-    "suspendUser": "Suspend user"
+    "suspendUser": "Suspend user",
+    "edit": "Edit"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -239,7 +240,25 @@
       "verificationCode": "Verification code",
       "backupCodes": "Backup codes (save now — shown once)",
       "disableMfa": "Disable MFA"
-    }
+    },
+    "name": "Name",
+    "namePlaceholder": "Your full name",
+    "email": "Email",
+    "jobTitle": "Job title",
+    "jobTitlePlaceholder": "e.g. Senior Compliance Officer",
+    "department": "Department",
+    "departmentPlaceholder": "e.g. Legal Affairs",
+    "avatarUrl": "Avatar URL",
+    "avatarUrlHelp": "A publicly accessible image URL. Leave empty for default avatar.",
+    "status": "Status",
+    "created": "Account created",
+    "lastLogin": "Last login",
+    "tenant": "Tenant",
+    "tenantDesc": "The organization this account belongs to.",
+    "profileDesc": "Your account information. Click Edit to update your details.",
+    "profileUpdated": "Profile updated",
+    "profileUpdatedDesc": "Your changes have been saved.",
+    "profileUpdateFailed": "Failed to update profile"
   },
   "classification": {
     "public": "Public",

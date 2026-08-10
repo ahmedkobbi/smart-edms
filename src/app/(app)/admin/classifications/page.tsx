@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-import { BookMarked, Loader2, Plus, Trash2 } from 'lucide-react';
+import { BookMarked, Loader2, Plus, Trash2, Languages } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { useI18n } from '@/i18n/use-i18n';
+import { LocalizationEditor } from './localization-editor';
 
 export default function AdminClassificationsPage() {
   const { t } = useI18n();
@@ -19,6 +20,7 @@ export default function AdminClassificationsPage() {
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ code: '', name: '', description: '', level: '1', color: '#2563eb' });
+  const [localizeTarget, setLocalizeTarget] = useState<any | null>(null);
 
   const { data, isLoading } = useQuery<{ items: any[] }>({
     queryKey: ['admin-classifications'],
@@ -133,17 +135,36 @@ export default function AdminClassificationsPage() {
                     <p className="text-xs text-muted-foreground mt-0.5">{c.description ?? 'No description'}</p>
                     <p className="text-xs text-muted-foreground">{c._count?.documents ?? 0} document(s)</p>
                   </div>
-                  {!c.isSystem && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => del.mutate(c.id)}>
-                      <Trash2 className="h-4 w-4" />
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => setLocalizeTarget(c)}
+                      title="Manage localized names"
+                    >
+                      <Languages className="h-4 w-4" />
+                      <span className="hidden sm:inline ms-1">Localize</span>
                     </Button>
-                  )}
+                    {!c.isSystem && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => del.mutate(c.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Localization editor dialog */}
+      <LocalizationEditor
+        open={!!localizeTarget}
+        onOpenChange={(o) => !o && setLocalizeTarget(null)}
+        classification={localizeTarget}
+      />
     </div>
   );
 }

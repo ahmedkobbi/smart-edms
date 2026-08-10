@@ -132,6 +132,19 @@ export const PATCH = createApiHandler(
     }
 
     const updated = await db.$transaction(async (tx) => {
+      // --- Retention recompute on lastModified trigger ---
+      // If the document has a retention schedule with startTrigger='document.lastModified',
+      // recompute retentionDisposeAfter to reflect the new modification time.
+      let recomputeRetention = false;
+      if (doc.retentionScheduleId) {
+        const schedule = await tx.retentionSchedule.findUnique({
+          where: { id: doc.retentionScheduleId },
+        });
+        if (schedule?.startTrigger === 'document.lastModified') {
+          recomputeRetention = true;
+        }
+      }
+
       const upd = await tx.document.update({
         where: { id: doc.id },
         data: {
@@ -146,6 +159,8 @@ export const PATCH = createApiHandler(
           ...(body.downloadAllowed !== undefined ? { downloadAllowed: body.downloadAllowed } : {}),
           ...(body.previewAllowed !== undefined ? { previewAllowed: body.previewAllowed } : {}),
           ...(body.watermarkEnabled !== undefined ? { watermarkEnabled: body.watermarkEnabled } : {}),
+          // Recompute retention if the schedule uses lastModified trigger
+          ...(recomputeRetention ? { retentionDisposeAfter: computeDisposeDate(new Date(), (await tx.retentionSchedule.findUnique({ where: { id: doc.retentionScheduleId! } }))!.retentionDays) } : {}),
         },
       });
 
@@ -267,3 +282,13 @@ export const DELETE = createApiHandler(
     return NextResponse.json({ ok: true });
   },
 );
+
+/**
+ * Compute the retention dispose-after date from a start date + retention days.
+ * Used when recomputing retention on `document.lastModified` trigger.
+ */
+function computeDisposeDate(start: Date, days: number): Date {
+  const d = new Date(start);
+  d.setDate(d.getDate() + days);
+  return d;
+}

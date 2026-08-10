@@ -53,7 +53,8 @@
     "quickActions": "إجراءات سريعة",
     "working": "جارٍ المعالجة…",
     "suspend": "تعليق",
-    "suspendUser": "تعليق المستخدم"
+    "suspendUser": "تعليق المستخدم",
+    "edit": "تعديل"
   },
   "nav": {
     "dashboard": "لوحة التحكم",
@@ -239,7 +240,25 @@
       "verificationCode": "رمز التحقق",
       "backupCodes": "أكواد النسخ الاحتياطي (احفظها الآن — تُعرض مرة واحدة)",
       "disableMfa": "تعطيل MFA"
-    }
+    },
+    "name": "الاسم",
+    "namePlaceholder": "اسمك الكامل",
+    "email": "البريد الإلكتروني",
+    "jobTitle": "المسمى الوظيفي",
+    "jobTitlePlaceholder": "مثال: مسؤول الامتثال الأول",
+    "department": "القسم",
+    "departmentPlaceholder": "مثال: الشؤون القانونية",
+    "avatarUrl": "رابط الصورة الرمزية",
+    "avatarUrlHelp": "رابط صورة قابل للوصول públicamente. اتركه فارغاً للصورة الافتراضية.",
+    "status": "الحالة",
+    "created": "تاريخ إنشاء الحساب",
+    "lastLogin": "آخر تسجيل دخول",
+    "tenant": "المؤسسة",
+    "tenantDesc": "المؤسسة التي ينتمي إليها هذا الحساب.",
+    "profileDesc": "معلومات حسابك. انقر على تعديل لتحديث بياناتك.",
+    "profileUpdated": "تم تحديث الملف الشخصي",
+    "profileUpdatedDesc": "تم حفظ تغييراتك.",
+    "profileUpdateFailed": "فشل تحديث الملف الشخصي"
   },
   "classification": {
     "public": "عام",

@@ -5,6 +5,14 @@
  * and file sizes. Supports all 5 locales (en, ar, fr, es, de) with
  * proper calendar and numbering system support.
  *
+ * Timezone support:
+ *   All date formatting functions accept an optional `timezone` parameter
+ *   (IANA timezone name, e.g. 'Africa/Algiers', 'Asia/Riyadh', 'UTC').
+ *   When provided, dates are rendered in the user's preferred timezone
+ *   using Intl.DateTimeFormat's `timeZone` option. This is critical for
+ *   retention/disposition dates that must display in the user's local
+ *   time, not server time.
+ *
  * Arabic-specific:
  *   - Uses Gregorian calendar by default (Western Arabic-Indic digits optional)
  *   - Proper RTL date formatting
@@ -25,10 +33,22 @@ const LOCALE_MAP: Record<string, Locale> = {
 type Locale = typeof enUS;
 
 /**
- * Format a date according to locale + calendar preference.
- * Supports Islamic (Hijri) calendar when calendar='islamic-umalqura'.
+ * Format a date according to locale + calendar + timezone preferences.
+ *
+ * @param date The date to format
+ * @param locale BCP-47 locale code (en, ar, fr, es, de)
+ * @param formatStr date-fns format string (default 'PP' = localized date)
+ * @param calendar 'gregory' (default) or 'islamic-umalqura'
+ * @param timezone IANA timezone name (e.g. 'UTC', 'Africa/Algiers', 'Asia/Riyadh').
+ *                 When provided, the date is rendered in that timezone.
  */
-export function formatDate(date: Date | string, locale: string = 'en', formatStr: string = 'PP', calendar?: string): string {
+export function formatDate(
+  date: Date | string,
+  locale: string = 'en',
+  formatStr: string = 'PP',
+  calendar?: string,
+  timezone?: string,
+): string {
   const d = typeof date === 'string' ? new Date(date) : date;
 
   // Islamic calendar support via Intl.DateTimeFormat
@@ -39,9 +59,31 @@ export function formatDate(date: Date | string, locale: string = 'en', formatStr
         year: 'numeric',
         month: 'long',
         day: 'numeric',
+        ...(timezone ? { timeZone: timezone } : {}),
       }).format(d);
     } catch {
       // Fallback to Gregorian
+    }
+  }
+
+  // If a timezone is specified, use Intl.DateTimeFormat (date-fns doesn't
+  // natively support timezones). We build a format that matches the
+  // requested date-fns format string as closely as possible.
+  if (timezone) {
+    try {
+      const opts: Intl.DateTimeFormatOptions = {
+        ...(formatStr.includes('y') || formatStr.includes('yyyy') ? { year: 'numeric' } : {}),
+        ...(formatStr.includes('M') ? { month: formatStr.includes('MMMM') ? 'long' : formatStr.includes('MMM') ? 'short' : '2-digit' } : {}),
+        ...(formatStr.includes('d') ? { day: formatStr.includes('dd') ? '2-digit' : 'numeric' } : {}),
+        ...(formatStr.includes('H') || formatStr.includes('h') ? {
+          hour: formatStr.includes('HH') ? '2-digit' : 'numeric',
+          minute: '2-digit',
+        } : {}),
+        timeZone: timezone,
+      };
+      return new Intl.DateTimeFormat(getIntlLocale(locale), opts).format(d);
+    } catch {
+      // Invalid timezone — fall through to date-fns
     }
   }
 
@@ -55,14 +97,17 @@ export function formatDate(date: Date | string, locale: string = 'en', formatStr
 
 /**
  * Format relative time (e.g., "2 hours ago") according to locale.
+ *
+ * Note: Relative time is always computed in UTC because "2 hours ago"
+ * is the same regardless of timezone (it's a duration, not a point in time).
  */
 export function formatRelativeTime(date: Date | string, locale: string = 'en'): string {
   const d = typeof date === 'string' ? new Date(date) : date;
   const dateFnsLocale = LOCALE_MAP[locale] || enUS;
   try {
-    return formatDateDistance(d, new Date(), { addSuffix: true, locale: dateFnsLocale });
+    return formatDateDistance(d, { addSuffix: true, locale: dateFnsLocale });
   } catch {
-    return formatDateDistance(d, new Date(), { addSuffix: true });
+    return formatDateDistance(d, { addSuffix: true });
   }
 }
 
@@ -94,9 +139,12 @@ export function formatBytes(bytes: number, locale: string = 'en', decimals = 1):
 }
 
 /**
- * Format a date+time according to locale.
+ * Format a date+time according to locale + timezone.
  */
-export function formatDateTime(date: Date | string, locale: string = 'en'): string {
+export function formatDateTime(date: Date | string, locale: string = 'en', timezone?: string): string {
+  if (timezone) {
+    return formatDate(date, locale, 'yyyy-MM-dd HH:mm', undefined, timezone);
+  }
   return formatDate(date, locale, 'PPpp');
 }
 
@@ -123,13 +171,6 @@ export function getIntlLocale(locale: string = 'en'): string {
 
 /**
  * Pluralization helper using Intl.PluralRules.
- *
- * Usage:
- *   const pr = getPluralRules('ar');
- *   pr.select(0) // 'zero' in Arabic
- *   pr.select(1) // 'one' in Arabic
- *   pr.select(2) // 'two' in Arabic
- *   pr.select(5) // 'few' in Arabic (Arabic has 6 plural forms)
  */
 export function getPluralRules(locale: string = 'en'): Intl.PluralRules {
   try {
@@ -146,3 +187,53 @@ export function getPluralRules(locale: string = 'en'): Intl.PluralRules {
 export function getPluralForm(count: number, locale: string = 'en'): string {
   return getPluralRules(locale).select(count);
 }
+
+/**
+ * List of common IANA timezones for the locale settings dropdown.
+ * Grouped by region for easy selection.
+ */
+export const COMMON_TIMEZONES: { value: string; label: string; region: string }[] = [
+  // UTC
+  { value: 'UTC', label: 'UTC (Coordinated Universal Time)', region: 'Universal' },
+  // Africa
+  { value: 'Africa/Algiers', label: 'Algiers', region: 'Africa' },
+  { value: 'Africa/Cairo', label: 'Cairo', region: 'Africa' },
+  { value: 'Africa/Casablanca', label: 'Casablanca', region: 'Africa' },
+  { value: 'Africa/Johannesburg', label: 'Johannesburg', region: 'Africa' },
+  { value: 'Africa/Lagos', label: 'Lagos', region: 'Africa' },
+  { value: 'Africa/Nairobi', label: 'Nairobi', region: 'Africa' },
+  { value: 'Africa/Tunis', label: 'Tunis', region: 'Africa' },
+  // Asia
+  { value: 'Asia/Riyadh', label: 'Riyadh', region: 'Asia' },
+  { value: 'Asia/Dubai', label: 'Dubai', region: 'Asia' },
+  { value: 'Asia/Qatar', label: 'Doha', region: 'Asia' },
+  { value: 'Asia/Kuwait', label: 'Kuwait', region: 'Asia' },
+  { value: 'Asia/Bahrain', label: 'Manama', region: 'Asia' },
+  { value: 'Asia/Jerusalem', label: 'Jerusalem', region: 'Asia' },
+  { value: 'Asia/Tokyo', label: 'Tokyo', region: 'Asia' },
+  { value: 'Asia/Shanghai', label: 'Shanghai', region: 'Asia' },
+  { value: 'Asia/Singapore', label: 'Singapore', region: 'Asia' },
+  { value: 'Asia/Kolkata', label: 'Mumbai', region: 'Asia' },
+  // Europe
+  { value: 'Europe/London', label: 'London', region: 'Europe' },
+  { value: 'Europe/Paris', label: 'Paris', region: 'Europe' },
+  { value: 'Europe/Berlin', label: 'Berlin', region: 'Europe' },
+  { value: 'Europe/Madrid', label: 'Madrid', region: 'Europe' },
+  { value: 'Europe/Rome', label: 'Rome', region: 'Europe' },
+  { value: 'Europe/Amsterdam', label: 'Amsterdam', region: 'Europe' },
+  { value: 'Europe/Brussels', label: 'Brussels', region: 'Europe' },
+  { value: 'Europe/Istanbul', label: 'Istanbul', region: 'Europe' },
+  { value: 'Europe/Moscow', label: 'Moscow', region: 'Europe' },
+  // Americas
+  { value: 'America/New_York', label: 'New York', region: 'Americas' },
+  { value: 'America/Chicago', label: 'Chicago', region: 'Americas' },
+  { value: 'America/Denver', label: 'Denver', region: 'Americas' },
+  { value: 'America/Los_Angeles', label: 'Los Angeles', region: 'Americas' },
+  { value: 'America/Toronto', label: 'Toronto', region: 'Americas' },
+  { value: 'America/Mexico_City', label: 'Mexico City', region: 'Americas' },
+  { value: 'America/Sao_Paulo', label: 'São Paulo', region: 'Americas' },
+  { value: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires', region: 'Americas' },
+  // Pacific
+  { value: 'Australia/Sydney', label: 'Sydney', region: 'Pacific' },
+  { value: 'Pacific/Auckland', label: 'Auckland', region: 'Pacific' },
+];

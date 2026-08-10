@@ -329,6 +329,7 @@ model Classification {
   documents         Document[]
   changesAsFrom     ClassificationChange[] @relation("ClassChangeFrom")
   changesAsTo       ClassificationChange[] @relation("ClassChangeTo")
+  localizations     ClassificationLocalization[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -372,6 +373,10 @@ model Document {
   retentionScheduleId String?
   retentionStartDate DateTime?
   retentionDisposeAfter DateTime?
+  // When the document was "closed" — used as the retention start trigger
+  // for schedules with startTrigger='document.closed'. Set via the
+  // /api/documents/:id/close endpoint (or when state transitions to 'record').
+  closedAt        DateTime?
   legalHold       Boolean  @default(false)
   legalHoldReason String?
   legalHoldSetBy  String?
@@ -1486,6 +1491,8 @@ model ClassificationLocalization {
   name            String
   description     String?
   updatedAt       DateTime @updatedAt
+
+  classification Classification @relation(fields: [classificationId], references: [id], onDelete: Cascade)
 
   @@unique([classificationId, locale])
   @@index([tenantId, locale])

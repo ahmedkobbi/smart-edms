@@ -53,7 +53,8 @@
     "quickActions": "Actions rapides",
     "working": "En cours…",
     "suspend": "Suspendre",
-    "suspendUser": "Suspendre l'utilisateur"
+    "suspendUser": "Suspendre l'utilisateur",
+    "edit": "Modifier"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -178,7 +179,25 @@
       "verificationCode": "Verification code",
       "backupCodes": "Backup codes (save now — shown once)",
       "disableMfa": "Disable MFA"
-    }
+    },
+    "name": "Nom",
+    "namePlaceholder": "Votre nom complet",
+    "email": "E-mail",
+    "jobTitle": "Titre du poste",
+    "jobTitlePlaceholder": "ex. Responsable Conformité",
+    "department": "Département",
+    "departmentPlaceholder": "ex. Affaires Juridiques",
+    "avatarUrl": "URL de l'avatar",
+    "avatarUrlHelp": "Une URL d'image accessible publiquement. Laisser vide pour l'avatar par défaut.",
+    "status": "Statut",
+    "created": "Compte créé",
+    "lastLogin": "Dernière connexion",
+    "tenant": "Organisation",
+    "tenantDesc": "L'organisation à laquelle appartient ce compte.",
+    "profileDesc": "Vos informations de compte. Cliquez sur Modifier pour mettre à jour vos détails.",
+    "profileUpdated": "Profil mis à jour",
+    "profileUpdatedDesc": "Vos modifications ont été enregistrées.",
+    "profileUpdateFailed": "Échec de la mise à jour du profil"
   },
   "classification": {
     "public": "Public",
