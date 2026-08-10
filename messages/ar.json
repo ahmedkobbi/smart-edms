@@ -105,7 +105,9 @@
     "governance": "الحوكمة",
     "administration": "الإدارة",
     "account": "الحساب",
-    "notifications": "التنبيهات"
+    "notifications": "التنبيهات",
+    "platform": "المنصة",
+    "platformDashboard": "لوحة تحكم المنصة"
   },
   "auth": {
     "signIn": "تسجيل الدخول",

@@ -317,6 +317,21 @@ export default function LoginPage() {
               </motion.div>
             )}
 
+            {/* Sign up link */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="text-center pt-2 border-t border-slate-200/50 dark:border-slate-800/50"
+            >
+              <p className="text-xs text-muted-foreground">
+                Don't have an account?{' '}
+                <Link href="/signup" className="font-medium text-primary hover:underline">
+                  Create a free workspace
+                </Link>
+              </p>
+            </motion.div>
+
             {!needsMfa && (
               <motion.div
                 initial={{ opacity: 0 }}

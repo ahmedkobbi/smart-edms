@@ -105,7 +105,9 @@
     "governance": "Gobernanza",
     "administration": "Administración",
     "account": "Cuenta",
-    "notifications": "Alertas"
+    "notifications": "Alertas",
+    "platform": "Plataforma",
+    "platformDashboard": "Panel de plataforma"
   },
   "auth": {
     "signIn": "Iniciar sesión",

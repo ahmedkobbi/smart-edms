@@ -36,6 +36,13 @@ const NAV_GROUPS: { titleKey: string; items: NavItem[] }[] = [
     ],
   },
   {
+    titleKey: 'nav.platform',
+    items: [
+      { href: '/admin/platform', labelKey: 'nav.platformDashboard', icon: Globe, permission: PERMISSIONS.ADMIN_PLATFORM_VIEW_ALL },
+      { href: '/admin/tenants', labelKey: 'nav.tenants', icon: Building2, permission: PERMISSIONS.ADMIN_PLATFORM_VIEW_ALL },
+    ],
+  },
+  {
     titleKey: 'nav.governance',
     items: [
       { href: '/audit', labelKey: 'nav.auditLog', icon: ScrollText, permission: PERMISSIONS.AUDIT_READ },
@@ -69,7 +76,6 @@ const NAV_GROUPS: { titleKey: string; items: NavItem[] }[] = [
       { href: '/admin/webhooks', labelKey: 'nav.webhooks', icon: Webhook, permission: PERMISSIONS.ADMIN_WEBHOOKS_MANAGE },
       { href: '/admin/sso-providers', labelKey: 'nav.ssoProviders', icon: LogIn, permission: PERMISSIONS.ADMIN_INTEGRATIONS_MANAGE },
       { href: '/admin/devices', labelKey: 'nav.devices', icon: Smartphone, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
-      { href: '/admin/tenants', labelKey: 'nav.tenants', icon: Building2, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
       { href: '/admin/tenant', labelKey: 'nav.tenantSettings', icon: Settings, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
       { href: '/admin/billing', labelKey: 'nav.billing', icon: CreditCard, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
     ],

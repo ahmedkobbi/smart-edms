@@ -1,33 +1,64 @@
 /**
- * Smart EDMS — Tenant management (multi-tenant onboarding)
+ * Smart EDMS — Tenant management (multi-tenant platform admin)
  *
- * GET  /api/admin/tenants         list tenants (platform-level; restricted)
- * POST /api/admin/tenants         create new tenant
+ * GET  /api/admin/tenants         list ALL tenants (platform admin only)
+ * POST /api/admin/tenants         create new tenant (platform admin + step-up)
  *
- * In SaaS mode, this would be called by a platform operator.
- * In single-tenant mode, only the existing tenant is visible.
+ * Platform admins see all tenants; tenant_admins see only their own.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createApiHandler, ApiError } from '@/lib/api/handler';
-import { PERMISSIONS } from '@/lib/auth/permissions';
+import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions';
 import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { z } from 'zod';
 
 export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.ADMIN_TENANT_MANAGE },
   async (req: NextRequest, ctx) => {
-    // In production, this would be a platform-admin only call.
-    // For now, return only the current tenant.
+    const isPlatformAdmin = hasPermission(ctx.session.user.permissions, PERMISSIONS.ADMIN_PLATFORM_VIEW_ALL);
+
+    if (isPlatformAdmin) {
+      // Platform admin — list ALL tenants with stats
+      const page = Math.max(1, parseInt(req.nextUrl.searchParams.get('page') || '1', 10) || 1);
+      const pageSize = Math.min(100, Math.max(1, parseInt(req.nextUrl.searchParams.get('pageSize') || '50', 10) || 50));
+      const status = req.nextUrl.searchParams.get('status');
+
+      const where = status ? { status } : {};
+      const [items, total] = await Promise.all([
+        db.tenant.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          select: {
+            id: true, name: true, slug: true, status: true, createdAt: true, settings: true,
+            _count: { select: { users: true, documents: true } },
+            subscription: { select: { plan: true, status: true, seats: true } },
+          },
+        }),
+        db.tenant.count({ where }),
+      ]);
+
+      return NextResponse.json({
+        items: items.map((t) => ({
+          ...t,
+          settings: undefined, // don't leak full settings in list view
+        })),
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      });
+    }
+
+    // Regular tenant_admin — return only their own tenant
     const tenant = await db.tenant.findUnique({
       where: { id: ctx.tenantId },
-      select: { id: true, name: true, slug: true, status: true, createdAt: true, settings: true },
+      select: { id: true, name: true, slug: true, status: true, createdAt: true },
     });
-    return NextResponse.json({
-      items: [tenant],
-      note: 'Multi-tenant listing requires platform-admin elevation.',
-    });
+    return NextResponse.json({ items: [tenant], total: 1, page: 1, pageSize: 1, totalPages: 1 });
   },
 );
 
@@ -37,12 +68,11 @@ const createSchema = z.object({
   adminEmail: z.string().email(),
   adminName: z.string().min(1).max(200),
   adminPassword: z.string().min(12),
+  plan: z.enum(['trial', 'starter', 'business', 'enterprise']).default('trial'),
 });
 
 export const POST = createApiHandler(
   {
-    // SECURITY FIX (C4): Tenant creation requires the platform-level
-    // permission, NOT the regular ADMIN_TENANT_MANAGE (which tenant_admin has).
     requiredPermission: PERMISSIONS.ADMIN_PLATFORM_TENANT_CREATE,
     requireStepUp: true,
     audit: { eventType: 'admin.tenant.create', action: 'create', resourceType: 'tenant', alwaysAudit: true },
@@ -119,14 +149,21 @@ export const POST = createApiHandler(
         },
       });
 
-      // Create trial subscription
+      // Create subscription with the specified plan
+      const planSeats: Record<string, number> = { trial: 5, starter: 25, business: 200, enterprise: 10000 };
+      const planStorage: Record<string, number> = {
+        trial: 5 * 1024 * 1024 * 1024,
+        starter: 50 * 1024 * 1024 * 1024,
+        business: 500 * 1024 * 1024 * 1024,
+        enterprise: 10 * 1024 * 1024 * 1024 * 1024,
+      };
       await tx.subscription.create({
         data: {
           tenantId: tenant.id,
-          plan: 'trial',
-          status: 'trialing',
-          seats: 5,
-          storageBytes: 5 * 1024 * 1024 * 1024, // 5GB as BigInt
+          plan: body.plan,
+          status: body.plan === 'trial' ? 'trialing' : 'active',
+          seats: planSeats[body.plan],
+          storageBytes: planStorage[body.plan],
           currentPeriodStart: new Date(),
           currentPeriodEnd: new Date(Date.now() + 30 * 24 * 3600_000),
         },
@@ -135,8 +172,9 @@ export const POST = createApiHandler(
       return { tenant, admin };
     });
 
+    // Fix: audit event uses the NEW tenant's ID, not the actor's tenant
     await recordAuditEvent({
-      tenantId: ctx.tenantId,
+      tenantId: result.tenant.id,
       actorId: ctx.userId,
       actorEmail: ctx.session.user.email,
       actorIp: ctx.ip,
@@ -151,13 +189,15 @@ export const POST = createApiHandler(
       metadata: {
         newTenantSlug: result.tenant.slug,
         adminEmail: result.admin.email,
+        plan: body.plan,
+        actorTenantId: ctx.tenantId,
       },
     });
 
     return NextResponse.json({
       tenant: result.tenant,
       adminEmail: result.admin.email,
-      message: 'Tenant created with default roles, classifications, and trial subscription.',
+      message: 'Tenant created with default roles, classifications, and subscription.',
     }, { status: 201 });
   },
 );

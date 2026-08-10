@@ -15,6 +15,7 @@ import {
 } from '../src/lib/auth/permissions';
 
 const roleDescriptions: Record<string, string> = {
+  [SYSTEM_ROLES.PLATFORM_ADMIN]: 'Platform superuser — full control across all tenants, billing, and lifecycle.',
   [SYSTEM_ROLES.TENANT_ADMIN]: 'Full tenant control (audit logs remain immutable).',
   [SYSTEM_ROLES.RECORDS_MANAGER]: 'Manage retention schedules, legal holds, and record declarations.',
   [SYSTEM_ROLES.SECURITY_OFFICER]: 'Manage classification, policies, and security posture.',
@@ -157,6 +158,46 @@ async function main() {
     },
   });
   console.log(`  ✓ Admin role assignment: tenant_admin`);
+
+  // 5b. Optionally seed a platform admin (set SEED_PLATFORM_ADMIN_EMAIL env var)
+  const platformAdminEmail = process.env.SEED_PLATFORM_ADMIN_EMAIL;
+  if (platformAdminEmail) {
+    const platformAdminPassword = process.env.SEED_PLATFORM_ADMIN_PASSWORD || 'ChangeMe!2025';
+    const platformAdminName = process.env.SEED_PLATFORM_ADMIN_NAME || 'Platform Admin';
+    const platformPasswordHash = await hashPassword(platformAdminPassword);
+
+    const platformAdmin = await db.user.upsert({
+      where: { tenantId_email: { tenantId: tenant.id, email: platformAdminEmail.toLowerCase() } },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        email: platformAdminEmail.toLowerCase(),
+        name: platformAdminName,
+        passwordHash: platformPasswordHash,
+        status: 'active',
+        jobTitle: 'Platform Administrator',
+        department: 'Platform',
+      },
+    });
+
+    await db.roleAssignment.upsert({
+      where: {
+        userId_roleId_scope: {
+          userId: platformAdmin.id,
+          roleId: roleRecords[SYSTEM_ROLES.PLATFORM_ADMIN].id,
+          scope: '',
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        userId: platformAdmin.id,
+        roleId: roleRecords[SYSTEM_ROLES.PLATFORM_ADMIN].id,
+        scope: '',
+      },
+    });
+    console.log(`  ✓ Platform admin: ${platformAdmin.email} (${platformAdmin.id})`);
+  }
 
   // 6. Default retention schedules
   const retentionSchedules = [

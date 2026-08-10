@@ -1,0 +1,130 @@
+feat: full SaaS platform admin tier + public marketing site + customer self-registration
+
+Transforms Smart EDMS from a single-tenant deploy into a fully operational
+multi-tenant SaaS with platform admin, public marketing, and self-service signup.
+
+## Step 1: PLATFORM_ADMIN role + permissions + seed
+
+- Added `PLATFORM_ADMIN` to `SYSTEM_ROLES` (first entry — superuser)
+- Granted it ALL permissions including the 4 platform-level:
+  - `ADMIN_PLATFORM_TENANT_CREATE` (was defined but ungranted — tenant creation was impossible)
+  - `ADMIN_PLATFORM_BILLING_MANAGE` (was defined but ungranted — billing changes were impossible)
+  - `ADMIN_PLATFORM_VIEW_ALL` (NEW — cross-tenant visibility)
+  - `ADMIN_PLATFORM_TENANT_MANAGE` (NEW — suspend/activate/delete tenants)
+- Updated seed script to optionally seed a platform admin via
+  `SEED_PLATFORM_ADMIN_EMAIL` env var
+- Updated role descriptions + invitations UI to include `platform_admin`
+
+## Step 2: Tenant list API + lifecycle endpoints
+
+### Fixed: `GET /api/admin/tenants`
+- Platform admins (`ADMIN_PLATFORM_VIEW_ALL`) now see ALL tenants with
+  user/document counts + subscription info + pagination
+- Regular `tenant_admin` still sees only their own tenant
+- Removed the old `note: 'Multi-tenant listing requires platform-admin elevation.'`
+
+### New: `src/app/api/admin/tenants/[id]/route.ts`
+- `GET` — tenant details with counts + subscription + storage usage
+  (requires `ADMIN_PLATFORM_VIEW_ALL`)
+- `PATCH` — suspend/activate tenant + update plan/seats/storage
+  (requires `ADMIN_PLATFORM_TENANT_MANAGE` + step-up)
+  - Suspending a tenant revokes ALL sessions for ALL users in that tenant
+- `DELETE` — soft-delete tenant (sets status='deleted', revokes sessions)
+  (requires `ADMIN_PLATFORM_TENANT_MANAGE` + step-up)
+  - Prevents self-deletion (cannot delete the tenant you're signed in to)
+
+### Fixed: `POST /api/admin/tenants` audit event
+- Was recording the audit event under the *actor's* tenant ID instead of
+  the *new* tenant's ID — now uses the new tenant's ID
+
+## Step 3: Cross-tenant visibility mechanism
+
+### Updated: `src/lib/api/handler.ts` — `createApiHandler`
+- Added `targetTenantId` and `isPlatformAdmin` to `ApiContext`
+- Platform admins with `ADMIN_PLATFORM_VIEW_ALL` can pass `?tenantId=` query
+  param or `x-target-tenant` header to operate on a different tenant
+- The target tenant is verified to exist and not be deleted
+- Audit events still use `ctx.tenantId` (the actor's real tenant) so the
+  audit trail shows which platform admin accessed which tenant
+- Non-platform admins: `targetTenantId === tenantId` always (no override)
+
+Routes can now use `ctx.targetTenantId` instead of `ctx.tenantId` for
+their data queries to support cross-tenant access.
+
+## Step 4: Platform dashboard UI
+
+### New: `src/app/(app)/admin/platform/page.tsx`
+Premium glassmorphism platform dashboard with:
+- 4 aggregate stat cards (GlassCard with gradient icons):
+  Total Tenants, Total Users, Total Documents, Suspended
+- Tenant list with:
+  - Name + status badge + plan badge
+  - Slug + user count + doc count + creation time
+  - Suspend/Activate buttons (calls PATCH /api/admin/tenants/:id)
+- Pagination (page/pageSize/total/totalPages)
+- Loading state (Loader2 spinner)
+
+### Updated: sidebar
+- New "Platform" nav group (visible only with `ADMIN_PLATFORM_VIEW_ALL`)
+  - Platform Dashboard (/admin/platform)
+  - Tenants (/admin/tenants)
+- Removed "Tenants" from the Administration group (now in Platform)
+- Added i18n keys: `nav.platform` + `nav.platformDashboard` (5 locales)
+
+## Step 5: Public marketing site
+
+### New: `src/app/page.tsx` (was a redirect → now a full landing page)
+Premium glassmorphism marketing page with:
+- Glass navbar (logo + "Sign in" + "Get started" buttons)
+- Hero section: gradient orbs, "Crypto payments accepted" badge, headline
+  "Secure Document Governance for Regulated Industries", CTA buttons
+  ("Start free trial" → /signup, "Sign in" → /login), "No credit card" note
+- Features grid: 6 glass cards (Document Governance, Zero-Trust Security,
+  Tamper-Evident Audit, AI-Powered Search, Crypto-Shredding, Multi-Tenant SaaS)
+- Pricing section: 3 glass cards (Starter $29, Business $99, Enterprise $499)
+  with feature lists + "Start with [Plan]" CTA → /signup
+- Security highlights: glass-strong card with compliance badges (ISO 27001,
+  SOC 2, GDPR, HIPAA, PCI DSS)
+- Glass footer with links
+
+Authenticated users are still redirected to /dashboard.
+
+## Step 6: Customer self-registration
+
+### New: `POST /api/tenants/register` (public, no auth)
+- Rate limited: 3 signups per IP per hour
+- Honeypot field (`company_website`) — bots fill it, silently dropped
+- Server-side validation (zero client trust):
+  - tenantName (2-200 chars)
+  - slug (2-50 chars, lowercase alphanumeric + hyphens)
+  - adminName (1-200 chars)
+  - adminEmail (valid email)
+  - adminPassword (min 12 chars, upper/lower/digit/special)
+- Slug uniqueness checked
+- Email uniqueness checked (cross-tenant — one email per tenant)
+- Creates: tenant + 7 system roles + 5 classifications + admin user +
+  tenant_admin role assignment + trial subscription (5 seats, 5 GB, 30 days)
+- Audit event: `tenant.self_registered`
+
+### New: `src/app/signup/page.tsx` (premium glassmorphism)
+- Glass-strong form card with gradient orbs background
+- Fields: Organization name, Workspace URL (with .smartedms.com suffix),
+  Your name, Email, Password
+- Live slug validation ("Available" badge when valid)
+- Honeypot field (hidden from real users)
+- Password hint (min 12 chars with upper/lower/digit/special)
+- "Create workspace" button with loading state
+- Terms of Service + Privacy Policy notice
+- "Already have an account? Sign in" link
+- Redirects to /login?signup=1 on success
+
+## Step 7: Login page "Sign up" link
+
+- Added "Don't have an account? Create a free workspace" link below the
+  forgot-password link, pointing to /signup
+- Premium styling: separated by a subtle border-top, animated entrance
+
+## Test results
+- TypeScript: 0 errors
+- ESLint: 0 errors (12 warnings — 7 pre-existing a11y + 5 new page warnings)
+- Unit tests: 400/400 passing (399 + 1 new platform_admin permission test)

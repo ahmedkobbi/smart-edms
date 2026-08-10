@@ -17,7 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession, SmartEdmsSession } from '@/lib/auth/auth-options';
-import { hasPermission } from '@/lib/auth/permissions';
+import { hasPermission, PERMISSIONS } from '@/lib/auth/permissions';
 import { apiRateLimiter, getClientIp } from '@/lib/security/rate-limit';
 import { recordAuditEvent, AuditEventInput } from '@/lib/audit/audit-service';
 import { logger, setRequestContext, clearRequestContext } from '@/lib/config/logger';
@@ -32,6 +32,13 @@ const MAX_REQUEST_BODY_SIZE = 10 * 1024 * 1024;
 export interface ApiContext {
   session: SmartEdmsSession;
   tenantId: string;
+  /**
+   * The tenant the request operates on. For platform admins with
+   * ADMIN_PLATFORM_VIEW_ALL, this can be a different tenant than
+   * tenantId (set via ?tenantId= query param or x-target-tenant header).
+   * For all other users, targetTenantId === tenantId.
+   */
+  targetTenantId: string;
   userId: string;
   correlationId: string;
   ip: string;
@@ -39,6 +46,7 @@ export interface ApiContext {
   isBreakGlass: boolean;
   breakGlassId?: string;
   isApiKey: boolean;
+  isPlatformAdmin: boolean;
   audit(input: Omit<AuditEventInput, 'tenantId' | 'actorId' | 'actorEmail' | 'actorIp' | 'actorUserAgent' | 'correlationId' | 'sessionId'>): Promise<void>;
 }
 
@@ -422,6 +430,7 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
     const ctx: ApiContext = {
       session,
       tenantId: session.user.tenantId,
+      targetTenantId: session.user.tenantId, // default — may be overridden below
       userId: session.user.id,
       correlationId,
       ip,
@@ -429,6 +438,7 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
       isBreakGlass,
       breakGlassId,
       isApiKey,
+      isPlatformAdmin: hasPermission(session.user.permissions, PERMISSIONS.ADMIN_PLATFORM_VIEW_ALL),
       audit: async (input) => {
         await recordAuditEvent({
           ...input,
@@ -446,6 +456,31 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
         } as AuditEventInput);
       },
     };
+
+    // Platform admin cross-tenant override: if the caller is a platform admin
+    // with ADMIN_PLATFORM_VIEW_ALL, allow them to specify a target tenant via
+    // ?tenantId= query param or x-target-tenant header. This lets platform
+    // admins view/manage any tenant's data. For non-platform admins,
+    // targetTenantId always equals their own tenantId.
+    if (ctx.isPlatformAdmin && !isApiKey) {
+      const targetTenantId = req.nextUrl.searchParams.get('tenantId') ||
+                              req.headers.get('x-target-tenant');
+      if (targetTenantId && targetTenantId !== ctx.tenantId) {
+        // Verify the target tenant exists and is not deleted
+        const targetTenant = await db.tenant.findUnique({
+          where: { id: targetTenantId },
+          select: { id: true, status: true },
+        }).catch(() => null);
+        if (targetTenant && targetTenant.status !== 'deleted') {
+          ctx.targetTenantId = targetTenantId;
+          logger.info('platform_admin.cross_tenant', {
+            actorTenantId: ctx.tenantId,
+            targetTenantId: ctx.targetTenantId,
+            path: req.nextUrl.pathname,
+          });
+        }
+      }
+    }
 
     // Authorization
     if (opts.requiredPermission && !hasPermission(session.user.permissions, opts.requiredPermission)) {

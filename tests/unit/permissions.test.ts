@@ -101,11 +101,24 @@ describe('hasAllPermissions', () => {
 });
 
 describe('System Roles', () => {
-  it('defines all 6 system roles', () => {
-    expect(Object.keys(SYSTEM_ROLES)).toHaveLength(6);
+  it('defines all 7 system roles (including platform_admin)', () => {
+    expect(Object.keys(SYSTEM_ROLES)).toHaveLength(7);
+    expect(SYSTEM_ROLES.PLATFORM_ADMIN).toBe('platform_admin');
     expect(SYSTEM_ROLES.TENANT_ADMIN).toBe('tenant_admin');
     expect(SYSTEM_ROLES.END_USER).toBe('end_user');
     expect(SYSTEM_ROLES.VIEWER).toBe('viewer');
+  });
+
+  it('platform_admin has ALL permissions including platform-level', () => {
+    const perms = SYSTEM_ROLE_PERMISSIONS[SYSTEM_ROLES.PLATFORM_ADMIN];
+    expect(perms).toBeDefined();
+    expect(perms).toContain(PERMISSIONS.ADMIN_PLATFORM_TENANT_CREATE);
+    expect(perms).toContain(PERMISSIONS.ADMIN_PLATFORM_BILLING_MANAGE);
+    expect(perms).toContain(PERMISSIONS.ADMIN_PLATFORM_VIEW_ALL);
+    expect(perms).toContain(PERMISSIONS.ADMIN_PLATFORM_TENANT_MANAGE);
+    // Also has all tenant_admin permissions
+    expect(perms).toContain(PERMISSIONS.ADMIN_TENANT_MANAGE);
+    expect(perms).toContain(PERMISSIONS.DOCUMENT_READ);
   });
 
   it('tenant_admin has all permissions', () => {

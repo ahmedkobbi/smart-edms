@@ -14,7 +14,7 @@ import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { useI18n } from '@/i18n/use-i18n';
 
-const SYSTEM_ROLES = ['tenant_admin', 'records_manager', 'security_officer', 'compliance_auditor', 'end_user', 'viewer'];
+const SYSTEM_ROLES = ['platform_admin', 'tenant_admin', 'records_manager', 'security_officer', 'compliance_auditor', 'end_user', 'viewer'];
 
 interface PaginatedInvitations {
   items: any[];
