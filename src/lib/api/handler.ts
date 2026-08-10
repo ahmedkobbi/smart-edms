@@ -376,6 +376,14 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
       });
 
       if (status >= 500) {
+        // Report to Sentry (if configured)
+        if (process.env.SENTRY_DSN) {
+          const { Sentry } = await import('@/lib/config/sentry');
+          Sentry.captureException(err, {
+            tags: { path: req.nextUrl.pathname, method: req.method },
+            extra: { code, status },
+          });
+        }
         return jsonError(500, 'internal_error', 'An unexpected error occurred');
       }
       return jsonError(status, code, message);

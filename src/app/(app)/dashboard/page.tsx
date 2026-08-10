@@ -63,7 +63,7 @@ export default function DashboardPage() {
         <div className="flex gap-2">
           <Link href="/documents">
             <Button variant="outline" size="sm" className="glass-input border-0 hover-lift">
-              <FileText className="mr-2 h-4 w-4" />
+              <FileText className="ms-2 h-4 w-4" />
               {t('dashboard.myDocuments')}
             </Button>
           </Link>
@@ -139,7 +139,7 @@ export default function DashboardPage() {
               </div>
               <Link href="/documents">
                 <Button variant="ghost" size="sm" className="text-xs">
-                  View all <ArrowRight className="ml-1 h-3 w-3" />
+                  View all <ArrowRight className="ms-1 h-3 w-3" />
                 </Button>
               </Link>
             </CardHeader>

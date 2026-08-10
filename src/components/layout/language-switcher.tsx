@@ -49,7 +49,7 @@ export function LanguageSwitcher() {
             onClick={() => changeLocale(locale)}
             className={current === locale ? 'bg-slate-100 dark:bg-slate-800' : ''}
           >
-            <span className="mr-2">{localeFlags[locale]}</span>
+            <span className="ms-2">{localeFlags[locale]}</span>
             {localeNames[locale]}
           </DropdownMenuItem>
         ))}

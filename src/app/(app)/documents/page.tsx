@@ -111,12 +111,12 @@ export default function DocumentsPage() {
                 placeholder={t('documents.title') + '…'}
                 value={query}
                 onChange={(e) => { setQuery(e.target.value); setPage(1); }}
-                className="pl-9"
+                className="ps-9"
               />
             </div>
             <Select value={classificationId} onValueChange={(v) => { setClassificationId(v); setPage(1); }}>
               <SelectTrigger className="w-full md:w-48">
-                <Filter className="mr-2 h-3.5 w-3.5" />
+                <Filter className="ms-2 h-3.5 w-3.5" />
                 <SelectValue placeholder="Classification" />
               </SelectTrigger>
               <SelectContent>
@@ -180,7 +180,7 @@ export default function DocumentsPage() {
                         )}
                         {doc.legalHold && (
                           <Badge variant="outline" className="text-xs text-red-600 border-red-300 dark:border-red-700">
-                            <FileLock className="mr-1 h-3 w-3" /> Legal hold
+                            <FileLock className="ms-1 h-3 w-3" /> Legal hold
                           </Badge>
                         )}
                       </div>
@@ -211,10 +211,10 @@ export default function DocumentsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => router.push(`/documents/${doc.id}`)}>
-                          <Eye className="mr-2 h-3.5 w-3.5" /> View details
+                          <Eye className="ms-2 h-3.5 w-3.5" /> View details
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => router.push(`/documents/${doc.id}?action=download`)}>
-                          <Download className="mr-2 h-3.5 w-3.5" /> Download
+                          <Download className="ms-2 h-3.5 w-3.5" /> Download
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -301,7 +301,7 @@ function UploadDialog({
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
       <DialogTrigger asChild>
         <Button size="sm">
-          <Upload className="mr-2 h-4 w-4" />
+          <Upload className="ms-2 h-4 w-4" />
           Upload document
         </Button>
       </DialogTrigger>
@@ -363,7 +363,7 @@ function UploadDialog({
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={() => upload.mutate()} disabled={!file || upload.isPending}>
-            {upload.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {upload.isPending && <Loader2 className="ms-2 h-4 w-4 animate-spin" />}
             Upload
           </Button>
         </DialogFooter>

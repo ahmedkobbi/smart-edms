@@ -96,12 +96,12 @@ export default function AuditPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => verify.mutate()} disabled={verify.isPending}>
-            {verify.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="mr-2 h-3.5 w-3.5" />}
+            {verify.isPending ? <Loader2 className="ms-2 h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="ms-2 h-3.5 w-3.5" />}
             Verify integrity
           </Button>
           <a href="/api/audit/export">
             <Button variant="outline" size="sm">
-              <Download className="mr-2 h-3.5 w-3.5" /> Export CSV
+              <Download className="ms-2 h-3.5 w-3.5" /> Export CSV
             </Button>
           </a>
         </div>

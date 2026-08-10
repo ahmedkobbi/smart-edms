@@ -173,7 +173,7 @@ export default function LoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 glass-input border-0 h-11 focus-ring"
+                    className="ps-10 glass-input border-0 h-11 focus-ring"
                     placeholder="you@company.com"
                   />
                 </div>
@@ -197,7 +197,7 @@ export default function LoginPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10 glass-input border-0 h-11 focus-ring"
+                    className="ps-10 pe-10 glass-input border-0 h-11 focus-ring"
                     placeholder="••••••••••"
                   />
                   <button
@@ -231,7 +231,7 @@ export default function LoginPage() {
                     required
                     value={mfaToken}
                     onChange={(e) => setMfaToken(e.target.value.replace(/\D/g, ''))}
-                    className="pl-10 glass-input border-0 h-11 tracking-[0.3em] text-lg text-center focus-ring"
+                    className="ps-10 glass-input border-0 h-11 tracking-[0.3em] text-lg text-center focus-ring"
                     placeholder="000000"
                     autoFocus
                   />
@@ -264,9 +264,9 @@ export default function LoginPage() {
                 disabled={loading}
               >
                 {loading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="ms-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <ArrowRight className="mr-2 h-4 w-4" />
+                  <ArrowRight className="ms-2 h-4 w-4" />
                 )}
                 {needsMfa ? t('auth.verifyAndSignIn') : t('auth.signIn')}
               </Button>
@@ -340,7 +340,7 @@ export default function LoginPage() {
                     toast({ title: 'Passkey sign-in', description: 'Passkey authentication will be available after enrollment in Settings → Security.' });
                   }}
                 >
-                  <Fingerprint className="mr-2 h-4 w-4" />
+                  <Fingerprint className="ms-2 h-4 w-4" />
                   {t('auth.signInWithPasskey')}
                 </Button>
                 <SsoButtons />
@@ -390,7 +390,7 @@ function SsoButtons() {
             window.location.href = `/api/auth/sso/${p.id}/init`;
           }}
         >
-          <LogIn className="mr-2 h-4 w-4" />
+          <LogIn className="ms-2 h-4 w-4" />
           Sign in with {p.name}
         </Button>
       ))}

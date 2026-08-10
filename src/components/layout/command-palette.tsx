@@ -31,11 +31,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
         <CommandGroup heading={t('nav.workspace')}>
           <CommandItem onSelect={() => go('/documents?action=upload')}>
-            <Upload className="mr-2 h-4 w-4" />
+            <Upload className="ms-2 h-4 w-4" />
             {t('documents.uploadDocument')}
           </CommandItem>
           <CommandItem onSelect={() => go('/search')}>
-            <Search className="mr-2 h-4 w-4" />
+            <Search className="ms-2 h-4 w-4" />
             {t('nav.search')}
           </CommandItem>
         </CommandGroup>
@@ -44,30 +44,30 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
         <CommandGroup heading={t('nav.governance')}>
           <CommandItem onSelect={() => go('/dashboard')}>
-            <LayoutDashboard className="mr-2 h-4 w-4" />
+            <LayoutDashboard className="ms-2 h-4 w-4" />
             {t('nav.dashboard')}
           </CommandItem>
           <CommandItem onSelect={() => go('/documents')}>
-            <FileText className="mr-2 h-4 w-4" />
+            <FileText className="ms-2 h-4 w-4" />
             {t('nav.documents')}
           </CommandItem>
           <CommandItem onSelect={() => go('/folders')}>
-            <FolderOpen className="mr-2 h-4 w-4" />
+            <FolderOpen className="ms-2 h-4 w-4" />
             {t('nav.folders')}
           </CommandItem>
           <CommandItem onSelect={() => go('/search')}>
-            <Search className="mr-2 h-4 w-4" />
+            <Search className="ms-2 h-4 w-4" />
             {t('nav.search')}
           </CommandItem>
           {hasPermission(perms, PERMISSIONS.WORKFLOW_APPROVE) && (
             <CommandItem onSelect={() => go('/workflows')}>
-              <GitBranch className="mr-2 h-4 w-4" />
+              <GitBranch className="ms-2 h-4 w-4" />
               {t('nav.workflows')}
             </CommandItem>
           )}
           {hasPermission(perms, PERMISSIONS.AUDIT_READ) && (
             <CommandItem onSelect={() => go('/audit')}>
-              <ScrollText className="mr-2 h-4 w-4" />
+              <ScrollText className="ms-2 h-4 w-4" />
               {t('nav.auditLog')}
             </CommandItem>
           )}
@@ -78,30 +78,30 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             <CommandSeparator />
             <CommandGroup heading="Administration">
               <CommandItem onSelect={() => go('/admin/users')}>
-                <Users className="mr-2 h-4 w-4" />
+                <Users className="ms-2 h-4 w-4" />
                 Users
               </CommandItem>
               <CommandItem onSelect={() => go('/admin/roles')}>
-                <KeyRound className="mr-2 h-4 w-4" />
+                <KeyRound className="ms-2 h-4 w-4" />
                 Roles
               </CommandItem>
               <CommandItem onSelect={() => go('/admin/classifications')}>
-                <BookMarked className="mr-2 h-4 w-4" />
+                <BookMarked className="ms-2 h-4 w-4" />
                 Classifications
               </CommandItem>
               <CommandItem onSelect={() => go('/admin/policies')}>
-                <ShieldCheck className="mr-2 h-4 w-4" />
+                <ShieldCheck className="ms-2 h-4 w-4" />
                 Policies
               </CommandItem>
               {hasPermission(perms, PERMISSIONS.LEGAL_HOLD_MANAGE) && (
                 <CommandItem onSelect={() => go('/admin/legal-holds')}>
-                  <FileLock className="mr-2 h-4 w-4" />
+                  <FileLock className="ms-2 h-4 w-4" />
                   Legal holds
                 </CommandItem>
               )}
               {hasPermission(perms, PERMISSIONS.RETENTION_MANAGE) && (
                 <CommandItem onSelect={() => go('/admin/retention')}>
-                  <Clock className="mr-2 h-4 w-4" />
+                  <Clock className="ms-2 h-4 w-4" />
                   Retention schedules
                 </CommandItem>
               )}
@@ -112,11 +112,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         <CommandSeparator />
         <CommandGroup heading="Account">
           <CommandItem onSelect={() => go('/settings')}>
-            <Settings className="mr-2 h-4 w-4" />
+            <Settings className="ms-2 h-4 w-4" />
             Settings
           </CommandItem>
           <CommandItem onSelect={() => go('/settings/security')}>
-            <Shield className="mr-2 h-4 w-4" />
+            <Shield className="ms-2 h-4 w-4" />
             Security
           </CommandItem>
         </CommandGroup>

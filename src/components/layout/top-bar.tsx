@@ -81,7 +81,7 @@ export function TopBar() {
   return (
     <>
       <header className="h-14 glass border-b border-white/10 dark:border-white/5 sticky top-0 z-30">
-        <div className="h-full px-4 pl-14 md:pl-4 flex items-center justify-between gap-4">
+        <div className="h-full px-4 ps-14 md:ps-4 flex items-center justify-between gap-4">
           <div className="flex-1 max-w-md">
             <button
               onClick={() => setPaletteOpen(true)}
@@ -176,11 +176,11 @@ export function TopBar() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push('/settings')}>
-                  <UserIcon className="mr-2 h-4 w-4" />
+                  <UserIcon className="ms-2 h-4 w-4" />
                   Profile
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.push('/settings/security')}>
-                  <Settings className="mr-2 h-4 w-4" />
+                  <Settings className="ms-2 h-4 w-4" />
                   Security
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -188,7 +188,7 @@ export function TopBar() {
                   onClick={() => signOut({ callbackUrl: '/login' })}
                   className="text-red-600 dark:text-red-400"
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="ms-2 h-4 w-4" />
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
