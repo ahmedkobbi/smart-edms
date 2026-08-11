@@ -2,14 +2,25 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Smart EDMS API",
-    "version": "1.0.0",
-    "description": "Secure multi-tenant SaaS Electronic Document Management System. All endpoints require authentication (NextAuth JWT) unless marked as public. Every request is tenant-scoped and audit-logged.\n\n## Authentication\nAll authenticated endpoints expect a valid NextAuth session cookie. API keys and service accounts use `Authorization: Bearer <key>` header.\n\n## Error Format\nAll errors return: `{ \"error\": { \"code\": string, \"message\": string, ...details } }`",
-    "contact": { "name": "Smart EDMS", "url": "https://github.com/ahmedkobbi/smart-edms" },
-    "license": { "name": "Proprietary" }
+    "version": "2.0.0",
+    "description": "Smart EDMS API \u2014 Enterprise-Grade SaaS Document Governance Platform with Security Audit, E-Signature, BPMN Designer, and DoD 5015.02 Records Management.",
+    "contact": {
+      "name": "Smart EDMS",
+      "url": "https://github.com/ahmedkobbi/smart-edms"
+    },
+    "license": {
+      "name": "Proprietary"
+    }
   },
   "servers": [
-    { "url": "http://localhost:3000", "description": "Local development" },
-    { "url": "https://app.smartedms.com", "description": "Production" }
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development"
+    },
+    {
+      "url": "https://app.smartedms.com",
+      "description": "Production"
+    }
   ],
   "components": {
     "securitySchemes": {
@@ -33,145 +44,864 @@
           "error": {
             "type": "object",
             "properties": {
-              "code": { "type": "string" },
-              "message": { "type": "string" }
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
             },
-            "required": ["code", "message"]
+            "required": [
+              "code",
+              "message"
+            ]
           }
         },
-        "required": ["error"]
+        "required": [
+          "error"
+        ]
       },
       "Document": {
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
-          "title": { "type": "string" },
-          "description": { "type": "string", "nullable": true },
-          "state": { "type": "string", "enum": ["draft", "active", "record", "archived", "disposed"] },
-          "documentType": { "type": "string" },
-          "classification": { "$ref": "#/components/schemas/Classification" },
-          "owner": { "$ref": "#/components/schemas/User" },
-          "currentVersion": { "type": "integer" },
-          "isLocked": { "type": "boolean" },
-          "legalHold": { "type": "boolean" },
-          "isRecord": { "type": "boolean" },
-          "shareAllowed": { "type": "boolean" },
-          "downloadAllowed": { "type": "boolean" },
-          "watermarkEnabled": { "type": "boolean" },
-          "createdAt": { "type": "string", "format": "date-time" },
-          "updatedAt": { "type": "string", "format": "date-time" }
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "record",
+              "archived",
+              "disposed"
+            ]
+          },
+          "documentType": {
+            "type": "string"
+          },
+          "classification": {
+            "$ref": "#/components/schemas/Classification"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/User"
+          },
+          "currentVersion": {
+            "type": "integer"
+          },
+          "isLocked": {
+            "type": "boolean"
+          },
+          "legalHold": {
+            "type": "boolean"
+          },
+          "isRecord": {
+            "type": "boolean"
+          },
+          "shareAllowed": {
+            "type": "boolean"
+          },
+          "downloadAllowed": {
+            "type": "boolean"
+          },
+          "watermarkEnabled": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "Classification": {
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
-          "code": { "type": "string" },
-          "name": { "type": "string" },
-          "level": { "type": "integer" },
-          "color": { "type": "string" },
-          "isSystem": { "type": "boolean" }
+          "id": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "level": {
+            "type": "integer"
+          },
+          "color": {
+            "type": "string"
+          },
+          "isSystem": {
+            "type": "boolean"
+          }
         }
       },
       "User": {
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
-          "email": { "type": "string" },
-          "name": { "type": "string", "nullable": true },
-          "status": { "type": "string" },
-          "mfaEnabled": { "type": "boolean" }
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "mfaEnabled": {
+            "type": "boolean"
+          }
         }
       },
       "AuditEvent": {
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
-          "sequenceNum": { "type": "integer" },
-          "eventType": { "type": "string" },
-          "actorEmail": { "type": "string", "nullable": true },
-          "action": { "type": "string" },
-          "resourceType": { "type": "string", "nullable": true },
-          "resourceId": { "type": "string", "nullable": true },
-          "result": { "type": "string", "enum": ["allow", "deny", "error"] },
-          "reason": { "type": "string", "nullable": true },
-          "eventHash": { "type": "string" },
-          "createdAt": { "type": "string", "format": "date-time" }
+          "id": {
+            "type": "string"
+          },
+          "sequenceNum": {
+            "type": "integer"
+          },
+          "eventType": {
+            "type": "string"
+          },
+          "actorEmail": {
+            "type": "string",
+            "nullable": true
+          },
+          "action": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string",
+            "nullable": true
+          },
+          "resourceId": {
+            "type": "string",
+            "nullable": true
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "allow",
+              "deny",
+              "error"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "eventHash": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "Workflow": {
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
-          "name": { "type": "string" },
-          "status": { "type": "string", "enum": ["pending", "approved", "rejected", "cancelled", "escalated"] },
-          "currentStep": { "type": "integer" },
-          "document": { "$ref": "#/components/schemas/Document" },
-          "initiator": { "$ref": "#/components/schemas/User" },
-          "approvals": { "type": "array", "items": { "type": "object" } }
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "cancelled",
+              "escalated"
+            ]
+          },
+          "currentStep": {
+            "type": "integer"
+          },
+          "document": {
+            "$ref": "#/components/schemas/Document"
+          },
+          "initiator": {
+            "$ref": "#/components/schemas/User"
+          },
+          "approvals": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
         }
       },
       "Share": {
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
-          "token": { "type": "string" },
-          "mode": { "type": "string", "enum": ["view", "download", "review"] },
-          "recipientEmail": { "type": "string", "nullable": true },
-          "expiresAt": { "type": "string", "format": "date-time", "nullable": true },
-          "watermark": { "type": "boolean" },
-          "viewCount": { "type": "integer" },
-          "revokedAt": { "type": "string", "format": "date-time", "nullable": true }
+          "id": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "view",
+              "download",
+              "review"
+            ]
+          },
+          "recipientEmail": {
+            "type": "string",
+            "nullable": true
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "watermark": {
+            "type": "boolean"
+          },
+          "viewCount": {
+            "type": "integer"
+          },
+          "revokedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
         }
       },
       "Notification": {
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
-          "type": { "type": "string" },
-          "title": { "type": "string" },
-          "body": { "type": "string" },
-          "severity": { "type": "string", "enum": ["info", "success", "warning", "critical"] },
-          "link": { "type": "string", "nullable": true },
-          "readAt": { "type": "string", "format": "date-time", "nullable": true },
-          "createdAt": { "type": "string", "format": "date-time" }
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "success",
+              "warning",
+              "critical"
+            ]
+          },
+          "link": {
+            "type": "string",
+            "nullable": true
+          },
+          "readAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
+      },
+      "SecurityAudit": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "framework": {
+            "type": "string",
+            "enum": [
+              "iso27001",
+              "soc2",
+              "gdpr",
+              "hipaa",
+              "dod501502",
+              "internal"
+            ]
+          },
+          "scope": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "riskScore": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "totalFindings": {
+            "type": "integer"
+          },
+          "criticalCount": {
+            "type": "integer"
+          },
+          "highCount": {
+            "type": "integer"
+          },
+          "mediumCount": {
+            "type": "integer"
+          },
+          "lowCount": {
+            "type": "integer"
+          },
+          "remediatedCount": {
+            "type": "integer"
+          }
+        }
+      },
+      "SecurityAuditFinding": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "findingId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "informational"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "in_remediation",
+              "remediated",
+              "accepted_risk",
+              "false_positive"
+            ]
+          },
+          "cvssScore": {
+            "type": "number"
+          },
+          "cweId": {
+            "type": "string"
+          },
+          "affectedComponent": {
+            "type": "string"
+          },
+          "remediation": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateSecurityAuditInput": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 3
+          },
+          "description": {
+            "type": "string"
+          },
+          "framework": {
+            "type": "string",
+            "enum": [
+              "iso27001",
+              "soc2",
+              "gdpr",
+              "hipaa",
+              "dod501502",
+              "internal"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "full",
+              "auth",
+              "documents",
+              "billing",
+              "infrastructure",
+              "api"
+            ]
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "CreateFindingInput": {
+        "type": "object",
+        "properties": {
+          "findingId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "informational"
+            ]
+          },
+          "cvssScore": {
+            "type": "number"
+          },
+          "cweId": {
+            "type": "string"
+          },
+          "affectedComponent": {
+            "type": "string"
+          },
+          "remediation": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "findingId",
+          "title",
+          "description"
+        ]
+      },
+      "SignatureRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "docusign",
+              "adobe_sign",
+              "internal"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "sent",
+              "delivered",
+              "completed",
+              "declined",
+              "expired",
+              "voided"
+            ]
+          },
+          "envelopeId": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateSignatureRequestInput": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "docusign",
+              "adobe_sign",
+              "internal"
+            ]
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "routingOrder": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "emailConfig": {
+            "type": "object",
+            "properties": {
+              "subject": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "expiryDays": {
+                "type": "integer"
+              },
+              "reminderDays": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "required": [
+          "documentId",
+          "recipients",
+          "emailConfig"
+        ]
+      },
+      "BpmnProcessDefinition": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "processKey": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published",
+              "deprecated",
+              "archived"
+            ]
+          }
+        }
+      },
+      "BpmnProcessInstance": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "definitionId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "completed",
+              "terminated",
+              "errored",
+              "suspended"
+            ]
+          },
+          "currentActivityId": {
+            "type": "string"
+          }
+        }
+      },
+      "SaveBpmnDefinitionInput": {
+        "type": "object",
+        "properties": {
+          "processKey": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "bpmnXml": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "processKey",
+          "name",
+          "bpmnXml"
+        ]
+      },
+      "CreateRecordCategoryInput": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "disposition": {
+            "type": "string",
+            "enum": [
+              "permanent",
+              "temporary",
+              "unscheduled"
+            ]
+          },
+          "retentionActiveYears": {
+            "type": "integer"
+          },
+          "retentionSemiActiveYears": {
+            "type": "integer"
+          },
+          "dispositionAction": {
+            "type": "string",
+            "enum": [
+              "destroy",
+              "transfer_to_nara",
+              "transfer_to_agency"
+            ]
+          },
+          "isVital": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "CreateRecordFolderInput": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "fiscalYear": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "categoryId",
+          "title"
+        ]
+      },
+      "DesignateVitalRecordInput": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string"
+          },
+          "categoryId": {
+            "type": "string"
+          },
+          "vitalReason": {
+            "type": "string",
+            "enum": [
+              "operational",
+              "legal",
+              "financial",
+              "historical"
+            ]
+          },
+          "recordType": {
+            "type": "string",
+            "enum": [
+              "essential",
+              "important",
+              "useful"
+            ]
+          },
+          "recoveryPriority": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "reviewCycleMonths": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 36
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "documentId"
+        ]
+      },
+      "CreateDispositionAuthorityInput": {
+        "type": "object",
+        "properties": {
+          "authorityType": {
+            "type": "string",
+            "enum": [
+              "nara_grs",
+              "nara_sf",
+              "agency_specific",
+              "court_order"
+            ]
+          },
+          "authorityNumber": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "retentionInstructions": {
+            "type": "object"
+          },
+          "effectiveDate": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "authorityNumber",
+          "title"
+        ]
       }
     }
   },
   "tags": [
-    { "name": "Auth", "description": "Authentication & session management" },
-    { "name": "Documents", "description": "Document CRUD, versioning, preview" },
-    { "name": "Search", "description": "Permission-aware search" },
-    { "name": "Workflows", "description": "Approval workflows" },
-    { "name": "Audit", "description": "Tamper-evident audit log" },
-    { "name": "Admin - Users", "description": "User management" },
-    { "name": "Admin - Roles", "description": "RBAC role management" },
-    { "name": "Admin - Classifications", "description": "Classification taxonomy" },
-    { "name": "Admin - Policies", "description": "ABAC policy management" },
-    { "name": "Admin - Retention", "description": "Retention schedules" },
-    { "name": "Admin - Legal Holds", "description": "Legal hold management" },
-    { "name": "Admin - Integrations", "description": "API keys, webhooks, SSO, service accounts" },
-    { "name": "Admin - Tenant", "description": "Tenant settings & billing" },
-    { "name": "Me", "description": "Current user profile & security" },
-    { "name": "Public", "description": "Public endpoints (no auth required)" }
+    {
+      "name": "Auth",
+      "description": "Authentication & session management"
+    },
+    {
+      "name": "Documents",
+      "description": "Document CRUD, versioning, preview"
+    },
+    {
+      "name": "Search",
+      "description": "Permission-aware search"
+    },
+    {
+      "name": "Workflows",
+      "description": "Approval workflows"
+    },
+    {
+      "name": "Audit",
+      "description": "Tamper-evident audit log"
+    },
+    {
+      "name": "Admin - Users",
+      "description": "User management"
+    },
+    {
+      "name": "Admin - Roles",
+      "description": "RBAC role management"
+    },
+    {
+      "name": "Admin - Classifications",
+      "description": "Classification taxonomy"
+    },
+    {
+      "name": "Admin - Policies",
+      "description": "ABAC policy management"
+    },
+    {
+      "name": "Admin - Retention",
+      "description": "Retention schedules"
+    },
+    {
+      "name": "Admin - Legal Holds",
+      "description": "Legal hold management"
+    },
+    {
+      "name": "Admin - Integrations",
+      "description": "API keys, webhooks, SSO, service accounts"
+    },
+    {
+      "name": "Admin - Tenant",
+      "description": "Tenant settings & billing"
+    },
+    {
+      "name": "Me",
+      "description": "Current user profile & security"
+    },
+    {
+      "name": "Public",
+      "description": "Public endpoints (no auth required)"
+    }
   ],
   "paths": {
     "/api/health": {
       "get": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Health check",
-        "description": "Returns service health status. No authentication required — safe for load balancer probes.",
+        "description": "Returns service health status. No authentication required \u2014 safe for load balancer probes.",
         "security": [],
         "responses": {
-          "200": { "description": "Service healthy" },
-          "503": { "description": "Service degraded" }
+          "200": {
+            "description": "Service healthy"
+          },
+          "503": {
+            "description": "Service degraded"
+          }
         }
       }
     },
     "/api/auth/signin": {
       "post": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Sign in",
         "description": "Authenticate with email + password (+ optional MFA). Returns JWT session cookie.",
         "security": [],
@@ -181,351 +911,3575 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "email": { "type": "string" },
-                  "password": { "type": "string" },
-                  "mfaToken": { "type": "string", "description": "6-digit TOTP code (if MFA enabled)" }
+                  "email": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "mfaToken": {
+                    "type": "string",
+                    "description": "6-digit TOTP code (if MFA enabled)"
+                  }
                 }
               }
             }
           }
         },
-        "responses": { "200": { "description": "Signed in" }, "401": { "description": "Invalid credentials" } }
+        "responses": {
+          "200": {
+            "description": "Signed in"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
       }
     },
     "/api/documents": {
       "get": {
-        "tags": ["Documents"],
+        "tags": [
+          "Documents"
+        ],
         "summary": "List documents",
-        "security": [{ "session": [] }],
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "parameters": [
-          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-          { "name": "pageSize", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } },
-          { "name": "search", "in": "query", "schema": { "type": "string" } },
-          { "name": "classificationId", "in": "query", "schema": { "type": "string" } },
-          { "name": "state", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "classificationId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "Paginated document list",
-            "content": { "application/json": { "schema": { "type": "object", "properties": {
-              "items": { "type": "array", "items": { "$ref": "#/components/schemas/Document" } },
-              "total": { "type": "integer" },
-              "page": { "type": "integer" },
-              "pageSize": { "type": "integer" }
-            } } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Document"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "pageSize": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       },
       "post": {
-        "tags": ["Documents"],
+        "tags": [
+          "Documents"
+        ],
         "summary": "Upload document",
         "description": "Multipart upload. Files are validated by magic bytes, malware-scanned, checksummed (SHA-256), and encrypted with a per-document DEK (envelope encryption).",
-        "security": [{ "session": [] }],
+        "security": [
+          {
+            "session": []
+          }
+        ],
         "requestBody": {
-          "content": { "multipart/form-data": { "schema": { "type": "object", "properties": {
-            "file": { "type": "string", "format": "binary" },
-            "title": { "type": "string" },
-            "description": { "type": "string" },
-            "documentType": { "type": "string" },
-            "classificationId": { "type": "string" },
-            "tags": { "type": "string", "description": "JSON array" },
-            "metadata": { "type": "string", "description": "JSON object" },
-            "retentionScheduleId": { "type": "string" }
-          } } } }
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "documentType": {
+                    "type": "string"
+                  },
+                  "classificationId": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "string",
+                    "description": "JSON array"
+                  },
+                  "metadata": {
+                    "type": "string",
+                    "description": "JSON object"
+                  },
+                  "retentionScheduleId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
         },
-        "responses": { "201": { "description": "Document created" }, "400": { "description": "Invalid file" } }
+        "responses": {
+          "201": {
+            "description": "Document created"
+          },
+          "400": {
+            "description": "Invalid file"
+          }
+        }
       }
     },
     "/api/documents/{id}": {
       "get": {
-        "tags": ["Documents"],
+        "tags": [
+          "Documents"
+        ],
         "summary": "Get document detail",
-        "security": [{ "session": [] }],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
-        "responses": { "200": { "description": "Document with versions + classification" }, "404": { "description": "Not found" } }
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document with versions + classification"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
       },
       "patch": {
-        "tags": ["Documents"],
+        "tags": [
+          "Documents"
+        ],
         "summary": "Update document metadata",
         "description": "Classification changes are audited. Downgrades require elevated permission and are blocked under legal hold.",
-        "security": [{ "session": [] }],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
-        "responses": { "200": { "description": "Updated" }, "403": { "description": "Downgrade forbidden" } }
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "403": {
+            "description": "Downgrade forbidden"
+          }
+        }
       },
       "delete": {
-        "tags": ["Documents"],
+        "tags": [
+          "Documents"
+        ],
         "summary": "Soft-delete document",
         "description": "Respects legal hold and record status.",
-        "security": [{ "session": [] }],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
-        "responses": { "200": { "description": "Deleted" }, "403": { "description": "Legal hold blocks deletion" } }
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          },
+          "403": {
+            "description": "Legal hold blocks deletion"
+          }
+        }
       }
     },
     "/api/documents/{id}/download": {
       "get": {
-        "tags": ["Documents"],
+        "tags": [
+          "Documents"
+        ],
         "summary": "Get signed download URL",
         "description": "Returns a short-lived (60s) HMAC-signed URL. The storage resolver decrypts the file with the document's DEK before streaming.",
-        "security": [{ "session": [] }],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
-        "responses": { "200": { "description": "Signed URL" } }
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Signed URL"
+          }
+        }
       }
     },
     "/api/documents/{id}/preview": {
       "get": {
-        "tags": ["Documents"],
+        "tags": [
+          "Documents"
+        ],
         "summary": "Get preview URL + watermark",
-        "security": [{ "session": [] }],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
-        "responses": { "200": { "description": "Preview data" } }
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Preview data"
+          }
+        }
       }
     },
     "/api/documents/{id}/versions": {
-      "get": { "tags": ["Documents"], "summary": "List versions", "security": [{ "session": [] }], "responses": { "200": { "description": "Version list" } } },
-      "post": { "tags": ["Documents"], "summary": "Upload new version", "security": [{ "session": [] }], "responses": { "201": { "description": "Version created" } } }
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "List versions",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Version list"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Upload new version",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Version created"
+          }
+        }
+      }
     },
     "/api/documents/{id}/versions/{vid}/restore": {
       "post": {
-        "tags": ["Documents"],
+        "tags": [
+          "Documents"
+        ],
         "summary": "Restore previous version",
-        "description": "Creates a NEW version with the content of the specified old version. Does NOT mutate the original — restores are forward-only.",
-        "security": [{ "session": [] }],
-        "responses": { "200": { "description": "Restored" } }
+        "description": "Creates a NEW version with the content of the specified old version. Does NOT mutate the original \u2014 restores are forward-only.",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Restored"
+          }
+        }
       }
     },
     "/api/documents/{id}/redact": {
       "post": {
-        "tags": ["Documents"],
+        "tags": [
+          "Documents"
+        ],
         "summary": "Redact document regions",
         "description": "Creates a new DERIVATIVE version with black rectangles over specified regions. Original is preserved immutably. Supports PDF (pdf-lib) and images (sharp).",
-        "security": [{ "session": [] }],
-        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": {
-          "regions": { "type": "array", "items": { "type": "object", "properties": {
-            "page": { "type": "integer" },
-            "x": { "type": "number" }, "y": { "type": "number" },
-            "w": { "type": "number" }, "h": { "type": "number" }
-          } } },
-          "reason": { "type": "string" }
-        } } } } },
-        "responses": { "201": { "description": "Redacted version created" } }
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "regions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "integer"
+                        },
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        },
+                        "w": {
+                          "type": "number"
+                        },
+                        "h": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Redacted version created"
+          }
+        }
       }
     },
     "/api/documents/{id}/comments": {
-      "get": { "tags": ["Documents"], "summary": "List comments", "security": [{ "session": [] }], "responses": { "200": { "description": "Comments" } } },
-      "post": { "tags": ["Documents"], "summary": "Add comment", "security": [{ "session": [] }], "responses": { "201": { "description": "Comment added" } } }
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "List comments",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comments"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Add comment",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Comment added"
+          }
+        }
+      }
     },
     "/api/documents/{id}/share": {
-      "get": { "tags": ["Documents"], "summary": "List shares", "security": [{ "session": [] }], "responses": { "200": { "description": "Shares" } } },
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "List shares",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shares"
+          }
+        }
+      },
       "post": {
-        "tags": ["Documents"],
+        "tags": [
+          "Documents"
+        ],
         "summary": "Create share link",
         "description": "Creates a time-limited, optionally password-protected share link. Blocked for Restricted/HS classifications.",
-        "security": [{ "session": [] }],
-        "responses": { "201": { "description": "Share created" } }
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Share created"
+          }
+        }
       }
     },
     "/api/documents/{id}/ai-suggest": {
       "post": {
-        "tags": ["Documents"],
+        "tags": [
+          "Documents"
+        ],
         "summary": "AI classification suggestion",
-        "description": "Advisory only — never auto-applies. Heuristic + LLM fallback. Respects tenant AI feature flag.",
-        "security": [{ "session": [] }],
-        "responses": { "200": { "description": "Suggestion" } }
+        "description": "Advisory only \u2014 never auto-applies. Heuristic + LLM fallback. Respects tenant AI feature flag.",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suggestion"
+          }
+        }
       }
     },
     "/api/documents/{id}/analyze-pii": {
-      "post": { "tags": ["Documents"], "summary": "PII detection", "security": [{ "session": [] }], "responses": { "200": { "description": "PII findings" } } }
+      "post": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "PII detection",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PII findings"
+          }
+        }
+      }
     },
     "/api/documents/{id}/summarize": {
-      "post": { "tags": ["Documents"], "summary": "Document summary", "security": [{ "session": [] }], "responses": { "200": { "description": "Summary" } } }
+      "post": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Document summary",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Summary"
+          }
+        }
+      }
     },
     "/api/documents/{id}/policy-risk": {
-      "post": { "tags": ["Documents"], "summary": "Policy risk analysis", "security": [{ "session": [] }], "responses": { "200": { "description": "Risk assessment" } } }
+      "post": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Policy risk analysis",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Risk assessment"
+          }
+        }
+      }
     },
     "/api/documents/{id}/duplicate-check": {
-      "get": { "tags": ["Documents"], "summary": "Duplicate detection", "security": [{ "session": [] }], "responses": { "200": { "description": "Duplicates" } } }
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Duplicate detection",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Duplicates"
+          }
+        }
+      }
     },
     "/api/documents/{id}/compare": {
-      "get": { "tags": ["Documents"], "summary": "Version compare (diff)", "security": [{ "session": [] }], "responses": { "200": { "description": "Line diff" } } }
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Version compare (diff)",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Line diff"
+          }
+        }
+      }
     },
     "/api/search": {
       "get": {
-        "tags": ["Search"],
+        "tags": [
+          "Search"
+        ],
         "summary": "Search documents",
         "description": "Permission-aware search. End users see only owned documents. Includes full-text matches from DocumentTextIndex (OCR + extracted text).",
-        "security": [{ "session": [] }],
-        "parameters": [
-          { "name": "q", "in": "query", "schema": { "type": "string" } },
-          { "name": "classifications", "in": "query", "schema": { "type": "string" } },
-          { "name": "state", "in": "query", "schema": { "type": "string" } }
+        "security": [
+          {
+            "session": []
+          }
         ],
-        "responses": { "200": { "description": "Search results + facets" } }
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "classifications",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results + facets"
+          }
+        }
       }
     },
     "/api/workflows": {
-      "get": { "tags": ["Workflows"], "summary": "List workflows", "security": [{ "session": [] }], "responses": { "200": { "description": "Workflows" } } },
-      "post": { "tags": ["Workflows"], "summary": "Create workflow", "security": [{ "session": [] }], "responses": { "201": { "description": "Workflow created" } } }
+      "get": {
+        "tags": [
+          "Workflows"
+        ],
+        "summary": "List workflows",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workflows"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Workflows"
+        ],
+        "summary": "Create workflow",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Workflow created"
+          }
+        }
+      }
     },
     "/api/workflows/{id}/approve": {
-      "post": { "tags": ["Workflows"], "summary": "Approve/reject workflow", "security": [{ "session": [] }], "responses": { "200": { "description": "Decision recorded" } } }
+      "post": {
+        "tags": [
+          "Workflows"
+        ],
+        "summary": "Approve/reject workflow",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Decision recorded"
+          }
+        }
+      }
     },
     "/api/audit": {
       "get": {
-        "tags": ["Audit"],
-        "summary": "Search audit log",
-        "security": [{ "session": [] }],
-        "parameters": [
-          { "name": "eventType", "in": "query", "schema": { "type": "string" } },
-          { "name": "actorId", "in": "query", "schema": { "type": "string" } },
-          { "name": "result", "in": "query", "schema": { "type": "string", "enum": ["allow", "deny", "error"] } },
-          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date-time" } },
-          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date-time" } }
+        "tags": [
+          "Audit"
         ],
-        "responses": { "200": { "description": "Audit events" } }
+        "summary": "Search audit log",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "eventType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "result",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "allow",
+                "deny",
+                "error"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit events"
+          }
+        }
       }
     },
     "/api/audit/verify": {
       "get": {
-        "tags": ["Audit"],
+        "tags": [
+          "Audit"
+        ],
         "summary": "Verify audit chain integrity",
         "description": "Walks the per-tenant SHA-256 hash chain and reports any broken links.",
-        "security": [{ "session": [] }],
-        "responses": { "200": { "description": "Verification result" } }
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verification result"
+          }
+        }
       }
     },
     "/api/audit/export": {
       "get": {
-        "tags": ["Audit"],
+        "tags": [
+          "Audit"
+        ],
         "summary": "Export audit log as CSV",
-        "security": [{ "session": [] }],
-        "responses": { "200": { "description": "CSV file" } }
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV file"
+          }
+        }
       }
     },
     "/api/admin/users": {
-      "get": { "tags": ["Admin - Users"], "summary": "List users", "security": [{ "session": [] }], "responses": { "200": { "description": "Users" } } },
-      "post": { "tags": ["Admin - Users"], "summary": "Create user", "security": [{ "session": [] }], "responses": { "201": { "description": "User created" } } }
+      "get": {
+        "tags": [
+          "Admin - Users"
+        ],
+        "summary": "List users",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin - Users"
+        ],
+        "summary": "Create user",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "User created"
+          }
+        }
+      }
     },
     "/api/admin/users/{id}": {
-      "get": { "tags": ["Admin - Users"], "summary": "Get user detail", "security": [{ "session": [] }], "responses": { "200": { "description": "User" } } },
-      "patch": { "tags": ["Admin - Users"], "summary": "Update user", "security": [{ "session": [] }], "responses": { "200": { "description": "Updated" } } },
-      "delete": { "tags": ["Admin - Users"], "summary": "Suspend user", "security": [{ "session": [] }], "responses": { "200": { "description": "Suspended" } } }
+      "get": {
+        "tags": [
+          "Admin - Users"
+        ],
+        "summary": "Get user detail",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Admin - Users"
+        ],
+        "summary": "Update user",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Admin - Users"
+        ],
+        "summary": "Suspend user",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suspended"
+          }
+        }
+      }
     },
     "/api/admin/roles": {
-      "get": { "tags": ["Admin - Roles"], "summary": "List roles", "security": [{ "session": [] }], "responses": { "200": { "description": "Roles" } } },
-      "post": { "tags": ["Admin - Roles"], "summary": "Create role", "security": [{ "session": [] }], "responses": { "201": { "description": "Role created" } } }
+      "get": {
+        "tags": [
+          "Admin - Roles"
+        ],
+        "summary": "List roles",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Roles"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin - Roles"
+        ],
+        "summary": "Create role",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Role created"
+          }
+        }
+      }
     },
     "/api/admin/classifications": {
-      "get": { "tags": ["Admin - Classifications"], "summary": "List classifications", "security": [{ "session": [] }], "responses": { "200": { "description": "Classifications" } } },
-      "post": { "tags": ["Admin - Classifications"], "summary": "Create classification", "security": [{ "session": [] }], "responses": { "201": { "description": "Created" } } }
+      "get": {
+        "tags": [
+          "Admin - Classifications"
+        ],
+        "summary": "List classifications",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Classifications"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin - Classifications"
+        ],
+        "summary": "Create classification",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
     },
     "/api/admin/policies": {
-      "get": { "tags": ["Admin - Policies"], "summary": "List ABAC policies", "security": [{ "session": [] }], "responses": { "200": { "description": "Policies" } } },
-      "post": { "tags": ["Admin - Policies"], "summary": "Create policy", "security": [{ "session": [] }], "responses": { "201": { "description": "Created" } } }
+      "get": {
+        "tags": [
+          "Admin - Policies"
+        ],
+        "summary": "List ABAC policies",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Policies"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin - Policies"
+        ],
+        "summary": "Create policy",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
     },
     "/api/admin/retention": {
-      "get": { "tags": ["Admin - Retention"], "summary": "List retention schedules", "security": [{ "session": [] }], "responses": { "200": { "description": "Schedules" } } },
-      "post": { "tags": ["Admin - Retention"], "summary": "Create retention schedule", "security": [{ "session": [] }], "responses": { "201": { "description": "Created" } } }
+      "get": {
+        "tags": [
+          "Admin - Retention"
+        ],
+        "summary": "List retention schedules",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schedules"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin - Retention"
+        ],
+        "summary": "Create retention schedule",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
     },
     "/api/admin/legal-holds": {
-      "get": { "tags": ["Admin - Legal Holds"], "summary": "List legal holds", "security": [{ "session": [] }], "responses": { "200": { "description": "Holds" } } },
-      "post": { "tags": ["Admin - Legal Holds"], "summary": "Create legal hold", "security": [{ "session": [] }], "responses": { "201": { "description": "Created" } } }
+      "get": {
+        "tags": [
+          "Admin - Legal Holds"
+        ],
+        "summary": "List legal holds",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Holds"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin - Legal Holds"
+        ],
+        "summary": "Create legal hold",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
     },
     "/api/admin/api-keys": {
-      "get": { "tags": ["Admin - Integrations"], "summary": "List API keys", "security": [{ "session": [] }], "responses": { "200": { "description": "Keys" } } },
-      "post": { "tags": ["Admin - Integrations"], "summary": "Create API key", "description": "Raw key shown ONCE. Only hash stored.", "security": [{ "session": [] }], "responses": { "201": { "description": "Created with raw key" } } }
+      "get": {
+        "tags": [
+          "Admin - Integrations"
+        ],
+        "summary": "List API keys",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Keys"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin - Integrations"
+        ],
+        "summary": "Create API key",
+        "description": "Raw key shown ONCE. Only hash stored.",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created with raw key"
+          }
+        }
+      }
     },
     "/api/admin/webhooks": {
-      "get": { "tags": ["Admin - Integrations"], "summary": "List webhooks", "security": [{ "session": [] }], "responses": { "200": { "description": "Webhooks" } } },
-      "post": { "tags": ["Admin - Integrations"], "summary": "Create webhook", "description": "Signing secret shown ONCE. HMAC-SHA256 payload signing.", "security": [{ "session": [] }], "responses": { "201": { "description": "Created" } } }
+      "get": {
+        "tags": [
+          "Admin - Integrations"
+        ],
+        "summary": "List webhooks",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Webhooks"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin - Integrations"
+        ],
+        "summary": "Create webhook",
+        "description": "Signing secret shown ONCE. HMAC-SHA256 payload signing.",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
     },
     "/api/admin/sso-providers": {
-      "get": { "tags": ["Admin - Integrations"], "summary": "List SSO providers", "security": [{ "session": [] }], "responses": { "200": { "description": "Providers" } } },
-      "post": { "tags": ["Admin - Integrations"], "summary": "Create SSO provider (OIDC/SAML)", "security": [{ "session": [] }], "responses": { "201": { "description": "Created" } } }
+      "get": {
+        "tags": [
+          "Admin - Integrations"
+        ],
+        "summary": "List SSO providers",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Providers"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin - Integrations"
+        ],
+        "summary": "Create SSO provider (OIDC/SAML)",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
     },
     "/api/admin/tenant": {
-      "get": { "tags": ["Admin - Tenant"], "summary": "Get tenant settings", "security": [{ "session": [] }], "responses": { "200": { "description": "Settings" } } },
-      "patch": { "tags": ["Admin - Tenant"], "summary": "Update tenant settings", "security": [{ "session": [] }], "responses": { "200": { "description": "Updated" } } }
+      "get": {
+        "tags": [
+          "Admin - Tenant"
+        ],
+        "summary": "Get tenant settings",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Settings"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Admin - Tenant"
+        ],
+        "summary": "Update tenant settings",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated"
+          }
+        }
+      }
     },
     "/api/admin/billing": {
-      "get": { "tags": ["Admin - Tenant"], "summary": "Get subscription + usage", "security": [{ "session": [] }], "responses": { "200": { "description": "Billing data" } } }
+      "get": {
+        "tags": [
+          "Admin - Tenant"
+        ],
+        "summary": "Get subscription + usage",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Billing data"
+          }
+        }
+      }
     },
     "/api/admin/break-glass": {
       "post": {
-        "tags": ["Admin - Users"],
+        "tags": [
+          "Admin - Users"
+        ],
         "summary": "Break-glass emergency access",
         "description": "Grants 30-min elevated permissions with mandatory justification. Notifies all other admins. All actions audit-logged with break-glass attribution.",
-        "security": [{ "session": [] }],
-        "responses": { "201": { "description": "Access granted" } }
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Access granted"
+          }
+        }
       }
     },
     "/api/admin/dispositions": {
-      "get": { "tags": ["Admin - Retention"], "summary": "List dispositions", "security": [{ "session": [] }], "responses": { "200": { "description": "Dispositions" } } },
-      "post": { "tags": ["Admin - Retention"], "summary": "Create disposition request", "security": [{ "session": [] }], "responses": { "201": { "description": "Created" } } }
+      "get": {
+        "tags": [
+          "Admin - Retention"
+        ],
+        "summary": "List dispositions",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dispositions"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin - Retention"
+        ],
+        "summary": "Create disposition request",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
     },
     "/api/admin/dispositions/{id}/approve": {
       "post": {
-        "tags": ["Admin - Retention"],
+        "tags": [
+          "Admin - Retention"
+        ],
         "summary": "Approve/reject disposition",
         "description": "If approved + action=delete: soft-deletes document and generates certificate of destruction (SHA-256 hash).",
-        "security": [{ "session": [] }],
-        "responses": { "200": { "description": "Executed" } }
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Executed"
+          }
+        }
       }
     },
     "/api/me": {
-      "get": { "tags": ["Me"], "summary": "Get current user + tenant", "security": [{ "session": [] }], "responses": { "200": { "description": "Profile" } } }
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Get current user + tenant",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile"
+          }
+        }
+      }
     },
     "/api/me/password": {
-      "post": { "tags": ["Me"], "summary": "Change password", "security": [{ "session": [] }], "responses": { "200": { "description": "Changed" } } }
+      "post": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Change password",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Changed"
+          }
+        }
+      }
     },
     "/api/me/mfa": {
       "post": {
-        "tags": ["Me"],
+        "tags": [
+          "Me"
+        ],
         "summary": "MFA setup/enable/disable",
         "description": "Use ?action=setup|enable|disable. Setup returns QR code. Enable returns backup codes (shown once).",
-        "security": [{ "session": [] }],
-        "responses": { "200": { "description": "MFA result" } }
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MFA result"
+          }
+        }
       }
     },
     "/api/me/step-up": {
       "post": {
-        "tags": ["Me"],
+        "tags": [
+          "Me"
+        ],
         "summary": "Step-up authentication",
         "description": "Verifies a second factor (TOTP or password) and issues a 5-min step-up token for privileged actions.",
-        "security": [{ "session": [] }],
-        "responses": { "200": { "description": "Step-up token" } }
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Step-up token"
+          }
+        }
       }
     },
     "/api/notifications": {
-      "get": { "tags": ["Me"], "summary": "List notifications", "security": [{ "session": [] }], "responses": { "200": { "description": "Notifications" } } }
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "List notifications",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notifications"
+          }
+        }
+      }
     },
     "/api/shares/{token}": {
       "get": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Get share info (public)",
-        "description": "No auth required — the token IS the credential. Returns document metadata for the share screen.",
+        "description": "No auth required \u2014 the token IS the credential. Returns document metadata for the share screen.",
         "security": [],
-        "responses": { "200": { "description": "Share info" }, "410": { "description": "Expired/revoked" } }
+        "responses": {
+          "200": {
+            "description": "Share info"
+          },
+          "410": {
+            "description": "Expired/revoked"
+          }
+        }
       },
       "post": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Access shared document (public)",
         "description": "Verifies password (if set), returns signed URL + watermark text. Increments view count.",
         "security": [],
-        "responses": { "200": { "description": "Document URL" } }
+        "responses": {
+          "200": {
+            "description": "Document URL"
+          }
+        }
       }
     },
     "/api/admin/invitations/{token}/accept": {
-      "get": { "tags": ["Public"], "summary": "Check invitation validity (public)", "security": [], "responses": { "200": { "description": "Invitation info" } } },
-      "post": { "tags": ["Public"], "summary": "Accept invitation + create account (public)", "security": [], "responses": { "200": { "description": "Account created" } } }
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "summary": "Check invitation validity (public)",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Invitation info"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Public"
+        ],
+        "summary": "Accept invitation + create account (public)",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Account created"
+          }
+        }
+      }
     },
     "/api/cron/escalate": {
       "get": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Workflow escalation cron (key-protected)",
         "description": "Processes overdue approvals + sends reminders. Protected by CRON_SECRET query param. Configure external scheduler to hit hourly.",
         "security": [],
-        "parameters": [{ "name": "key", "in": "query", "required": true, "schema": { "type": "string" } }],
-        "responses": { "200": { "description": "Escalation result" }, "401": { "description": "Invalid key" } }
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Escalation result"
+          },
+          "401": {
+            "description": "Invalid key"
+          }
+        }
+      }
+    },
+    "/api/security-audit": {
+      "get": {
+        "tags": [
+          "Security Audit"
+        ],
+        "summary": "List security audits",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "framework",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of audits"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Security Audit"
+        ],
+        "summary": "Create a security audit",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSecurityAuditInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Audit created"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          }
+        }
+      }
+    },
+    "/api/security-audit/{id}": {
+      "get": {
+        "tags": [
+          "Security Audit"
+        ],
+        "summary": "Get audit with findings",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "report"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit detail"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Security Audit"
+        ],
+        "summary": "Update audit",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Audit updated"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/api/security-audit/{id}/findings": {
+      "get": {
+        "tags": [
+          "Security Audit"
+        ],
+        "summary": "List audit findings",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of findings"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Security Audit"
+        ],
+        "summary": "Create a finding",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFindingInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Finding created"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          }
+        }
+      }
+    },
+    "/api/security-audit/{id}/findings/{findingId}": {
+      "get": {
+        "tags": [
+          "Security Audit"
+        ],
+        "summary": "Get finding details",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "findingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Security Audit"
+        ],
+        "summary": "Update/remediate a finding",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "findingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Finding updated"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/api/security-audit/scan": {
+      "get": {
+        "tags": [
+          "Security Audit"
+        ],
+        "summary": "List scan results",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Security Audit"
+        ],
+        "summary": "Run automated security scan",
+        "description": "Runs: npm-audit (dependency vulns), secret detection, config validation.",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scanType": {
+                    "type": "string",
+                    "enum": [
+                      "full",
+                      "dependency",
+                      "secret",
+                      "config"
+                    ]
+                  },
+                  "auditId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Scan completed"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          }
+        }
+      }
+    },
+    "/api/security-audit/{id}/evidence": {
+      "post": {
+        "tags": [
+          "Security Audit"
+        ],
+        "summary": "Collect evidence",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Evidence collected"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Security Audit"
+        ],
+        "summary": "Download evidence bundle",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON download"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/api/signatures": {
+      "get": {
+        "tags": [
+          "E-Signature"
+        ],
+        "summary": "List signature requests",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "documentId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "E-Signature"
+        ],
+        "summary": "Create signature request",
+        "description": "DocuSign, Adobe Sign, or internal provider (auto-detected).",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSignatureRequestInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Request created"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          }
+        }
+      }
+    },
+    "/api/signatures/{id}": {
+      "get": {
+        "tags": [
+          "E-Signature"
+        ],
+        "summary": "Get signature request",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/api/signatures/{id}/void": {
+      "post": {
+        "tags": [
+          "E-Signature"
+        ],
+        "summary": "Void signature request (step-up auth)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "409": {
+            "description": "State conflict"
+          }
+        }
+      }
+    },
+    "/api/signatures/{id}/sign": {
+      "post": {
+        "tags": [
+          "E-Signature"
+        ],
+        "summary": "Sign document (internal provider)",
+        "description": "Records electronic signature with SHA-256 attestation hash.",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "signatureText": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email",
+                  "signatureText"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Document signed"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "409": {
+            "description": "State conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          }
+        }
+      }
+    },
+    "/api/signatures/{id}/signing-url": {
+      "post": {
+        "tags": [
+          "E-Signature"
+        ],
+        "summary": "Get signing URL for a recipient",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/api/signatures/webhooks/docusign": {
+      "post": {
+        "tags": [
+          "E-Signature",
+          "Webhooks"
+        ],
+        "summary": "DocuSign webhook (HMAC verified)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Received"
+          },
+          "401": {
+            "description": "Invalid signature"
+          }
+        }
+      }
+    },
+    "/api/signatures/webhooks/adobe-sign": {
+      "post": {
+        "tags": [
+          "E-Signature",
+          "Webhooks"
+        ],
+        "summary": "Adobe Sign webhook (HMAC verified)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Received"
+          },
+          "401": {
+            "description": "Invalid signature"
+          }
+        }
+      }
+    },
+    "/api/bpmn/definitions": {
+      "get": {
+        "tags": [
+          "BPMN Designer"
+        ],
+        "summary": "List BPMN definitions",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "published",
+                "deprecated",
+                "archived"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "BPMN Designer"
+        ],
+        "summary": "Save BPMN definition (new version)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveBpmnDefinitionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Definition saved"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          }
+        }
+      }
+    },
+    "/api/bpmn/definitions/{id}": {
+      "get": {
+        "tags": [
+          "BPMN Designer"
+        ],
+        "summary": "Get BPMN definition",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/api/bpmn/definitions/{id}/publish": {
+      "post": {
+        "tags": [
+          "BPMN Designer"
+        ],
+        "summary": "Publish BPMN definition (step-up auth)",
+        "description": "Maps userTask elements to WorkflowDefinition approval steps.",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/api/bpmn/definitions/{id}/instances": {
+      "get": {
+        "tags": [
+          "BPMN Designer"
+        ],
+        "summary": "List BPMN instances",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "BPMN Designer"
+        ],
+        "summary": "Start BPMN instance",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "documentId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Instance started"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/api/bpmn/definitions/template": {
+      "post": {
+        "tags": [
+          "BPMN Designer"
+        ],
+        "summary": "Get default BPMN XML template",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "processKey": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "processKey",
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      }
+    },
+    "/api/bpmn/instances/{id}/advance": {
+      "post": {
+        "tags": [
+          "BPMN Designer"
+        ],
+        "summary": "Advance BPMN instance (step-up auth)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "type": "string",
+                    "enum": [
+                      "approved",
+                      "rejected"
+                    ]
+                  },
+                  "comment": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "outcome"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/api/bpmn/instances/{id}/terminate": {
+      "post": {
+        "tags": [
+          "BPMN Designer"
+        ],
+        "summary": "Terminate BPMN instance (step-up auth)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/api/records/categories": {
+      "get": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "List record categories",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Create record category",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRecordCategoryInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          }
+        }
+      }
+    },
+    "/api/records/categories/tree": {
+      "get": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Get category tree (hierarchical)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      }
+    },
+    "/api/records/categories/{id}": {
+      "get": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Get category",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Update category",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Delete category",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/api/records/folders": {
+      "get": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "List record folders",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Create record folder",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRecordFolderInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          }
+        }
+      }
+    },
+    "/api/records/folders/{id}": {
+      "get": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Get folder",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Update folder",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/api/records/folders/{id}/cutoff": {
+      "post": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Cutoff folder (step-up auth)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "409": {
+            "description": "State conflict"
+          }
+        }
+      }
+    },
+    "/api/records/folders/{id}/dispose": {
+      "post": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Dispose folder (step-up auth)",
+        "description": "Blocked by legal hold.",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "destroyed",
+                      "transferred"
+                    ]
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "method"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "409": {
+            "description": "State conflict"
+          }
+        }
+      }
+    },
+    "/api/records/vital": {
+      "get": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "List vital records",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Designate vital record",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DesignateVitalRecordInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Designated"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          }
+        }
+      }
+    },
+    "/api/records/vital/{id}": {
+      "get": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Get vital record",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Update vital record / verify backup",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "verifyBackup": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/api/records/vital/due-review": {
+      "get": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "List vital records due for review",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      }
+    },
+    "/api/records/authorities": {
+      "get": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "List disposition authorities",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Create disposition authority",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDispositionAuthorityInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          }
+        }
+      }
+    },
+    "/api/records/authorities/{id}": {
+      "get": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Get authority",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Update authority",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Retire authority (soft delete)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/api/records/compliance-report": {
+      "get": {
+        "tags": [
+          "Records Management"
+        ],
+        "summary": "Get DoD 5015.02 compliance report",
+        "description": "All 15 requirements (C2.1-C3.6) with implementation status.",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      }
+    },
+    "/api/documents/{id}/record-category": {
+      "get": {
+        "tags": [
+          "Records Management",
+          "Documents"
+        ],
+        "summary": "Get document record category assignment",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Records Management",
+          "Documents"
+        ],
+        "summary": "Assign/remove record category",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "categoryId": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Assignment updated"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
       }
     }
   }
