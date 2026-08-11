@@ -30,6 +30,7 @@ import { formatBytes, truncateHash } from '@/lib/utils/format';
 import { VersionCompare } from '@/components/documents/version-compare';
 import { RedactionEditor } from '@/components/documents/redaction-editor';
 import { CollaborationPanel } from '@/components/documents/collaboration-panel';
+import { DocumentRecordsTab } from '@/components/documents/records-tab';
 
 interface DocDetail {
   document: {
@@ -269,7 +270,7 @@ export default function DocumentDetailPage() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-7 lg:w-fit">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-8 lg:w-fit">
           <TabsTrigger value="overview">{t('documents.tabs.overview')}</TabsTrigger>
           <TabsTrigger value="preview">{t('documents.tabs.preview')}</TabsTrigger>
           <TabsTrigger value="versions">{t('documents.tabs.versions')}</TabsTrigger>
@@ -278,6 +279,7 @@ export default function DocumentDetailPage() {
           <TabsTrigger value="share">{t('documents.tabs.share')}</TabsTrigger>
           <TabsTrigger value="collab">{t('documents.tabs.collab')}</TabsTrigger>
           <TabsTrigger value="ai">{t('documents.tabs.ai')}</TabsTrigger>
+          <TabsTrigger value="records">{t('recordsManagement.filePlan')}</TabsTrigger>
         </TabsList>
 
         {/* Overview */}
@@ -631,6 +633,11 @@ export default function DocumentDetailPage() {
               <DuplicateChecker docId={params.id} />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Records (DoD 5015.02) */}
+        <TabsContent value="records" className="space-y-4">
+          <DocumentRecordsTab documentId={params.id} />
         </TabsContent>
       </Tabs>
     </div>

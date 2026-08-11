@@ -8,10 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, PenTool, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
+import { useI18n } from '@/i18n/use-i18n';
 
 export default function InternalSigningPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const email = searchParams.get('email') || '';
+  const { t } = useI18n();
   const [signed, setSigned] = useState(false);
   const [signatureText, setSignatureText] = useState('');
 
@@ -40,7 +42,7 @@ export default function InternalSigningPage({ params }: { params: { id: string }
       <div className="flex justify-center py-12">
         <GlassCard className="p-8 max-w-md text-center" hover={false}>
           <AlertCircle className="h-10 w-10 mx-auto text-red-500 mb-2" />
-          <p>Signature request not found.</p>
+          <p>{t('signatures.notFound')}</p>
         </GlassCard>
       </div>
     );
@@ -51,8 +53,8 @@ export default function InternalSigningPage({ params }: { params: { id: string }
       <div className="flex justify-center py-12">
         <GlassCard className="p-8 max-w-md text-center" hover={false}>
           <CheckCircle className="h-12 w-12 mx-auto text-green-500 mb-3" />
-          <h2 className="text-xl font-semibold">Document Signed</h2>
-          <p className="text-sm text-muted-foreground mt-2">Your electronic signature has been recorded with a SHA-256 attestation hash.</p>
+          <h2 className="text-xl font-semibold">{t('signatures.documentSigned')}</h2>
+          <p className="text-sm text-muted-foreground mt-2">{t('signatures.signatureRecorded')}</p>
         </GlassCard>
       </div>
     );
@@ -65,7 +67,7 @@ export default function InternalSigningPage({ params }: { params: { id: string }
       <GlassCard className="p-8 max-w-lg w-full" hover={false}>
         <div className="text-center mb-6">
           <PenTool className="h-10 w-10 mx-auto text-primary mb-2" />
-          <h1 className="text-xl font-semibold">Sign Document</h1>
+          <h1 className="text-xl font-semibold">{t('signatures.signDocument')}</h1>
           <div className="flex items-center justify-center gap-2 mt-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">{request.document?.title}</p>
@@ -74,18 +76,18 @@ export default function InternalSigningPage({ params }: { params: { id: string }
 
         <div className="space-y-4">
           <div className="glass-card rounded-lg p-3">
-            <p className="text-xs text-muted-foreground mb-1">Signing as</p>
+            <p className="text-xs text-muted-foreground mb-1">{t('signatures.signingAs')}</p>
             <p className="font-medium">{email}</p>
           </div>
 
           <div className="glass-card rounded-lg p-3">
-            <p className="text-xs text-muted-foreground mb-1">Current status</p>
+            <p className="text-xs text-muted-foreground mb-1">{t('signatures.currentStatus')}</p>
             <Badge variant="secondary" className="capitalize">{request.status}</Badge>
           </div>
 
           {recipients && recipients.length > 0 && (
             <div className="glass-card rounded-lg p-3">
-              <p className="text-xs text-muted-foreground mb-2">All recipients ({recipients.length})</p>
+              <p className="text-xs text-muted-foreground mb-2">{t('signatures.allRecipients')} ({recipients.length})</p>
               <div className="space-y-1">
                 {recipients.map((r: any, i: number) => (
                   <div key={i} className="flex items-center justify-between text-sm">
@@ -100,10 +102,10 @@ export default function InternalSigningPage({ params }: { params: { id: string }
           )}
 
           <div>
-            <label className="text-sm font-medium mb-1 block">Type your full name as your electronic signature</label>
+            <label className="text-sm font-medium mb-1 block">{t('signatures.typeFullName')}</label>
             <input
               className="glass-input w-full px-3 py-2 rounded-lg"
-              placeholder="Enter your full legal name"
+              placeholder="{t('signatures.enterFullName')}"
               value={signatureText}
               onChange={e => setSignatureText(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && signatureText) signMutation.mutate(); }}
@@ -111,7 +113,7 @@ export default function InternalSigningPage({ params }: { params: { id: string }
           </div>
 
           <div className="text-xs text-muted-foreground p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
-            By typing your name and clicking "Sign Document", you acknowledge that this electronic signature
+            By typing your name and clicking "{t('signatures.signDocument')}", you acknowledge that this electronic signature
             is legally binding under the Electronic Signatures in Global and National Commerce Act (ESIGN) and
             the Uniform Electronic Transactions Act (UETA). A SHA-256 attestation hash will be recorded.
           </div>
@@ -122,7 +124,7 @@ export default function InternalSigningPage({ params }: { params: { id: string }
             disabled={!signatureText || signMutation.isPending}
           >
             {signMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenTool className="h-4 w-4" />}
-            Sign Document
+            {t('signatures.signDocument')}
           </Button>
         </div>
       </GlassCard>

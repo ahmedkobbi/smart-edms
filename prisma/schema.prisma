@@ -429,6 +429,7 @@ model Document {
   lockedUntil     DateTime?
   currentVersion  Int      @default(0)
   retentionScheduleId String?
+  recordCategoryId String?  // DoD 5015.02 record category assignment
   retentionStartDate DateTime?
   retentionDisposeAfter DateTime?
   // When the document was "closed" — used as the retention start trigger
@@ -461,6 +462,7 @@ model Document {
   classificationChanges ClassificationChange[]
   legalHoldJoins  LegalHoldDocument[] @relation("LegalHoldDocumentJoin")
   retentionSchedule RetentionSchedule? @relation(fields: [retentionScheduleId], references: [id], onDelete: SetNull)
+  recordCategory  RecordCategory? @relation("DocumentRecordCategory", fields: [recordCategoryId], references: [id], onDelete: SetNull)
   comments        DocumentComment[] @relation("DocumentComments")
   favorites       Favorite[]
   recentViews     RecentView[] @relation("DocumentRecentViews")
@@ -2024,6 +2026,7 @@ model RecordCategory {
   children RecordCategory[] @relation("RecordCategoryHierarchy")
   folders  RecordFolder[]
   vitalRecords VitalRecord[] @relation("VitalRecordCategory")
+  documents Document[] @relation("DocumentRecordCategory")
 
   @@unique([tenantId, code])
   @@index([tenantId, parentId])

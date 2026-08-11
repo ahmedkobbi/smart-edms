@@ -39,14 +39,14 @@ export default function BpmnEditorPage() {
       description: data.definition.description,
       bpmnXml: newXml,
     }),
-    onSuccess: () => { toast({ title: 'Saved' }); queryClient.invalidateQueries({ queryKey: ['bpmn-definition', defId] }); queryClient.invalidateQueries({ queryKey: ['bpmn-definitions'] }); },
-    onError: (err: any) => toast({ title: 'Save failed', description: err?.message, variant: 'destructive' }),
+    onSuccess: () => { toast({ title: t('bpmnDesigner.saved') }); queryClient.invalidateQueries({ queryKey: ['bpmn-definition', defId] }); queryClient.invalidateQueries({ queryKey: ['bpmn-definitions'] }); },
+    onError: (err: any) => toast({ title: t('bpmnDesigner.saveFailed'), description: err?.message, variant: 'destructive' }),
   });
 
   const publishMutation = useMutation({
     mutationFn: () => api.post(`/api/bpmn/definitions/${defId}/publish`),
-    onSuccess: () => { toast({ title: 'Process published' }); queryClient.invalidateQueries({ queryKey: ['bpmn-definition', defId] }); },
-    onError: (err: any) => toast({ title: 'Publish failed', description: err?.message, variant: 'destructive' }),
+    onSuccess: () => { toast({ title: t('bpmnDesigner.processPublished') }); queryClient.invalidateQueries({ queryKey: ['bpmn-definition', defId] }); },
+    onError: (err: any) => toast({ title: t('bpmnDesigner.publishFailed'), description: err?.message, variant: 'destructive' }),
   });
 
   useEffect(() => {
@@ -93,7 +93,7 @@ export default function BpmnEditorPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => router.push('/admin/bpmn-designer')}>
-            <ArrowLeft className="h-4 w-4" /> Back
+            <ArrowLeft className="h-4 w-4" /> {t('bpmnDesigner.back')}
           </Button>
           <h1 className="text-xl font-semibold flex items-center gap-2">
             <Workflow className="h-5 w-5 text-primary" />
@@ -104,11 +104,11 @@ export default function BpmnEditorPage() {
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={handleSave} disabled={saveMutation.isPending}>
-            <Save className="h-4 w-4" /> {saveMutation.isPending ? 'Saving...' : 'Save'}
+            <Save className="h-4 w-4" /> {saveMutation.isPending ? t('bpmnDesigner.saving') : t('bpmnDesigner.save')}
           </Button>
           {def.status === 'draft' && (
             <Button size="sm" onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending}>
-              <Play className="h-4 w-4" /> {publishMutation.isPending ? 'Publishing...' : 'Publish'}
+              <Play className="h-4 w-4" /> {publishMutation.isPending ? t('bpmnDesigner.publishing') : t('bpmnDesigner.publish')}
             </Button>
           )}
         </div>
@@ -120,12 +120,12 @@ export default function BpmnEditorPage() {
 
       {def.parsedElements && (
         <GlassCard className="p-4" hover={false}>
-          <h3 className="text-sm font-semibold mb-2">Parsed Elements</h3>
+          <h3 className="text-sm font-semibold mb-2">{t('bpmnDesigner.parsedElements')}</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-            <div><span className="text-muted-foreground">Start Events:</span> {def.parsedElements.startEvent ? 1 : 0}</div>
-            <div><span className="text-muted-foreground">End Events:</span> {def.parsedElements.endEvents?.length || 0}</div>
-            <div><span className="text-muted-foreground">User Tasks:</span> {def.parsedElements.userTasks?.length || 0}</div>
-            <div><span className="text-muted-foreground">Gateways:</span> {def.parsedElements.gateways?.length || 0}</div>
+            <div><span className="text-muted-foreground">{t('bpmnDesigner.startEvents')}:</span> {def.parsedElements.startEvent ? 1 : 0}</div>
+            <div><span className="text-muted-foreground">{t('bpmnDesigner.endEvents')}:</span> {def.parsedElements.endEvents?.length || 0}</div>
+            <div><span className="text-muted-foreground">{t('bpmnDesigner.userTasks')}:</span> {def.parsedElements.userTasks?.length || 0}</div>
+            <div><span className="text-muted-foreground">{t('bpmnDesigner.gateways')}:</span> {def.parsedElements.gateways?.length || 0}</div>
           </div>
         </GlassCard>
       )}

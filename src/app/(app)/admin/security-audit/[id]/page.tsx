@@ -34,8 +34,8 @@ export default function AuditDetailPage() {
   const remediateMutation = useMutation({
     mutationFn: ({ findingId, notes }: { findingId: string; notes: string }) =>
       api.patch(`/api/security-audit/${auditId}/findings/${findingId}`, { status: 'remediated', remediation: notes }),
-    onSuccess: () => { toast({ title: 'Finding remediated' }); queryClient.invalidateQueries({ queryKey: ['security-audit', auditId] }); },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onSuccess: () => { toast({ title: t('securityAudit.findingRemediated') }); queryClient.invalidateQueries({ queryKey: ['security-audit', auditId] }); },
+    onError: (err: any) => toast({ title: t('securityAudit.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   if (isLoading || !data) {
@@ -49,7 +49,7 @@ export default function AuditDetailPage() {
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" onClick={() => router.push('/admin/security-audit')}>
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t('securityAudit.back')}
         </Button>
       </div>
 
@@ -71,7 +71,7 @@ export default function AuditDetailPage() {
             <div className={`text-4xl font-bold ${audit.riskScore > 50 ? 'text-red-600' : audit.riskScore > 25 ? 'text-amber-600' : 'text-green-600'}`}>
               {audit.riskScore}
             </div>
-            <div className="text-xs text-muted-foreground">Risk Score</div>
+            <div className="text-xs text-muted-foreground">{t('securityAudit.riskScore')}</div>
           </div>
         </div>
       </GlassCard>
@@ -79,7 +79,7 @@ export default function AuditDetailPage() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <GlassCard className="p-3 text-center" hover={false}>
           <div className="text-xl font-bold text-red-600">{audit._counts.critical}</div>
-          <div className="text-xs text-muted-foreground">Critical</div>
+          <div className="text-xs text-muted-foreground">{t('securityAudit.critical')}</div>
         </GlassCard>
         <GlassCard className="p-3 text-center" hover={false}>
           <div className="text-xl font-bold text-orange-600">{audit._counts.high}</div>
@@ -87,30 +87,30 @@ export default function AuditDetailPage() {
         </GlassCard>
         <GlassCard className="p-3 text-center" hover={false}>
           <div className="text-xl font-bold text-amber-600">{audit._counts.medium}</div>
-          <div className="text-xs text-muted-foreground">Medium</div>
+          <div className="text-xs text-muted-foreground">{t('securityAudit.medium')}</div>
         </GlassCard>
         <GlassCard className="p-3 text-center" hover={false}>
           <div className="text-xl font-bold text-blue-600">{audit._counts.low}</div>
-          <div className="text-xs text-muted-foreground">Low</div>
+          <div className="text-xs text-muted-foreground">{t('securityAudit.low')}</div>
         </GlassCard>
         <GlassCard className="p-3 text-center" hover={false}>
           <div className="text-xl font-bold text-green-600">{audit._counts.remediated}</div>
-          <div className="text-xs text-muted-foreground">Remediated</div>
+          <div className="text-xs text-muted-foreground">{t('securityAudit.remediated')}</div>
         </GlassCard>
       </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold flex items-center gap-2"><Bug className="h-5 w-5" /> Findings ({findings.length})</h2>
+          <h2 className="text-lg font-semibold flex items-center gap-2"><Bug className="h-5 w-5" /> {t('securityAudit.findings')} ({findings.length})</h2>
           <Button variant="outline" size="sm" onClick={() => window.open(`/api/security-audit/${auditId}?format=report`, '_blank')}>
-            <Download className="h-4 w-4" /> Export Report
+            <Download className="h-4 w-4" /> {t('securityAudit.exportReport')}
           </Button>
         </div>
 
         {findings.length === 0 ? (
           <GlassCard className="p-8 text-center" hover={false}>
             <CheckCircle className="h-10 w-10 mx-auto text-green-500 mb-2" />
-            <p className="text-muted-foreground">No findings recorded yet. Run a scan to detect issues.</p>
+            <p className="text-muted-foreground">{t('securityAudit.noFindings')}</p>
           </GlassCard>
         ) : (
           findings.map((finding: any) => (
@@ -127,20 +127,20 @@ export default function AuditDetailPage() {
                   <h3 className="font-medium">{finding.title}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{finding.description}</p>
                   {finding.affectedComponent && (
-                    <p className="text-xs text-muted-foreground mt-2">Component: <code className="glass-input px-1.5 py-0.5 rounded">{finding.affectedComponent}</code></p>
+                    <p className="text-xs text-muted-foreground mt-2">{t('securityAudit.component')}: <code className="glass-input px-1.5 py-0.5 rounded">{finding.affectedComponent}</code></p>
                   )}
                   {finding.remediation && (
                     <div className="mt-2 p-2 rounded-lg bg-green-500/5 border border-green-500/20">
-                      <p className="text-xs text-green-700 dark:text-green-400"><strong>Remediation:</strong> {finding.remediation}</p>
+                      <p className="text-xs text-green-700 dark:text-green-400"><strong>{t('securityAudit.remediation')}:</strong> {finding.remediation}</p>
                     </div>
                   )}
                 </div>
                 {finding.status === 'open' && (
                   <Button size="sm" variant="outline" onClick={() => {
-                    const notes = prompt('Enter remediation notes:');
+                    const notes = prompt(t('securityAudit.enterRemediationNotes'));
                     if (notes) remediateMutation.mutate({ findingId: finding.id, notes });
                   }}>
-                    <CheckCircle className="h-4 w-4" /> Remediate
+                    <CheckCircle className="h-4 w-4" /> {t('securityAudit.remediate')}
                   </Button>
                 )}
               </div>

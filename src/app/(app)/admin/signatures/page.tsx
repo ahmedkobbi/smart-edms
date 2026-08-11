@@ -34,8 +34,8 @@ export default function SignaturesPage() {
 
   const voidMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => api.post(`/api/signatures/${id}/void`, { reason }),
-    onSuccess: () => { toast({ title: 'Request voided' }); queryClient.invalidateQueries({ queryKey: ['signatures'] }); },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onSuccess: () => { toast({ title: t('signatures.requestVoided') }); queryClient.invalidateQueries({ queryKey: ['signatures'] }); },
+    onError: (err: any) => toast({ title: t('signatures.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   if (isLoading) {
@@ -52,10 +52,10 @@ export default function SignaturesPage() {
             <PenTool className="h-6 w-6 text-primary" />
             E-Signatures
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">DocuSign and Adobe Sign integration for electronic signatures</p>
+          <p className="text-sm text-muted-foreground mt-1">{t('signatures.subtitle')}</p>
         </div>
         <Button size="sm" onClick={() => setShowCreate(true)}>
-          <PenTool className="h-4 w-4" /> New Signature Request
+          <PenTool className="h-4 w-4" /> {t('signatures.newRequest')}
         </Button>
       </div>
 
@@ -65,7 +65,7 @@ export default function SignaturesPage() {
         {requests.length === 0 ? (
           <GlassCard className="p-12 text-center" hover={false}>
             <PenTool className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">No signature requests yet.</p>
+            <p className="text-muted-foreground">{t('signatures.noRequests')}</p>
           </GlassCard>
         ) : (
           requests.map((req: any, i: number) => {
@@ -91,14 +91,14 @@ export default function SignaturesPage() {
                         ))}
                       </div>
                       <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
-                        <span>Sent: {req.sentAt ? new Date(req.sentAt).toLocaleDateString() : '—'}</span>
-                        <span>Expires: {req.expiresAt ? new Date(req.expiresAt).toLocaleDateString() : '—'}</span>
+                        <span>{t('signatures.sent')}: {req.sentAt ? new Date(req.sentAt).toLocaleDateString() : '—'}</span>
+                        <span>{t('signatures.expires')}: {req.expiresAt ? new Date(req.expiresAt).toLocaleDateString() : '—'}</span>
                         {req.completedAt && <span className="text-green-600">Completed: {new Date(req.completedAt).toLocaleDateString()}</span>}
                       </div>
                     </div>
                     {(req.status === 'sent' || req.status === 'delivered') && (
                       <Button size="sm" variant="outline" onClick={() => {
-                        const reason = prompt('Reason for voiding:');
+                        const reason = prompt(t('signatures.reasonForVoiding'));
                         if (reason) voidMutation.mutate({ id: req.id, reason });
                       }}>
                         <Ban className="h-4 w-4" /> Void
@@ -116,6 +116,7 @@ export default function SignaturesPage() {
 }
 
 function CreateSignatureForm({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { t } = useI18n();
   const { toast } = useToast();
   const [documentId, setDocumentId] = useState('');
   const [subject, setSubject] = useState('');
@@ -125,37 +126,37 @@ function CreateSignatureForm({ onClose, onCreated }: { onClose: () => void; onCr
 
   const createMutation = useMutation({
     mutationFn: (data: any) => api.post('/api/signatures', data),
-    onSuccess: () => { toast({ title: 'Signature request sent' }); onCreated(); },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onSuccess: () => { toast({ title: t('signatures.requestSent') }); onCreated(); },
+    onError: (err: any) => toast({ title: t('signatures.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
     <GlassCard className="p-6">
-      <h3 className="font-semibold mb-4">New Signature Request</h3>
+      <h3 className="font-semibold mb-4">{t('signatures.newRequest')}</h3>
       <div className="space-y-4">
-        <input className="glass-input w-full px-3 py-2 rounded-lg" placeholder="Document ID" value={documentId} onChange={e => setDocumentId(e.target.value)} />
-        <input className="glass-input w-full px-3 py-2 rounded-lg" placeholder="Email subject" value={subject} onChange={e => setSubject(e.target.value)} />
-        <textarea className="glass-input w-full px-3 py-2 rounded-lg" placeholder="Message to recipients (optional)" rows={2} value={message} onChange={e => setMessage(e.target.value)} />
+        <input className="glass-input w-full px-3 py-2 rounded-lg" placeholder={t('signatures.documentId')} value={documentId} onChange={e => setDocumentId(e.target.value)} />
+        <input className="glass-input w-full px-3 py-2 rounded-lg" placeholder={t('signatures.emailSubject')} value={subject} onChange={e => setSubject(e.target.value)} />
+        <textarea className="glass-input w-full px-3 py-2 rounded-lg" placeholder={t('signatures.messageToRecipients')} rows={2} value={message} onChange={e => setMessage(e.target.value)} />
         <div className="space-y-2">
           {recipients.map((r, i) => (
             <div key={i} className="flex gap-2">
-              <input className="glass-input flex-1 px-3 py-2 rounded-lg" placeholder="Name" value={r.name} onChange={e => { const v = [...recipients]; v[i].name = e.target.value; setRecipients(v); }} />
-              <input className="glass-input flex-1 px-3 py-2 rounded-lg" placeholder="Email" value={r.email} onChange={e => { const v = [...recipients]; v[i].email = e.target.value; setRecipients(v); }} />
+              <input className="glass-input flex-1 px-3 py-2 rounded-lg" placeholder={t('signatures.name')} value={r.name} onChange={e => { const v = [...recipients]; v[i].name = e.target.value; setRecipients(v); }} />
+              <input className="glass-input flex-1 px-3 py-2 rounded-lg" placeholder={t('signatures.email')} value={r.email} onChange={e => { const v = [...recipients]; v[i].email = e.target.value; setRecipients(v); }} />
               {recipients.length > 1 && (
-                <Button variant="outline" size="sm" onClick={() => setRecipients(recipients.filter((_, idx) => idx !== i))}>Remove</Button>
+                <Button variant="outline" size="sm" onClick={() => setRecipients(recipients.filter((_, idx) => idx !== i))}>{t('signatures.remove')}</Button>
               )}
             </div>
           ))}
-          <Button variant="outline" size="sm" onClick={() => setRecipients([...recipients, { email: '', name: '', role: 'signer', routingOrder: recipients.length + 1 }])}>+ Add Recipient</Button>
+          <Button variant="outline" size="sm" onClick={() => setRecipients([...recipients, { email: '', name: '', role: 'signer', routingOrder: recipients.length + 1 }])}>+ {t('signatures.addRecipient')}</Button>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-sm">Expiry (days):</label>
+          <label className="text-sm">{t('signatures.expiryDays')}:</label>
           <input type="number" className="glass-input w-24 px-3 py-2 rounded-lg" value={expiryDays} onChange={e => setExpiryDays(Number(e.target.value))} />
         </div>
         <div className="flex gap-2 justify-end">
-          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" size="sm" onClick={onClose}>{t('signatures.cancel')}</Button>
           <Button size="sm" onClick={() => createMutation.mutate({ documentId, provider: 'internal', recipients, emailConfig: { subject, message, expiryDays } })} disabled={!documentId || !subject || createMutation.isPending}>
-            {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send'}
+            {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t('signatures.send')}
           </Button>
         </div>
       </div>

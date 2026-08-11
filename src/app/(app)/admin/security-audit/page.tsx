@@ -37,10 +37,10 @@ export default function SecurityAuditPage() {
     mutationFn: (scanType: string) => api.post('/api/security-audit/scan', { scanType }),
     onSuccess: (result: any) => {
       const totalIssues = result.results?.reduce((s: number, r: any) => s + r.totalIssues, 0) || 0;
-      toast({ title: 'Scan completed', description: `${totalIssues} issues found` });
+      toast({ title: t('securityAudit.scanCompleted'), description: `${totalIssues} issues found` });
       queryClient.invalidateQueries({ queryKey: ['security-audits'] });
     },
-    onError: (err: any) => toast({ title: 'Scan failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('securityAudit.scanFailed'), description: err?.message, variant: 'destructive' }),
   });
 
   if (isLoading) {
@@ -63,16 +63,16 @@ export default function SecurityAuditPage() {
             <Shield className="h-6 w-6 text-primary" />
             Security Audit
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Third-party audit preparation, automated scanning, and compliance mapping</p>
+          <p className="text-sm text-muted-foreground mt-1">{t('securityAudit.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => scanMutation.mutate('full')} disabled={scanMutation.isPending}>
             {scanMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSearch className="h-4 w-4" />}
-            Run Full Scan
+            {t('securityAudit.runFullScan')}
           </Button>
           <Button size="sm" onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4" />
-            New Audit
+            {t('securityAudit.newAudit')}
           </Button>
         </div>
       </div>
@@ -80,19 +80,19 @@ export default function SecurityAuditPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <GlassCard className="p-4" hover={false}>
           <div className="text-2xl font-bold">{stats.total}</div>
-          <div className="text-xs text-muted-foreground">Total Audits</div>
+          <div className="text-xs text-muted-foreground">{t('securityAudit.totalAudits')}</div>
         </GlassCard>
         <GlassCard className="p-4" hover={false}>
           <div className="text-2xl font-bold text-amber-600">{stats.inProgress}</div>
-          <div className="text-xs text-muted-foreground">In Progress</div>
+          <div className="text-xs text-muted-foreground">{t('securityAudit.inProgress')}</div>
         </GlassCard>
         <GlassCard className="p-4" hover={false}>
           <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-          <div className="text-xs text-muted-foreground">Completed</div>
+          <div className="text-xs text-muted-foreground">{t('securityAudit.completedAudits')}</div>
         </GlassCard>
         <GlassCard className="p-4" hover={false}>
           <div className="text-2xl font-bold text-red-600">{stats.criticalOpen}</div>
-          <div className="text-xs text-muted-foreground">Critical Findings</div>
+          <div className="text-xs text-muted-foreground">{t('securityAudit.criticalFindings')}</div>
         </GlassCard>
       </div>
 
@@ -104,7 +104,7 @@ export default function SecurityAuditPage() {
         {audits.length === 0 ? (
           <GlassCard className="p-12 text-center" hover={false}>
             <ShieldCheck className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">No security audits yet. Create one or run a scan to get started.</p>
+            <p className="text-muted-foreground">{t('securityAudit.noAudits')}</p>
           </GlassCard>
         ) : (
           audits.map((audit: any, i: number) => (
@@ -119,17 +119,17 @@ export default function SecurityAuditPage() {
                     </div>
                     <p className="text-sm text-muted-foreground">{audit.description || 'No description'}</p>
                     <div className="flex gap-4 mt-3 text-xs">
-                      <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-red-500" /> {audit.criticalCount} critical</span>
-                      <span className="flex items-center gap-1"><Bug className="h-3 w-3 text-orange-500" /> {audit.highCount} high</span>
-                      <span className="text-muted-foreground">{audit.totalFindings} total findings</span>
-                      <span className="text-green-600">{audit.remediatedCount} remediated</span>
+                      <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-red-500" /> {audit.criticalCount} {t('securityAudit.critical')}</span>
+                      <span className="flex items-center gap-1"><Bug className="h-3 w-3 text-orange-500" /> {audit.highCount} {t('securityAudit.high')}</span>
+                      <span className="text-muted-foreground">{audit.totalFindings} {t('securityAudit.totalFindings')}</span>
+                      <span className="text-green-600">{audit.remediatedCount} {t('securityAudit.remediated')}</span>
                     </div>
                   </div>
                   <div className="text-end">
                     <div className={`text-3xl font-bold ${audit.riskScore > 50 ? 'text-red-600' : audit.riskScore > 25 ? 'text-amber-600' : 'text-green-600'}`}>
                       {audit.riskScore}
                     </div>
-                    <div className="text-xs text-muted-foreground">Risk Score</div>
+                    <div className="text-xs text-muted-foreground">{t('securityAudit.riskScore')}</div>
                   </div>
                 </div>
               </div>
@@ -142,6 +142,7 @@ export default function SecurityAuditPage() {
 }
 
 function CreateAuditForm({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { t } = useI18n();
   const { toast } = useToast();
   const [title, setTitle] = useState('');
   const [framework, setFramework] = useState('internal');
@@ -150,38 +151,38 @@ function CreateAuditForm({ onClose, onCreated }: { onClose: () => void; onCreate
 
   const createMutation = useMutation({
     mutationFn: (data: any) => api.post('/api/security-audit', data),
-    onSuccess: () => { toast({ title: 'Audit created' }); onCreated(); },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onSuccess: () => { toast({ title: t('securityAudit.auditCreated') }); onCreated(); },
+    onError: (err: any) => toast({ title: t('securityAudit.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
     <GlassCard className="p-6">
-      <h3 className="font-semibold mb-4">Create New Security Audit</h3>
+      <h3 className="font-semibold mb-4">{t('securityAudit.createTitle')}</h3>
       <div className="space-y-4">
-        <input className="glass-input w-full px-3 py-2 rounded-lg" placeholder="Audit title" value={title} onChange={e => setTitle(e.target.value)} />
-        <textarea className="glass-input w-full px-3 py-2 rounded-lg" placeholder="Description (optional)" rows={2} value={description} onChange={e => setDescription(e.target.value)} />
+        <input className="glass-input w-full px-3 py-2 rounded-lg" placeholder={t('securityAudit.auditTitle')} value={title} onChange={e => setTitle(e.target.value)} />
+        <textarea className="glass-input w-full px-3 py-2 rounded-lg" placeholder={t('securityAudit.descriptionOptional')} rows={2} value={description} onChange={e => setDescription(e.target.value)} />
         <div className="grid grid-cols-2 gap-4">
           <select className="glass-input px-3 py-2 rounded-lg" value={framework} onChange={e => setFramework(e.target.value)}>
-            <option value="internal">Internal</option>
-            <option value="iso27001">ISO 27001</option>
-            <option value="soc2">SOC 2</option>
-            <option value="gdpr">GDPR</option>
-            <option value="hipaa">HIPAA</option>
-            <option value="dod501502">DoD 5015.02</option>
+            <option value="internal">{t('securityAudit.internal')}</option>
+            <option value="iso27001">{t('securityAudit.iso27001')}</option>
+            <option value="soc2">{t('securityAudit.soc2')}</option>
+            <option value="gdpr">{t('securityAudit.gdpr')}</option>
+            <option value="hipaa">{t('securityAudit.hipaa')}</option>
+            <option value="dod501502">{t('securityAudit.dod501502')}</option>
           </select>
           <select className="glass-input px-3 py-2 rounded-lg" value={scope} onChange={e => setScope(e.target.value)}>
-            <option value="full">Full Scope</option>
-            <option value="auth">Authentication</option>
-            <option value="documents">Documents</option>
-            <option value="billing">Billing</option>
-            <option value="infrastructure">Infrastructure</option>
-            <option value="api">API</option>
+            <option value="full">{t('securityAudit.fullScope')}</option>
+            <option value="auth">{t('securityAudit.authScope')}</option>
+            <option value="documents">{t('securityAudit.documentsScope')}</option>
+            <option value="billing">{t('securityAudit.billingScope')}</option>
+            <option value="infrastructure">{t('securityAudit.infrastructureScope')}</option>
+            <option value="api">{t('securityAudit.apiScope')}</option>
           </select>
         </div>
         <div className="flex gap-2 justify-end">
-          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" size="sm" onClick={onClose}>{t('securityAudit.cancel')}</Button>
           <Button size="sm" onClick={() => createMutation.mutate({ title, description, framework, scope })} disabled={!title || createMutation.isPending}>
-            {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
+            {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t('securityAudit.create')}
           </Button>
         </div>
       </div>

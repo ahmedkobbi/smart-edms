@@ -44,17 +44,17 @@ export default function RecordsManagementPage() {
             <FolderTree className="h-6 w-6 text-primary" />
             Records Management (DoD 5015.02)
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">DoD 5015.02-compliant records management with file plans, vital records, and disposition</p>
+          <p className="text-sm text-muted-foreground mt-1">{t('recordsManagement.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => router.push('/admin/records-management/folders')}>
-            <FolderTree className="h-4 w-4" /> Folders
+            <FolderTree className="h-4 w-4" /> {t('recordsManagement.folders')}
           </Button>
           <Button variant="outline" size="sm" onClick={() => router.push('/admin/records-management/vital')}>
-            <ShieldCheck className="h-4 w-4" /> Vital Records
+            <ShieldCheck className="h-4 w-4" /> {t('recordsManagement.vitalRecords')}
           </Button>
           <Button variant="outline" size="sm" onClick={() => router.push('/admin/records-management/authorities')}>
-            <FileCheck className="h-4 w-4" /> Authorities
+            <FileCheck className="h-4 w-4" /> {t('recordsManagement.authorities')}
           </Button>
         </div>
       </div>
@@ -64,23 +64,23 @@ export default function RecordsManagementPage() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <GlassCard className="p-4 text-center" hover={false}>
               <div className="text-2xl font-bold">{report.summary.totalCategories}</div>
-              <div className="text-xs text-muted-foreground">Categories</div>
+              <div className="text-xs text-muted-foreground">{t('recordsManagement.totalCategories')}</div>
             </GlassCard>
             <GlassCard className="p-4 text-center" hover={false}>
               <div className="text-2xl font-bold">{report.summary.totalFolders}</div>
-              <div className="text-xs text-muted-foreground">Folders</div>
+              <div className="text-xs text-muted-foreground">{t('recordsManagement.folders')}</div>
             </GlassCard>
             <GlassCard className="p-4 text-center" hover={false}>
               <div className="text-2xl font-bold text-green-600">{report.summary.vitalRecordsVerified}</div>
-              <div className="text-xs text-muted-foreground">Vital Verified</div>
+              <div className="text-xs text-muted-foreground">{t('recordsManagement.vitalVerified')}</div>
             </GlassCard>
             <GlassCard className="p-4 text-center" hover={false}>
               <div className="text-2xl font-bold text-amber-600">{report.summary.vitalRecordsDueReview}</div>
-              <div className="text-xs text-muted-foreground">Due Review</div>
+              <div className="text-xs text-muted-foreground">{t('recordsManagement.dueReview')}</div>
             </GlassCard>
             <GlassCard className="p-4 text-center" hover={false}>
               <div className="text-2xl font-bold">{report.summary.dispositionAuthorities}</div>
-              <div className="text-xs text-muted-foreground">Authorities</div>
+              <div className="text-xs text-muted-foreground">{t('recordsManagement.authorities')}</div>
             </GlassCard>
           </div>
 
@@ -88,10 +88,10 @@ export default function RecordsManagementPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-green-600" />
-                DoD 5015.02 Compliance Status
+                {t('recordsManagement.dodCompliance')}
               </h2>
               <Button variant="outline" size="sm" onClick={() => window.open('/api/records/compliance-report', '_blank')}>
-                <Download className="h-4 w-4" /> Export
+                <Download className="h-4 w-4" /> {t('recordsManagement.export')}
               </Button>
             </div>
             <div className="space-y-2">
@@ -109,7 +109,7 @@ export default function RecordsManagementPage() {
                       <p className="text-xs text-muted-foreground mt-0.5">{req.evidence}</p>
                     </div>
                   </div>
-                  {req.implemented && <Badge className="bg-green-500/10 text-green-700 dark:text-green-400">Implemented</Badge>}
+                  {req.implemented && <Badge className="bg-green-500/10 text-green-700 dark:text-green-400">{t('recordsManagement.implemented')}</Badge>}
                 </div>
               ))}
             </div>
@@ -121,14 +121,14 @@ export default function RecordsManagementPage() {
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Record Categories</h2>
-          <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="h-4 w-4" /> New Category</Button>
+          <h2 className="text-lg font-semibold">{t('recordsManagement.categories')}</h2>
+          <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="h-4 w-4" /> {t('recordsManagement.newCategory')}</Button>
         </div>
         <div className="space-y-2">
           {categories.length === 0 ? (
             <GlassCard className="p-8 text-center" hover={false}>
               <FolderTree className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-              <p className="text-muted-foreground">No record categories yet.</p>
+              <p className="text-muted-foreground">{t('recordsManagement.noCategories')}</p>
             </GlassCard>
           ) : (
             categories.map((cat: any, i: number) => (
@@ -144,7 +144,7 @@ export default function RecordsManagementPage() {
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">{cat.description || 'No description'}</p>
                       {cat.retentionActiveYears != null && (
-                        <p className="text-xs text-muted-foreground mt-1">Retention: {cat.retentionActiveYears} years active + {cat.retentionSemiActiveYears || 0} semi-active → {cat.dispositionAction || 'N/A'}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{t('recordsManagement.retention')}: {cat.retentionActiveYears} {t('recordsManagement.yearsActive')} {cat.retentionSemiActiveYears || 0} {t('recordsManagement.semiActive')} → {cat.dispositionAction || 'N/A'}</p>
                       )}
                     </div>
                     <div className="text-end text-xs text-muted-foreground">
@@ -163,6 +163,7 @@ export default function RecordsManagementPage() {
 
 
 function CreateCategoryForm({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { t } = useI18n();
   const { toast } = useToast();
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
@@ -173,36 +174,36 @@ function CreateCategoryForm({ onClose, onCreated }: { onClose: () => void; onCre
 
   const createMutation = useMutation({
     mutationFn: (data: any) => api.post('/api/records/categories', data),
-    onSuccess: () => { toast({ title: 'Category created' }); onCreated(); },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onSuccess: () => { toast({ title: t('recordsManagement.categoryCreated') }); onCreated(); },
+    onError: (err: any) => toast({ title: t('recordsManagement.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
     <GlassCard className="p-6">
-      <h3 className="font-semibold mb-4">Create Record Category</h3>
+      <h3 className="font-semibold mb-4">{t('recordsManagement.createCategory')}</h3>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <input className="glass-input px-3 py-2 rounded-lg" placeholder="Code (e.g., 1000)" value={code} onChange={e => setCode(e.target.value)} />
-          <input className="glass-input px-3 py-2 rounded-lg" placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
+          <input className="glass-input px-3 py-2 rounded-lg" placeholder={t('recordsManagement.code')} value={code} onChange={e => setCode(e.target.value)} />
+          <input className="glass-input px-3 py-2 rounded-lg" placeholder={t('recordsManagement.name')} value={name} onChange={e => setName(e.target.value)} />
         </div>
-        <textarea className="glass-input w-full px-3 py-2 rounded-lg" placeholder="Description (optional)" rows={2} value={description} onChange={e => setDescription(e.target.value)} />
+        <textarea className="glass-input w-full px-3 py-2 rounded-lg" placeholder={t('recordsManagement.descriptionOptional')} rows={2} value={description} onChange={e => setDescription(e.target.value)} />
         <div className="grid grid-cols-2 gap-4">
           <select className="glass-input px-3 py-2 rounded-lg" value={disposition} onChange={e => setDisposition(e.target.value)}>
-            <option value="temporary">Temporary</option>
-            <option value="permanent">Permanent</option>
-            <option value="unscheduled">Unscheduled</option>
+            <option value="temporary">{t('recordsManagement.temporary')}</option>
+            <option value="permanent">{t('recordsManagement.permanent')}</option>
+            <option value="unscheduled">{t('recordsManagement.unscheduled')}</option>
           </select>
           <div className="flex items-center gap-2">
-            <label className="text-sm whitespace-nowrap">Active years:</label>
+            <label className="text-sm whitespace-nowrap">{t('recordsManagement.activeYears')}</label>
             <input type="number" min="0" className="glass-input w-20 px-3 py-2 rounded-lg" value={retentionActiveYears} onChange={e => setRetentionActiveYears(Number(e.target.value))} />
           </div>
         </div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={isVital} onChange={e => setIsVital(e.target.checked)} />
-          Designate as Vital Record category
+          {t('recordsManagement.vitalCategory')}
         </label>
         <div className="flex gap-2 justify-end">
-          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" size="sm" onClick={onClose}>{t('recordsManagement.cancel')}</Button>
           <Button size="sm" onClick={() => createMutation.mutate({ code, name, description, disposition, retentionActiveYears, isVital })} disabled={!code || !name || createMutation.isPending}>
             {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
           </Button>
