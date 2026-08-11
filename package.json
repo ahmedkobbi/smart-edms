@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "author": "Ahmed Kobbi <https://github.com/ahmedkobbi> (Algerian software engineer)",
-  "description": "Smart EDMS \u2014 An Algerian-built, internationally-standards-aligned SaaS Electronic Document Management System. Tamper-evident audit, classification-driven access control, AI-assisted intelligence with mandatory human oversight.",
+  "description": "Smart EDMS — An Algerian-built, internationally-standards-aligned SaaS Electronic Document Management System. Tamper-evident audit, classification-driven access control, AI-assisted intelligence with mandatory human oversight.",
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
     "worker": "bun run src/worker/index.ts",
@@ -74,6 +74,7 @@
     "@tiptap/extension-placeholder": "^3.29.2",
     "@tiptap/react": "^3.29.2",
     "@tiptap/starter-kit": "^3.29.2",
+    "@tiptap/y-tiptap": "^3.0.8",
     "@tus/file-store": "^2.1.1",
     "@tus/s3-store": "^2.0.5",
     "@tus/server": "^2.4.3",

@@ -28,8 +28,8 @@ export function DocumentRecordsTab({ documentId }: DocumentRecordsTabProps) {
   });
 
   const { data: categoriesData } = useQuery<any>({
-    queryKey: ['record-categories'],
-    queryFn: () => api.get('/api/records/categories'),
+    queryKey: ['record-categories-public'],
+    queryFn: () => api.get('/api/records/categories-public'),
   });
 
   const assignMutation = useMutation({

@@ -117,11 +117,13 @@ export function GlassCard({
   className,
   hover = true,
   delay = 0,
+  onClick,
 }: {
   children: React.ReactNode;
   className?: string;
   hover?: boolean;
   delay?: number;
+  onClick?: () => void;
 }) {
   return (
     <motion.div
@@ -129,6 +131,7 @@ export function GlassCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay, ease: [0.4, 0, 0.2, 1] }}
       className={cn('glass-card p-6', hover && 'hover-lift', className)}
+      onClick={onClick}
     >
       {children}
     </motion.div>
