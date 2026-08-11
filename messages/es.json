@@ -1494,7 +1494,9 @@
     "reasonForVoiding": "Razón para anular:",
     "notFound": "Solicitud de firma no encontrada.",
     "alreadySigned": "Este documento ya ha sido firmado",
-    "cannotSign": "No se puede firmar: la solicitud está {status}"
+    "cannotSign": "No se puede firmar: la solicitud está {status}",
+    "cancel": "Cancelar",
+    "failed": "Fallido"
   },
   "bpmnDesigner": {
     "title": "Diseñador de Flujo BPMN",
@@ -1524,7 +1526,8 @@
     "saved": "Guardado",
     "processPublished": "Proceso publicado",
     "saveFailed": "Guardado fallido",
-    "publishFailed": "Publicación fallida"
+    "publishFailed": "Publicación fallida",
+    "failed": "Fallido"
   },
   "recordsManagement": {
     "title": "Gestión de Registros (DoD 5015.02)",
@@ -1617,6 +1620,11 @@
     "vitalRecordStatus": "Estado de Registro Vital",
     "notVital": "Este documento no está designado como registro vital.",
     "designateAsVital": "Designar como Registro Vital",
-    "vitalRecordInfo": "Los registros vitales son esenciales para la continuidad del negocio y requieren copias de seguridad verificadas con ciclos de revisión periódicos."
+    "vitalRecordInfo": "Los registros vitales son esenciales para la continuidad del negocio y requieren copias de seguridad verificadas con ciclos de revisión periódicos.",
+    "back": "Volver",
+    "failed": "Fallido",
+    "cancel": "Cancelar",
+    "create": "Crear",
+    "failedShort": "Fallido"
   }
 }

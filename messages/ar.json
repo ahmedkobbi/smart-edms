@@ -1494,7 +1494,9 @@
     "reasonForVoiding": "سبب الإلغاء:",
     "notFound": "طلب التوقيع غير موجود.",
     "alreadySigned": "تم توقيع هذه الوثيقة بالفعل",
-    "cannotSign": "لا يمكن التوقيع: الطلب {status}"
+    "cannotSign": "لا يمكن التوقيع: الطلب {status}",
+    "cancel": "إلغاء",
+    "failed": "فشل"
   },
   "bpmnDesigner": {
     "title": "مصمم سير عمل BPMN",
@@ -1524,7 +1526,8 @@
     "saved": "تم الحفظ",
     "processPublished": "تم نشر العملية",
     "saveFailed": "فشل الحفظ",
-    "publishFailed": "فشل النشر"
+    "publishFailed": "فشل النشر",
+    "failed": "فشل"
   },
   "recordsManagement": {
     "title": "إدارة السجلات (DoD 5015.02)",
@@ -1617,6 +1620,11 @@
     "vitalRecordStatus": "حالة السجل الحيوي",
     "notVital": "هذه الوثيقة غير معينة كسجل حيوي.",
     "designateAsVital": "تعيين كسجل حيوي",
-    "vitalRecordInfo": "السجلات الحيوية ضرورية لاستمرارية الأعمال وتتطلب نسخاً احتياطية موثقة مع دورات مراجعة دورية."
+    "vitalRecordInfo": "السجلات الحيوية ضرورية لاستمرارية الأعمال وتتطلب نسخاً احتياطية موثقة مع دورات مراجعة دورية.",
+    "back": "رجوع",
+    "failed": "فشل",
+    "cancel": "إلغاء",
+    "create": "إنشاء",
+    "failedShort": "فشل"
   }
 }

@@ -1494,7 +1494,9 @@
     "reasonForVoiding": "Grund für Annullierung:",
     "notFound": "Signaturanfrage nicht gefunden.",
     "alreadySigned": "Dieses Dokument wurde bereits signiert",
-    "cannotSign": "Kann nicht signieren: Anfrage ist {status}"
+    "cannotSign": "Kann nicht signieren: Anfrage ist {status}",
+    "cancel": "Abbrechen",
+    "failed": "Fehlgeschlagen"
   },
   "bpmnDesigner": {
     "title": "BPMN Workflow-Designer",
@@ -1524,7 +1526,8 @@
     "saved": "Gespeichert",
     "processPublished": "Prozess veröffentlicht",
     "saveFailed": "Speichern fehlgeschlagen",
-    "publishFailed": "Veröffentlichung fehlgeschlagen"
+    "publishFailed": "Veröffentlichung fehlgeschlagen",
+    "failed": "Fehlgeschlagen"
   },
   "recordsManagement": {
     "title": "Aktenverwaltung (DoD 5015.02)",
@@ -1617,6 +1620,11 @@
     "vitalRecordStatus": "Vitale-Akte-Status",
     "notVital": "Dieses Dokument ist nicht als vitale Akte designiert.",
     "designateAsVital": "Als vitale Akte designieren",
-    "vitalRecordInfo": "Vitale Akten sind essenziell für die Geschäftskontinuität und erfordern verifizierte Backups mit regelmäßigen Überprüfungszyklen."
+    "vitalRecordInfo": "Vitale Akten sind essenziell für die Geschäftskontinuität und erfordern verifizierte Backups mit regelmäßigen Überprüfungszyklen.",
+    "back": "Zurück",
+    "failed": "Fehlgeschlagen",
+    "cancel": "Abbrechen",
+    "create": "Erstellen",
+    "failedShort": "Fehlgeschlagen"
   }
 }

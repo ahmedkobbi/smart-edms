@@ -42,7 +42,7 @@ export default function VitalRecordsPage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => router.push('/admin/records-management')}><ArrowLeft className="h-4 w-4" /> {t('securityAudit.back')}</Button>
+        <Button variant="ghost" size="sm" onClick={() => router.push('/admin/records-management')}><ArrowLeft className="h-4 w-4" /> {t('recordsManagement.back')}</Button>
         <h1 className="text-2xl font-semibold flex items-center gap-2"><ShieldCheck className="h-6 w-6 text-primary" /> {t('recordsManagement.vitalRecords')}</h1>
       </div>
 

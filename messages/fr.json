@@ -1494,7 +1494,9 @@
     "reasonForVoiding": "Raison de l'annulation:",
     "notFound": "Demande de signature introuvable.",
     "alreadySigned": "Ce document a déjà été signé",
-    "cannotSign": "Impossible de signer: la demande est {status}"
+    "cannotSign": "Impossible de signer: la demande est {status}",
+    "cancel": "Annuler",
+    "failed": "Échec"
   },
   "bpmnDesigner": {
     "title": "Concepteur de Flux BPMN",
@@ -1524,7 +1526,8 @@
     "saved": "Enregistré",
     "processPublished": "Processus publié",
     "saveFailed": "Échec de l'enregistrement",
-    "publishFailed": "Échec de la publication"
+    "publishFailed": "Échec de la publication",
+    "failed": "Échec"
   },
   "recordsManagement": {
     "title": "Gestion des Documents (DoD 5015.02)",
@@ -1617,6 +1620,11 @@
     "vitalRecordStatus": "Statut de Document Vital",
     "notVital": "Ce document n'est pas désigné comme document vital.",
     "designateAsVital": "Désigner comme Document Vital",
-    "vitalRecordInfo": "Les documents vitaux sont essentiels pour la continuité des activités et nécessitent des sauvegardes vérifiées avec des cycles de révision périodiques."
+    "vitalRecordInfo": "Les documents vitaux sont essentiels pour la continuité des activités et nécessitent des sauvegardes vérifiées avec des cycles de révision périodiques.",
+    "back": "Retour",
+    "failed": "Échec",
+    "cancel": "Annuler",
+    "create": "Créer",
+    "failedShort": "Échec"
   }
 }

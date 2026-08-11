@@ -1494,7 +1494,9 @@
     "reasonForVoiding": "Reason for voiding:",
     "notFound": "Signature request not found.",
     "alreadySigned": "This document has already been signed",
-    "cannotSign": "Cannot sign: request is {status}"
+    "cannotSign": "Cannot sign: request is {status}",
+    "cancel": "Cancel",
+    "failed": "Failed"
   },
   "bpmnDesigner": {
     "title": "BPMN Workflow Designer",
@@ -1524,7 +1526,8 @@
     "saved": "Saved",
     "processPublished": "Process published",
     "saveFailed": "Save failed",
-    "publishFailed": "Publish failed"
+    "publishFailed": "Publish failed",
+    "failed": "Failed"
   },
   "recordsManagement": {
     "title": "Records Management (DoD 5015.02)",
@@ -1617,6 +1620,11 @@
     "vitalRecordStatus": "Vital Record Status",
     "notVital": "This document is not designated as a vital record.",
     "designateAsVital": "Designate as Vital Record",
-    "vitalRecordInfo": "Vital records are essential for business continuity and require verified backups with periodic review cycles."
+    "vitalRecordInfo": "Vital records are essential for business continuity and require verified backups with periodic review cycles.",
+    "back": "Back",
+    "failed": "Failed",
+    "cancel": "Cancel",
+    "create": "Create",
+    "failedShort": "Failed"
   }
 }

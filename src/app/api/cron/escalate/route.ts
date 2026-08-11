@@ -222,6 +222,40 @@ export async function GET(req: NextRequest) {
     await auditTask('retention_processing', false, { error: err.message });
   }
 
+  // ── Feature maintenance: expire stale signatures, check vital records ──
+  try {
+    const expiredSignatures = await db.signatureRequest.updateMany({
+      where: {
+        status: { in: ['sent', 'delivered'] },
+        expiresAt: { lt: new Date() },
+      },
+      data: { status: 'expired' },
+    });
+
+    const vitalDue = await db.vitalRecord.count({
+      where: { nextReviewAt: { lte: new Date() } },
+    });
+
+    const foldersEligible = await db.recordFolder.count({
+      where: {
+        status: 'cutoff',
+        eligibleForDispositionAt: { lte: new Date() },
+      },
+    });
+
+    results.tasks.featureMaintenance = {
+      expiredSignatures: expiredSignatures.count,
+      vitalRecordsDueReview: vitalDue,
+      foldersEligibleForDisposition: foldersEligible,
+    };
+    logger.info('cron.feature_maintenance', results.tasks.featureMaintenance);
+    await auditTask('feature_maintenance', true, results.tasks.featureMaintenance);
+  } catch (err: any) {
+    results.tasks.featureMaintenance = { error: err.message };
+    logger.error('cron.feature_maintenance_failed', { error: err.message });
+    await auditTask('feature_maintenance', false, { error: err.message });
+  }
+
   // Release the lock
   cronRunning = false;
 

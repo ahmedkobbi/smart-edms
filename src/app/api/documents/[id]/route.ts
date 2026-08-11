@@ -24,6 +24,7 @@ export const GET = createApiHandler(
         owner: { select: { id: true, name: true, email: true } },
         folder: true,
         retentionSchedule: true,
+        recordCategory: { select: { id: true, code: true, name: true, disposition: true, isVital: true } },
         versions: {
           orderBy: { versionNumber: 'desc' },
           take: 20,
