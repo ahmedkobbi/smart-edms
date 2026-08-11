@@ -17,6 +17,8 @@
 [![PWA](https://img.shields.io/badge/PWA-installable-18181b?style=flat-square&labelColor=0f172a&color=7c3aed)](#progressive-web-app)
 [![i18n](https://img.shields.io/badge/i18n-5%20locales-18181b?style=flat-square&labelColor=0f172a&color=db2777)](#internationalization)
 
+**🌐 Read this README in:** [English](./README.md) · [العربية](./README.ar.md)
+
 </div>
 
 ---
@@ -736,6 +738,8 @@ Smart EDMS is a fully installable PWA:
 | [Cross-Tenant Isolation Tests](scripts/test-isolation.ts) | 5-test suite verifying tenant isolation |
 | [Performance Verification](scripts/performance-verify.ts) | Endpoint latency + throughput check |
 | [Glossary (EN/AR)](docs/GLOSSARY-EN-AR.md) | Bilingual records-management terminology |
+| [Contributing](CONTRIBUTING.md) | Guidelines, dev setup, code style, commit conventions |
+| [License](LICENSE) | Full proprietary license (Algerian governing law) |
 
 ### Architecture Decision Records
 
