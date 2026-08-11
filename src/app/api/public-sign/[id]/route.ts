@@ -13,8 +13,9 @@ const signSchema = z.object({
 // Public endpoint — no createApiHandler, no auth required.
 // External signers access this via /shared/sign/[id]?email=...
 // Security: the email must match a recipient in the signature request.
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    const params = await context.params;
     const body = signSchema.parse(await req.json());
 
     const request = await db.signatureRequest.findFirst({
@@ -112,7 +113,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 }
 
 // Public GET — returns minimal signature request info for the signing page
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   const request = await db.signatureRequest.findFirst({
     where: { id: params.id },
     select: {

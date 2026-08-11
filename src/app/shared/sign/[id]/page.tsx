@@ -19,11 +19,11 @@ export default function InternalSigningPage({ params }: { params: { id: string }
 
   const { data, isLoading } = useQuery<any>({
     queryKey: ['signature-request-public', params.id],
-    queryFn: () => api.get(`/shared/sign/${params.id}`),
+    queryFn: () => api.get(`/api/public-sign/${params.id}`),
   });
 
   const signMutation = useMutation({
-    mutationFn: () => api.post(`/shared/sign/${params.id}`, { email, signatureText }),
+    mutationFn: () => api.post(`/api/public-sign/${params.id}`, { email, signatureText }),
     onSuccess: (result: any) => {
       setSigned(true);
     },
