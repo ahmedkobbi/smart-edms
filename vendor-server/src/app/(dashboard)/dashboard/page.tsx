@@ -2,8 +2,8 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Card, Text, Group, Badge, Table, Avatar, ThemeIcon, SimpleGrid, Progress } from '@mantine/core';
-import { IconUsers, IconLicense, IconAlertTriangle, IconHeartbeat, IconShieldCheck, IconClock, IconDollar, IconTrendingUp } from '@tabler/icons-react';
-import { DashboardShell from '../dashboard-shell';
+import { IconUsers, IconLicense, IconAlertTriangle, IconHeartbeat, IconShieldCheck, IconClock, IconCurrencyDollar, IconTrendingUp } from '@tabler/icons-react';
+import { DashboardShell } from '../dashboard-shell';
 
 export default function DashboardPage() {
   const { data: dashData, isLoading: dashLoading } = useQuery<any>({
@@ -35,7 +35,7 @@ export default function DashboardPage() {
     { label: 'Active Licenses', value: stats.activeLicenses || 0, icon: IconLicense, color: 'green' as const },
     { label: 'Expiring (30d)', value: stats.expiringLicenses || 0, icon: IconClock, color: 'orange' as const },
     { label: 'Heartbeats (24h)', value: stats.heartbeats24h || 0, icon: IconHeartbeat, color: 'indigo' as const },
-    { label: 'Total Revenue', value: `$${(revenue.total || 0).toLocaleString()}`, icon: IconDollar, color: 'teal' as const },
+    { label: 'Total Revenue', value: `$${(revenue.total || 0).toLocaleString()}`, icon: IconCurrencyDollar, color: 'teal' as const },
     { label: 'Monthly Revenue', value: `$${(revenue.monthly || 0).toLocaleString()}`, icon: IconTrendingUp, color: 'grape' as const },
   ];
 

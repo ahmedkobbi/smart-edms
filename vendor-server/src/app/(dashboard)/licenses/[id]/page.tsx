@@ -7,7 +7,7 @@ import {
   ThemeIcon, Divider, Alert
 } from '@mantine/core';
 import { IconArrowLeft, IconCopy, IconCheck, IconBan, IconShieldCheck, IconAlertTriangle, IconClock, IconArrowUp } from '@tabler/icons-react';
-import { DashboardShell from '../../dashboard-shell';
+import { DashboardShell } from '../../dashboard-shell';
 import { notifications } from '@mantine/notifications';
 
 export default function LicenseDetailPage() {

@@ -3,13 +3,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Card, Text, Group, Button, Badge, Table, Modal, TextInput, Textarea,
-  Select, NumberInput, DatePickerInput, CopyButton, ActionIcon, Tooltip,
+  Select, NumberInput, CopyButton, ActionIcon, Tooltip,
   ThemeIcon, SimpleGrid, Menu, Code
 } from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
 import { IconLicense, IconPlus, IconCopy, IconCheck, IconDots, IconBan, IconEye } from '@tabler/icons-react';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { DashboardShell from '../dashboard-shell';
+import { DashboardShell } from '../dashboard-shell';
 import { useState } from 'react';
 import Link from 'next/link';
 

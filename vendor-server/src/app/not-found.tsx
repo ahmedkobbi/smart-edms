@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Text, ThemeIcon, Container } from '@mantine/core';
+import { Card, Text, ThemeIcon, Container, Group } from '@mantine/core';
 import { IconFileSearch } from '@tabler/icons-react';
 
 export default function NotFound() {

@@ -5,7 +5,7 @@ import { Card, Text, Group, Button, Badge, Table, Modal, TextInput, Select, Pass
 import { IconSettings, IconUsers, IconShieldCheck, IconPlus, IconKey, IconTrash } from '@tabler/icons-react';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { DashboardShell from '../dashboard-shell';
+import { DashboardShell } from '../dashboard-shell';
 import { useState } from 'react';
 
 export default function SettingsPage() {
@@ -110,7 +110,7 @@ function CreateAdminModal({ opened, onClose }: { opened: boolean; onClose: () =>
   const createMutation = useMutation({
     mutationFn: (values: any) => fetch('/api/admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) }).then(r => r.json()),
     onSuccess: () => {
-      notifications.show({ title: 'Admin user created', color: 'green' });
+      notifications.show({ title: 'Admin user created', message: 'The admin can now log in', color: 'green' });
       queryClient.invalidateQueries({ queryKey: ['vendor-admin-users'] });
       form.reset();
       onClose();

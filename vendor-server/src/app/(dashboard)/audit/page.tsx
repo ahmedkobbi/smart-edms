@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, Text, Group, Badge, Table, Select, TextInput, ThemeIcon, SimpleGrid } from '@mantine/core';
 import { IconHistory, IconShieldCheck, IconLicense, IconUsers, IconAlertTriangle, IconBan } from '@tabler/icons-react';
-import { DashboardShell from '../dashboard-shell';
+import { DashboardShell } from '../dashboard-shell';
 import { useState } from 'react';
 
 export default function AuditPage() {

@@ -7,7 +7,7 @@ import {
   TextInput, Textarea, Select, Divider, CopyButton, ActionIcon, Code
 } from '@mantine/core';
 import { IconArrowLeft, IconMail, IconPhone, IconMapPin, IconLicense, IconHeartbeat, IconCopy, IconCheck, IconEdit } from '@tabler/icons-react';
-import { DashboardShell from '../../dashboard-shell';
+import { DashboardShell } from '../../dashboard-shell';
 import { useState } from 'react';
 
 export default function CustomerDetailPage() {
