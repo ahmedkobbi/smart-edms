@@ -10,6 +10,7 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { DashboardShell } from '../dashboard-shell';
 import { useState } from 'react';
+import { api } from '@/lib/api';
 
 export default function CustomersPage() {
   const queryClient = useQueryClient();

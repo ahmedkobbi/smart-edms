@@ -7,6 +7,7 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { DashboardShell } from '../dashboard-shell';
 import { useState } from 'react';
+import { api } from '@/lib/api';
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
@@ -108,7 +109,7 @@ function CreateAdminModal({ opened, onClose }: { opened: boolean; onClose: () =>
   });
 
   const createMutation = useMutation({
-    mutationFn: (values: any) => fetch('/api/admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) }).then(r => r.json()),
+    mutationFn: (values: any) => api('/api/admin/users', { method: 'POST', body: JSON.stringify(values) }),
     onSuccess: () => {
       notifications.show({ title: 'Admin user created', message: 'The admin can now log in', color: 'green' });
       queryClient.invalidateQueries({ queryKey: ['vendor-admin-users'] });

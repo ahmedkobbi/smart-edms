@@ -13,6 +13,7 @@ import { notifications } from '@mantine/notifications';
 import { DashboardShell } from '../dashboard-shell';
 import { useState } from 'react';
 import Link from 'next/link';
+import { api } from '@/lib/api';
 
 export default function LicensesPage() {
   const queryClient = useQueryClient();
@@ -26,7 +27,7 @@ export default function LicensesPage() {
 
   const revokeMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
-      fetch(`/api/licenses/${id}/revoke`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }) }).then(r => r.json()),
+      api(`/api/licenses/${id}/revoke`, { method: 'POST', body: JSON.stringify({ reason }) }),
     onSuccess: () => {
       notifications.show({ title: 'License revoked', message: 'The deployment will lock on next heartbeat', color: 'red' });
       queryClient.invalidateQueries({ queryKey: ['vendor-licenses'] });

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, Text, Group, Badge, Table, Avatar, ThemeIcon, SimpleGrid, Progress } from '@mantine/core';
 import { IconUsers, IconLicense, IconAlertTriangle, IconHeartbeat, IconShieldCheck, IconClock, IconCurrencyDollar, IconTrendingUp } from '@tabler/icons-react';
 import { DashboardShell } from '../dashboard-shell';
+import { api } from '@/lib/api';
 
 export default function DashboardPage() {
   const { data: dashData, isLoading: dashLoading } = useQuery<any>({

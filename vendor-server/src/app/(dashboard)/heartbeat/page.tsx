@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, Text, Group, Badge, Table, SimpleGrid, ThemeIcon } from '@mantine/core';
 import { IconHeartbeat, IconClock, IconAlertTriangle } from '@tabler/icons-react';
 import { DashboardShell } from '../dashboard-shell';
+import { api } from '@/lib/api';
 
 export default function HeartbeatsPage() {
   const { data, isLoading } = useQuery<any>({

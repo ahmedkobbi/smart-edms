@@ -5,6 +5,7 @@ import { Card, Text, Group, Badge, Table, Select, TextInput, ThemeIcon, SimpleGr
 import { IconHistory, IconShieldCheck, IconLicense, IconUsers, IconAlertTriangle, IconBan } from '@tabler/icons-react';
 import { DashboardShell } from '../dashboard-shell';
 import { useState } from 'react';
+import { api } from '@/lib/api';
 
 export default function AuditPage() {
   const [actionFilter, setActionFilter] = useState<string | null>(null);

@@ -9,6 +9,7 @@ import {
 import { IconArrowLeft, IconMail, IconPhone, IconMapPin, IconLicense, IconHeartbeat, IconCopy, IconCheck, IconEdit } from '@tabler/icons-react';
 import { DashboardShell } from '../../dashboard-shell';
 import { useState } from 'react';
+import { api } from '@/lib/api';
 
 export default function CustomerDetailPage() {
   const params = useParams();
@@ -18,14 +19,14 @@ export default function CustomerDetailPage() {
 
   const { data, isLoading } = useQuery<any>({
     queryKey: ['vendor-customer', params.id],
-    queryFn: () => fetch(`/api/customers/${params.id}`).then(r => r.json()),
+    queryFn: () => api(`/api/customers/${params.id}`),
   });
 
   const customer = data?.customer;
 
   const updateMutation = useMutation({
     mutationFn: (values: any) =>
-      fetch(`/api/customers/${params.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) }).then(r => r.json()),
+      api(`/api/customers/${params.id}`, { method: 'PATCH', body: JSON.stringify(values) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendor-customer', params.id] });
       setEditing(false);

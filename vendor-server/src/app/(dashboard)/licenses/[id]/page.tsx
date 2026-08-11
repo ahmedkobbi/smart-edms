@@ -9,6 +9,7 @@ import {
 import { IconArrowLeft, IconCopy, IconCheck, IconBan, IconShieldCheck, IconAlertTriangle, IconClock, IconArrowUp } from '@tabler/icons-react';
 import { DashboardShell } from '../../dashboard-shell';
 import { notifications } from '@mantine/notifications';
+import { api } from '@/lib/api';
 
 export default function LicenseDetailPage() {
   const params = useParams();
@@ -17,12 +18,12 @@ export default function LicenseDetailPage() {
 
   const { data, isLoading } = useQuery<any>({
     queryKey: ['vendor-license', params.id],
-    queryFn: () => fetch(`/api/licenses/${params.id}`).then(r => r.json()),
+    queryFn: () => api(`/api/licenses/${params.id}`),
   });
 
   const revokeMutation = useMutation({
     mutationFn: (reason: string) =>
-      fetch(`/api/licenses/${params.id}/revoke`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }) }).then(r => r.json()),
+      api(`/api/licenses/${params.id}/revoke`, { method: 'POST', body: JSON.stringify({ reason }) }),
     onSuccess: () => {
       notifications.show({ title: 'License revoked', message: 'Deployment will lock on next heartbeat', color: 'red' });
       queryClient.invalidateQueries({ queryKey: ['vendor-license', params.id] });
@@ -31,7 +32,7 @@ export default function LicenseDetailPage() {
 
   const renewMutation = useMutation({
     mutationFn: (values: any) =>
-      fetch(`/api/licenses/${params.id}/renew`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) }).then(r => r.json()),
+      api(`/api/licenses/${params.id}/renew`, { method: 'POST', body: JSON.stringify(values) }),
     onSuccess: (data) => {
       notifications.show({ title: 'License renewed', message: 'New license key generated', color: 'green' });
       queryClient.invalidateQueries({ queryKey: ['vendor-license', params.id] });
