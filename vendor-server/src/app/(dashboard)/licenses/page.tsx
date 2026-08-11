@@ -83,7 +83,7 @@ export default function LicensesPage() {
                 <Table.Tr><Table.Td colSpan={7}><Text c="dimmed" ta="center">No licenses issued yet. Click "Issue License" to create one.</Text></Table.Td></Table.Tr>
               ) : (
                 licenses.map((lic: any) => (
-                  <Table.Tr key={lic.id}>
+                  <Table.Tr key={lic.id} onClick={() => window.location.href = '/licenses/' + lic.id} style={{ cursor: 'pointer' }}>
                     <Table.Td><Text size="sm" c="white">{lic.customer?.name}</Text></Table.Td>
                     <Table.Td><Text size="sm" c="dimmed">{lic.tenantName}</Text></Table.Td>
                     <Table.Td><Badge size="xs" variant="light" color="indigo">{lic.plan}</Badge></Table.Td>

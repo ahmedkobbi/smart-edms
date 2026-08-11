@@ -67,7 +67,7 @@ export default function CustomersPage() {
                 <Table.Tr><Table.Td colSpan={5}><Text c="dimmed" ta="center">No customers yet. Click "Add Customer" to create one.</Text></Table.Td></Table.Tr>
               ) : (
                 customers.map((c: any) => (
-                  <Table.Tr key={c.id}>
+                  <Table.Tr key={c.id} onClick={() => window.location.href = '/customers/' + c.id} style={{ cursor: 'pointer' }}>
                     <Table.Td>
                       <Group gap="sm">
                         <Avatar size={32} color="indigo" variant="light">{c.name[0]}</Avatar>

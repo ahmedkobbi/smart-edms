@@ -1,12 +1,20 @@
 'use client';
 
-import { AppShell, NavLink, Text, Badge, Group, Avatar } from '@mantine/core';
-import { IconDashboard, IconLicense, IconUsers, IconHeartbeat, IconShieldCheck, IconKey } from '@tabler/icons-react';
+import { AppShell, NavLink, Text, Badge, Group, Avatar, Button } from '@mantine/core';
+import { IconDashboard, IconLicense, IconUsers, IconHeartbeat, IconShieldCheck, IconKey, IconLogout } from '@tabler/icons-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/login');
+    router.refresh();
+  };
 
   return (
     <AppShell
@@ -79,7 +87,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         />
 
         <div style={{ marginTop: 'auto', paddingTop: 'xl' }}>
-          <Group gap="xs" p="sm" style={{ borderRadius: 'md', background: 'var(--mantine-color-dark-7)' }}>
+          <Group gap="xs" p="sm" style={{ borderRadius: 'md', background: 'var(--mantine-color-dark-7)' }} mb="sm">
             <Avatar size={28} color="indigo" variant="light">
               <IconKey size={16} />
             </Avatar>
@@ -88,6 +96,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <Badge size="xs" color="green" variant="light">Secure</Badge>
             </div>
           </Group>
+          <Button variant="subtle" color="red" fullWidth leftSection={<IconLogout size={16} />} onClick={handleLogout}>
+            Sign Out
+          </Button>
         </div>
       </AppShell.Navbar>
 

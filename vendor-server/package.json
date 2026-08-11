@@ -25,12 +25,18 @@
     "next": "^16.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "bcryptjs": "^2.4.3",
+    "jose": "^5.9.0",
     "zod": "^4.0.2"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/bcryptjs": "^2.4.6",
+    "postcss": "^8.4.47",
+    "postcss-preset-mantine": "^1.17.0",
+    "postcss-simple-vars": "^7.0.1",
     "prisma": "^6.11.1",
     "typescript": "^5"
   }
