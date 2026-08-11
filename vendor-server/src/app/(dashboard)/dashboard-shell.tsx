@@ -1,7 +1,7 @@
 'use client';
 
 import { AppShell, NavLink, Text, Badge, Group, Avatar, Button } from '@mantine/core';
-import { IconDashboard, IconLicense, IconUsers, IconHeartbeat, IconShieldCheck, IconKey, IconLogout } from '@tabler/icons-react';
+import { IconDashboard, IconLicense, IconUsers, IconHeartbeat, IconShieldCheck, IconKey, IconLogout, IconHistory, IconSettings } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -83,6 +83,27 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           label="Heartbeats"
           leftSection={<IconHeartbeat size={18} />}
           active={pathname === '/heartbeat'}
+          variant="light"
+        />
+        <NavLink
+          component={Link}
+          href="/audit"
+          label="Audit Log"
+          leftSection={<IconHistory size={18} />}
+          active={pathname === '/audit'}
+          variant="light"
+        />
+
+        <Text size="xs" c="dimmed" mb="xs" mt="xl" px="sm" style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          Configuration
+        </Text>
+
+        <NavLink
+          component={Link}
+          href="/settings"
+          label="Settings"
+          leftSection={<IconSettings size={18} />}
+          active={pathname === '/settings'}
           variant="light"
         />
 

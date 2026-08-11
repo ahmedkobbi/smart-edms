@@ -6,7 +6,7 @@ import {
   Card, Text, Group, Badge, Button, SimpleGrid, Table, Code, CopyButton, ActionIcon,
   ThemeIcon, Divider, Alert
 } from '@mantine/core';
-import { IconArrowLeft, IconCopy, IconCheck, IconBan, IconShieldCheck, IconAlertTriangle, IconClock } from '@tabler/icons-react';
+import { IconArrowLeft, IconCopy, IconCheck, IconBan, IconShieldCheck, IconAlertTriangle, IconClock, IconArrowUp } from '@tabler/icons-react';
 import { DashboardShell from '../../dashboard-shell';
 import { notifications } from '@mantine/notifications';
 
@@ -26,6 +26,20 @@ export default function LicenseDetailPage() {
     onSuccess: () => {
       notifications.show({ title: 'License revoked', message: 'Deployment will lock on next heartbeat', color: 'red' });
       queryClient.invalidateQueries({ queryKey: ['vendor-license', params.id] });
+    },
+  });
+
+  const renewMutation = useMutation({
+    mutationFn: (values: any) =>
+      fetch(`/api/licenses/${params.id}/renew`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) }).then(r => r.json()),
+    onSuccess: (data) => {
+      notifications.show({ title: 'License renewed', message: 'New license key generated', color: 'green' });
+      queryClient.invalidateQueries({ queryKey: ['vendor-license', params.id] });
+      queryClient.invalidateQueries({ queryKey: ['vendor-licenses'] });
+      if (data.licenseKey) {
+        navigator.clipboard.writeText(data.licenseKey);
+        notifications.show({ title: 'License key copied', message: 'New key copied to clipboard — send to customer', color: 'blue' });
+      }
     },
   });
 
@@ -60,10 +74,16 @@ export default function LicenseDetailPage() {
             </div>
           </Group>
           {!isRevoked && (
-            <Button color="red" variant="light" leftSection={<IconBan size={16} />} onClick={() => {
-              const reason = prompt('Reason for revocation?');
-              if (reason) revokeMutation.mutate(reason);
-            }}>Revoke</Button>
+            <Group>
+              <Button color="green" variant="light" leftSection={<IconArrowUp size={16} />} onClick={() => {
+                const expiry = prompt('New expiry date (YYYY-MM-DD):', new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+                if (expiry) renewMutation.mutate({ expiresAt: new Date(expiry).toISOString() });
+              }}>Renew</Button>
+              <Button color="red" variant="light" leftSection={<IconBan size={16} />} onClick={() => {
+                const reason = prompt('Reason for revocation?');
+                if (reason) revokeMutation.mutate(reason);
+              }}>Revoke</Button>
+            </Group>
           )}
         </Group>
 
