@@ -2,6 +2,8 @@
   "name": "smart-edms",
   "version": "1.0.0",
   "private": true,
+  "author": "Ahmed Kobbi <https://github.com/ahmedkobbi> (Algerian software engineer)",
+  "description": "Smart EDMS — An Algerian-built, internationally-standards-aligned SaaS Electronic Document Management System. Tamper-evident audit, classification-driven access control, AI-assisted intelligence with mandatory human oversight.",
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
     "worker": "bun run src/worker/index.ts",

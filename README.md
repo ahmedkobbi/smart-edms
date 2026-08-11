@@ -4,8 +4,9 @@
 
 ### Enterprise-Grade SaaS Document Governance Platform
 
-*A production-ready, multi-tenant Electronic Document Management System engineered for security teams, compliance officers, and records managers who need tamper-evident auditability, classification-driven access control, and AI-assisted intelligence — with mandatory human oversight.*
+*An Algerian-built, internationally-standards-aligned SaaS Electronic Document Management System — engineered for security teams, compliance officers, and records managers who need tamper-evident auditability, classification-driven access control, and AI-assisted intelligence with mandatory human oversight.*
 
+[![Made in Algeria](https://img.shields.io/badge/Made%20in-Algeria-006233?style=flat-square&labelColor=006233&color=d21034)](#roots--standards)
 [![Version](https://img.shields.io/badge/version-1.0.0-18181b?style=flat-square&labelColor=0f172a&color=6366f1)](.)
 [![Next.js](https://img.shields.io/badge/Next.js-16-18181b?style=flat-square&logo=next.js&logoColor=white&labelColor=000000&color=111827)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?style=flat-square&logo=typescript&logoColor=white&labelColor=3178c6)](https://www.typescriptlang.org)
@@ -24,7 +25,7 @@
 
 Smart EDMS is a full-stack SaaS platform for governing the complete lifecycle of business documents across multiple tenants. It combines a hardened security architecture (zero-trust, defense-in-depth, hash-chained audit trails) with a modern, glassmorphic, mobile-first user experience. The system is designed to support controls aligned with **ISO 27001**, **SOC 2**, **GDPR**, and **HIPAA** — and ships with a SaaS operations tier (tenant lifecycle, self-service signup, dual payment providers, platform admin console).
 
-> **Compliance posture statement.** Smart EDMS is *designed to support* controls aligned with ISO 27001, SOC 2, GDPR, and HIPAA. It does **not** claim any certification or accreditation. Achieving formal compliance requires deployment-specific configuration, infrastructure hardening, and external audit.
+> **Compliance posture statement.** Smart EDMS is *designed to support* controls aligned with **ISO 27001**, **SOC 2**, **GDPR**, **HIPAA**, and Algeria's **Law No. 18-07** of 10 June 2018 on the protection of natural persons in the processing of personal data (under the oversight of the ARPDD — *Autorité de Régulation de la Protection des Données à caractère Personnel*). It does **not** claim any certification or accreditation. Achieving formal compliance requires deployment-specific configuration, infrastructure hardening, and external audit.
 
 ### Why Smart EDMS
 
@@ -36,6 +37,37 @@ Smart EDMS is a full-stack SaaS platform for governing the complete lifecycle of
 | **Multi-tenant from day one** | Tenant scoping is enforced at the query layer, the API layer, and the audit layer — not bolted on. Production deployments can layer PostgreSQL Row-Level Security on top. |
 | **Real SaaS economics** | Customer self-registration, dual payment providers (Stripe + NowPayments crypto), invoicing, subscriptions, and a platform-admin console with cross-tenant visibility. |
 | **Premium developer experience** | Strict TypeScript, 400+ unit tests, 14 e2e tests, OpenAPI 3.1 spec, 16 ADRs, operations runbook, hardened CI, and one-command local bootstrap. |
+
+---
+
+## Roots & Standards
+
+<div align="center">
+
+**صُنع في الجزائر — يخدم العالم**
+
+*Made in Algeria — built for the world.*
+
+</div>
+
+Smart EDMS is an **Algerian project**, conceived and engineered to meet international standards. It carries forward a tradition of meticulous craftsmanship — the same attention to detail that for centuries has shaped the medinas of Algiers, Constantine, and Tlemcen — and applies it to modern software engineering. The result is a platform that does not choose between local identity and global ambition: it pursues both, deliberately.
+
+The architecture, threat model, and control set were designed in Algeria and benchmarked against the world's most demanding compliance frameworks. Every cryptographic primitive (Argon2id, AES-256-GCM, HMAC-SHA256, TOTP per RFC 6238), every audit-log entry (SHA-256 hash-chained, append-only), and every payment-security rule (the 12-rule model under ADR-016) reflects an engineering culture that treats rigor as a craft, not a checklist.
+
+### Standards alignment
+
+The platform is *designed to support* controls aligned with:
+
+| Framework | Scope | Origin |
+|-----------|-------|--------|
+| **ISO/IEC 27001** | Information security management systems (ISMS) | International (ISO/IEC) |
+| **SOC 2** | Trust Services Criteria — Security, Availability, Confidentiality | International (AICPA) |
+| **GDPR** | Protection of natural persons regarding processing of personal data | European Union |
+| **HIPAA** | Protected health information in healthcare contexts | United States |
+| **Law No. 18-07** | Protection of natural persons in the processing of personal data | Algeria (10 June 2018) |
+| **ARPDD oversight** | National data-protection authority compliance | Algeria (ARPDD) |
+
+> *Algerian by origin. International by standard. Universal by design.*
 
 ---
 
@@ -57,6 +89,7 @@ Smart EDMS is a full-stack SaaS platform for governing the complete lifecycle of
 ## Table of Contents
 
 - [Overview](#overview)
+- [Roots & Standards](#roots--standards)
 - [Architecture](#architecture)
 - [Key Features](#key-features)
 - [Tech Stack](#tech-stack)
@@ -751,5 +784,16 @@ This source is provided for evaluation and authorized deployment only. See the `
 **Smart EDMS** — *Tamper-evident by design. Private by default. Governed by humans.*
 
 Built with Next.js 16 · TypeScript 5 · Prisma 6 · Tailwind CSS 4
+
+---
+
+**صُنع في الجزائر — يخدم العالم**
+*Made in Algeria — built for the world.*
+
+Crafted by [Ahmed Kobbi](https://github.com/ahmedkobbi) — Algerian software engineer.
+
+An Algerian project, engineered to international standards.
+
+🇩🇿
 
 </div>
