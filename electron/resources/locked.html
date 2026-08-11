@@ -21,67 +21,95 @@
       padding: 2rem;
     }
     .icon {
-      width: 80px;
-      height: 80px;
-      margin: 0 auto 1.5rem;
+      width: 80px; height: 80px; margin: 0 auto 1.5rem;
       background: rgba(239, 68, 68, 0.1);
       border: 2px solid rgba(239, 68, 68, 0.3);
       border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: flex; align-items: center; justify-content: center;
     }
     .icon svg { width: 40px; height: 40px; color: #ef4444; }
+    .icon.success { background: rgba(34, 197, 94, 0.1); border-color: rgba(34, 197, 94, 0.3); }
+    .icon.success svg { color: #22c55e; }
+    .icon.loading { background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.3); }
+    .icon.loading svg { color: #6366f1; animation: spin 1s linear infinite; }
     h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
     p { color: #94a3b8; line-height: 1.6; margin-bottom: 2rem; }
     .actions { display: flex; gap: 1rem; justify-content: center; }
     button {
-      padding: 0.75rem 1.5rem;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 600;
-      transition: all 0.2s;
+      padding: 0.75rem 1.5rem; border-radius: 8px; border: none;
+      cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.2s;
     }
-    .btn-primary {
-      background: #6366f1;
-      color: #fff;
-    }
+    .btn-primary { background: #6366f1; color: #fff; }
     .btn-primary:hover { background: #5558e3; }
-    .btn-secondary {
-      background: transparent;
-      color: #94a3b8;
-      border: 1px solid #2a2a3a;
-    }
+    .btn-secondary { background: transparent; color: #94a3b8; border: 1px solid #2a2a3a; }
     .btn-secondary:hover { border-color: #4a4a5a; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    #error-msg { color: #ef4444; font-size: 0.85rem; margin-top: 1rem; display: none; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="icon">
+    <div class="icon" id="icon">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
       </svg>
     </div>
-    <h1>License Locked</h1>
-    <p id="message">Your Smart EDMS license has been locked. This may be because the license has expired, been revoked, or the system detected tampering.</p>
+    <h1 id="title">License Locked</h1>
+    <p id="message">Your Smart EDMS license has been locked. Upload a new license file to restore access.</p>
     <p style="font-size: 0.85rem; color: #64748b;">Your data is preserved. Upload a new license file to restore access.</p>
+    <div id="error-msg"></div>
     <div class="actions">
-      <button class="btn-primary" onclick="handleUpload()">Upload License</button>
+      <button class="btn-primary" id="upload-btn" onclick="handleUpload()">Upload License</button>
       <button class="btn-secondary" onclick="handleQuit()">Quit</button>
     </div>
   </div>
   <script>
     const { ipcRenderer } = require('electron');
+
     // Read the lock message from the query params
     const params = new URLSearchParams(window.location.search);
     const msg = params.get('message');
     if (msg) document.getElementById('message').textContent = msg;
 
+    // Listen for install results
+    ipcRenderer.on('license:install-result', (event, result) => {
+      const btn = document.getElementById('upload-btn');
+      const icon = document.getElementById('icon');
+      const title = document.getElementById('title');
+      const message = document.getElementById('message');
+      const errorDiv = document.getElementById('error-msg');
+
+      if (result.valid) {
+        icon.className = 'icon success';
+        icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+        title.textContent = 'License Activated';
+        message.textContent = 'License installed successfully. The application will restart...';
+        btn.disabled = true;
+        btn.textContent = 'Restarting...';
+        errorDiv.style.display = 'none';
+      } else {
+        icon.className = 'icon';
+        errorDiv.textContent = result.message || 'License installation failed';
+        errorDiv.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Upload License';
+      }
+    });
+
     function handleUpload() {
+      const btn = document.getElementById('upload-btn');
+      const icon = document.getElementById('icon');
+      const errorDiv = document.getElementById('error-msg');
+
+      btn.disabled = true;
+      btn.textContent = 'Selecting...';
+      errorDiv.style.display = 'none';
+
+      // Send the upload request to the main process
       ipcRenderer.send('license:upload-request');
     }
+
     function handleQuit() {
       window.close();
     }

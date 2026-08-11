@@ -13,11 +13,11 @@
  * It can ONLY call the methods registered here.
  */
 
-import { ipcMain, app } from 'electron';
+import { ipcMain, app, dialog, BrowserWindow } from 'electron';
 import log from 'electron-log';
 import { query, transaction } from '../db/database';
 import { verifyLicenseOnStartup, installLicense, computeHardwareFingerprint } from '../license/verify';
-import { getLicenseKey, getKek, getJwtSecret } from '../crypto/keychain';
+import { getLicenseKey, getKek, getJwtSecret, setLicenseKey } from '../crypto/keychain';
 import * as path from 'path';
 import * as fs from 'fs';
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
@@ -48,13 +48,22 @@ export function registerIpcHandlers() {
   });
 
   ipcMain.handle('license:install', async (event, licenseKey: string) => {
-    return installLicense(licenseKey);
+    log.info('Installing license via IPC...');
+    const result = await installLicense(licenseKey);
+    if (result.valid) {
+      log.info('License installed successfully:', result.tenantName);
+      // Reload the main window to apply the new license
+      const win = BrowserWindow.getFocusedWindow();
+      if (win) {
+        win.reload();
+      }
+    }
+    return result;
   });
 
   ipcMain.handle('license:info', async () => {
     const key = await getLicenseKey();
     if (!key) return null;
-    // Return parsed license info (without the signature)
     try {
       const decoded = Buffer.from(key, 'base64').toString('utf-8');
       const parsed = JSON.parse(decoded);
@@ -62,6 +71,98 @@ export function registerIpcHandlers() {
       return info;
     } catch {
       return null;
+    }
+  });
+
+  // === LICENSE UPLOAD (file dialog) ===
+  // Called from locked.html or the settings page
+  ipcMain.handle('license:upload-file', async () => {
+    log.info('Opening file dialog for license upload...');
+    const win = BrowserWindow.getFocusedWindow();
+    const result = await dialog.showOpenDialog(win!, {
+      title: 'Select Smart EDMS License File',
+      defaultPath: path.join(app.getPath('home')),
+      filters: [
+        { name: 'License Files', extensions: ['license', 'key', 'txt'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+      properties: ['openFile'],
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { valid: false, status: 'cancelled', message: 'No file selected' };
+    }
+
+    const filePath = result.filePaths[0];
+    log.info('License file selected:', filePath);
+
+    try {
+      const fileContent = await fs.promises.readFile(filePath, 'utf-8');
+      const licenseKey = fileContent.trim();
+
+      // Install the license
+      const installResult = await installLicense(licenseKey);
+      log.info('License install result:', installResult.status);
+
+      if (installResult.valid) {
+        // Reload the window to apply the new license
+        if (win) {
+          win.reload();
+        }
+      }
+
+      return installResult;
+    } catch (err: any) {
+      log.error('License file read error:', err.message);
+      return { valid: false, status: 'error', message: `Failed to read license file: ${err.message}` };
+    }
+  });
+
+  // === LICENSE UPLOAD REQUEST (from locked.html) ===
+  // The locked screen sends this via ipcRenderer.send (not invoke)
+  ipcMain.on('license:upload-request', async () => {
+    log.info('License upload requested from locked screen');
+    const win = BrowserWindow.getFocusedWindow();
+    if (!win) return;
+
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Select Smart EDMS License File',
+      defaultPath: path.join(app.getPath('home')),
+      filters: [
+        { name: 'License Files', extensions: ['license', 'key', 'txt'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+      properties: ['openFile'],
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return;
+    }
+
+    try {
+      const fileContent = await fs.promises.readFile(result.filePaths[0], 'utf-8');
+      const licenseKey = fileContent.trim();
+      const installResult = await installLicense(licenseKey);
+
+      if (installResult.valid) {
+        log.info('License installed from locked screen, reloading...');
+        // Send the result to the renderer
+        win.webContents.send('license:install-result', installResult);
+        // Reload to show the main app
+        setTimeout(() => {
+          const rendererPath = path.join(__dirname, '..', 'renderer', 'index.html');
+          win.loadFile(rendererPath);
+        }, 1000);
+      } else {
+        win.webContents.send('license:install-result', installResult);
+      }
+    } catch (err: any) {
+      log.error('License upload failed:', err.message);
+      win.webContents.send('license:install-result', {
+        valid: false,
+        status: 'error',
+        message: err.message,
+      });
     }
   });
 
@@ -155,5 +256,5 @@ export function registerIpcHandlers() {
     return sendHeartbeat(licenseKey);
   });
 
-  log.info('✅ IPC handlers registered');
+  log.info('✅ IPC handlers registered (including license upload)');
 }

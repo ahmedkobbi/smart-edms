@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('edms', {
   getLicenseStatus: () => ipcRenderer.invoke('license:status'),
   installLicense: (licenseKey: string) => ipcRenderer.invoke('license:install', licenseKey),
   getLicenseInfo: () => ipcRenderer.invoke('license:info'),
+  uploadLicenseFile: () => ipcRenderer.invoke('license:upload-file'),
 
   // === File operations (document upload/download) ===
   saveFile: (path: string, data: ArrayBuffer) => ipcRenderer.invoke('file:save', path, data),

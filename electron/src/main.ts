@@ -82,22 +82,59 @@ app.whenReady().then(async () => {
   }
 
   // --- 3. Verify license (Ed25519 public key verification) ---
+  let isLocked = false;
   try {
     const licenseStatus = await verifyLicenseOnStartup();
     log.info('✅ License verified:', licenseStatus);
 
     if (licenseStatus.status === 'locked') {
-      // License is locked — show the locked screen only
-      createWindow(true);
-      return;
+      isLocked = true;
+    } else if (licenseStatus.status === 'no_license') {
+      // First run — prompt user to upload a license
+      const { dialog } = require('electron');
+      const choice = await dialog.showMessageBox({
+        type: 'question',
+        title: 'Smart EDMS — License Required',
+        message: 'No license installed',
+        detail: 'Smart EDMS requires a license file to activate. Would you like to upload one now?',
+        buttons: ['Upload License', 'Quit'],
+        defaultId: 0,
+        cancelId: 1,
+      });
+
+      if (choice.response === 0) {
+        const fileResult = await dialog.showOpenDialog({
+          title: 'Select Smart EDMS License File',
+          filters: [{ name: 'License Files', extensions: ['license', 'key', 'txt'] }, { name: 'All Files', extensions: ['*'] }],
+          properties: ['openFile'],
+        });
+
+        if (!fileResult.canceled && fileResult.filePaths.length > 0) {
+          const fs = require('fs');
+          const licenseKey = fs.readFileSync(fileResult.filePaths[0], 'utf-8').trim();
+          const { installLicense } = require('./license/verify');
+          const installResult = await installLicense(licenseKey);
+          if (!installResult.valid) {
+            dialog.showErrorBox('License Invalid', installResult.message);
+            app.quit();
+            return;
+          }
+          log.info('License installed on first run:', installResult.tenantName);
+        } else {
+          app.quit();
+          return;
+        }
+      } else {
+        app.quit();
+        return;
+      }
     }
   } catch (err) {
     log.error('❌ License verification failed:', err);
-    // Allow first-run without a license (user needs to upload one)
   }
 
   // --- 4. Create the main window ---
-  createWindow(false);
+  createWindow(isLocked);
 
   // --- 5. Check for updates (non-blocking) ---
   setTimeout(() => {
