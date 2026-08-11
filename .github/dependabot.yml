@@ -1,0 +1,141 @@
+# Dependabot configuration — Smart EDMS
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# Smart EDMS is proprietary and security-sensitive. Dependabot is configured
+# to prioritize security patches over feature bumps, group updates to reduce
+# PR noise, and route every PR through the dependency-review workflow + the
+# Author's CODEOWNERS review.
+
+version: 2
+
+updates:
+  # ===========================================================================
+  # npm / bun dependencies — the main package.json + bun.lock
+  # ===========================================================================
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      # Weekly on Mondays — gives the Author the start-of-week window to
+      # review before the work week fills up.
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Africa/Algiers"
+    open-pull-requests-limit: 10
+    # Group updates to reduce PR noise. Security advisories always open as
+    # individual PRs regardless of this grouping (GitHub's default behavior).
+    groups:
+      # Security-critical dependencies get their own group so the Author can
+      # review them as a batch.
+      security-critical:
+        patterns:
+          - "argon2"
+          - "next-auth"
+          - "@simplewebauthn/*"
+          - "@node-saml/passport-saml"
+          - "undici"
+          - "@aws-sdk/*"
+          - "bcryptjs"
+          - "otpauth"
+          - "qrcode"
+        update-types:
+          - "minor"
+          - "patch"
+      # All other production dependencies grouped together.
+      production:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "argon2"
+          - "next-auth"
+          - "@simplewebauthn/*"
+          - "@node-saml/passport-saml"
+          - "undici"
+          - "@aws-sdk/*"
+          - "bcryptjs"
+          - "otpauth"
+          - "qrcode"
+          - "@types/*"
+          - "eslint*"
+          - "typescript"
+          - "vitest"
+          - "@vitest/*"
+          - "@playwright/*"
+          - "playwright"
+          - "tailwindcss"
+          - "@tailwindcss/*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Dev dependencies in their own group — these rarely affect production
+      # runtime and can be merged quickly.
+      development:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    # Major version bumps are NOT auto-proposed. The Author evaluates major
+    # upgrades manually (e.g., Next.js 16 → 17, Prisma 6 → 7) because they
+    # often require migration steps and ADR updates.
+    # To allow major bumps for a specific package, add an allow entry:
+    #   allow:
+    #     - dependency-name: "lodash"
+    #       update-types: ["version-update:semver-major"]
+    ignore:
+      # Never auto-bump these — they require manual migration:
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "prisma"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@prisma/client"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "next-intl"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "next-auth"
+        update-types: ["version-update:semver-major"]
+    # Label PRs for triage and routing.
+    labels:
+      - "dependencies"
+      - "automated"
+    # Reviewers — the Author must approve every dependency bump.
+    # (CODEOWNERS already enforces this for paths touching package.json,
+    #  but explicit reviewers ensure the Author is requested even if
+    #  CODEOWNERS rules change.)
+    reviewers:
+      - "ahmedkobbi"
+    assignees:
+      - "ahmedkobbi"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    # Branch prefix keeps Dependabot PRs visually distinct.
+    target-branch: "main"
+
+  # ===========================================================================
+  # GitHub Actions — keep workflow actions (actions/checkout, etc.) current.
+  # These are high-value to update because action vulnerabilities can
+  # compromise the CI pipeline.
+  # ===========================================================================
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Africa/Algiers"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "automated"
+    reviewers:
+      - "ahmedkobbi"
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"

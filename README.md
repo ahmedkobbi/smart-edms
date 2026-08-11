@@ -741,6 +741,8 @@ Smart EDMS is a fully installable PWA:
 | [Glossary (EN/AR)](docs/GLOSSARY-EN-AR.md) | Bilingual records-management terminology |
 | [Contributing](CONTRIBUTING.md) | Guidelines, dev setup, code style, commit conventions |
 | [Contributing (العربية)](CONTRIBUTING.ar.md) | دليل المساهمة باللغة العربية |
+| [Code of Conduct](CODE_OF_CONDUCT.md) | Community standards (Contributor Covenant v2.1) |
+| [Support](SUPPORT.md) | How to get help — routing table & response times |
 | [License](LICENSE) | Full proprietary license (Algerian governing law) |
 
 ### Architecture Decision Records

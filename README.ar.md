@@ -714,6 +714,8 @@ bun run check:translations    # التحقق من اكتمال المفاتيح 
 | [المسرد (EN/AR)](docs/GLOSSARY-EN-AR.md) | مصطلحات إدارة السجلات ثنائية اللغة |
 | [المساهمة (العربية)](CONTRIBUTING.ar.md) | الإرشادات، الإعداد، أسلوب الكود، اصطلاحات الالتزام |
 | [المساهمة (English)](CONTRIBUTING.md) | Contributing guidelines in English |
+| [مدونة قواعد السلوك](CODE_OF_CONDUCT.md) | معايير المجتمع (Contributor Covenant v2.1) |
+| [الدعم](SUPPORT.md) | كيف تحصل على المساعدة — جدول التوجيه وأوقات الاستجابة |
 | [الرخصة](LICENSE) | الرخصة الملكية الكاملة (القانون الجزائري الحاكم) |
 
 ---

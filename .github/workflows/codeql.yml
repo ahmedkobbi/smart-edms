@@ -1,0 +1,91 @@
+# Smart EDMS — CodeQL Analysis
+#
+# Runs GitHub's semantic code analysis on every push to main and on every PR.
+# CodeQL builds a database of the codebase and runs security queries against
+# it, catching vulnerabilities that pattern-matching linters miss (e.g.,
+# taint-flow from user input to a dangerous sink).
+#
+# Requires "CodeQL analysis" enabled in the repository Settings → Code security.
+# The workflow creates the database on GitHub's hosted runners — no setup
+# needed on the developer machine.
+#
+# Docs:
+#   https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/about-code-scanning-with-codeql
+
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly scan on Sundays at 03:00 UTC — catches new queries added to the
+    # CodeQL query suite between releases.
+    - cron: '0 3 * * 0'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Smart EDMS is TypeScript-only — we scan the JavaScript/TypeScript
+        # language. Add 'actions' if you want to scan the workflow YAML files
+        # for security issues (recommended once the workflow count stabilizes).
+        language: ['javascript-typescript']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # CodeQL needs full history for some queries (e.g., blame-based
+          # author attribution in SARIF reports).
+          fetch-depth: 0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # 'security-extended' runs more queries than the default suite,
+          # including experimental and lower-confidence rules. This catches
+          # more issues at the cost of longer scan times and more false
+          # positives. Tune down to 'default' if the noise becomes unmanageable.
+          queries: security-extended
+          # The config-file allows per-path tuning (include/exclude).
+          # Today we scan everything; add a config file if specific paths
+          # (e.g., tests/) should be excluded.
+          # config-file: ./.github/codeql-config.yml
+
+      # CodeQL for JavaScript/TypeScript does NOT require a build step — the
+      # autobuild step is a no-op for interpreted languages. It is included
+      # for consistency with the action's expected workflow.
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+          # Upload the SARIF file for the GitHub Security tab to display
+          # results inline on PRs and in Code Scanning alerts.
+          output: sarif-results
+
+      - name: Upload SARIF results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: sarif-results
+          retention-days: 14

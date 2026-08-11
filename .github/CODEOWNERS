@@ -62,9 +62,12 @@
 /SECURITY.md                @ahmedkobbi
 /docs/adr/                  @ahmedkobbi
 
-# License & legal
+# License & legal / governance
 /LICENSE                    @ahmedkobbi
+/SECURITY.md                @ahmedkobbi
 /CONTRIBUTING.md            @ahmedkobbi
+/CODE_OF_CONDUCT.md         @ahmedkobbi
+/SUPPORT.md                 @ahmedkobbi
 
 # ============================================================================
 # Security regression tests — any change here signals a security fix

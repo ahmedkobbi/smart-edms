@@ -170,9 +170,18 @@ Keep the subject line under 72 characters, imperative mood ("add" not "added"), 
 
 ## Code of Conduct
 
-Be excellent to each other. The project is built by an Algerian engineer and welcomes contributors from every background, nationality, and skill level. Discrimination, harassment, or hostility of any kind — toward the Author, maintainers, or other contributors — will not be tolerated. Disagreements about technical direction are normal and welcome; personal attacks are not.
+This project follows the [Contributor Covenant v2.1](./CODE_OF_CONDUCT.md).
+By participating, you are expected to uphold this code.
 
-If you witness or experience unacceptable behavior, contact the Author privately via GitHub.
+The project is built by an Algerian engineer and welcomes contributors from
+every background, nationality, and skill level. Discrimination, harassment,
+or hostility of any kind — toward the Author, maintainers, or other
+contributors — will not be tolerated. Disagreements about technical direction
+are normal and welcome; personal attacks are not.
+
+If you witness or experience unacceptable behavior, contact the Author
+privately via GitHub (see [the Code of Conduct](./CODE_OF_CONDUCT.md#enforcement)
+for the reporting channel).
 
 ---
 
