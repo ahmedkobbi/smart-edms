@@ -139,7 +139,11 @@
     "account": "Account",
     "notifications": "Alerts",
     "platform": "Platform",
-    "platformDashboard": "Platform Dashboard"
+    "platformDashboard": "Platform Dashboard",
+    "recordsManagement": "Records Management",
+    "securityAudit": "Security Audit",
+    "signatures": "E-Signatures",
+    "bpmnDesigner": "BPMN Designer"
   },
   "auth": {
     "signIn": "Sign in",

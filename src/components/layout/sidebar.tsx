@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, ShieldCheck, BookMarked, KeyRound, Webhook, Database,
   Bot, ShieldAlert, FileCheck, Smartphone, Mail, BookOpen, LogIn, RefreshCw,
   AlertTriangle, CreditCard, Building2, FolderOpen, Menu, X, Code2, Globe,
-  Bell, Activity,
+  Bell, Activity, PenTool, Workflow, FolderTree, ShieldCheck as ShieldCheckIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSessionData } from '@/components/providers/use-session-data';
@@ -49,6 +49,8 @@ const NAV_GROUPS: { titleKey: string; items: NavItem[] }[] = [
       { href: '/admin/legal-holds', labelKey: 'nav.legalHolds', icon: FileLock, permission: PERMISSIONS.LEGAL_HOLD_MANAGE },
       { href: '/admin/retention', labelKey: 'nav.retention', icon: Clock, permission: PERMISSIONS.RETENTION_MANAGE },
       { href: '/admin/dispositions', labelKey: 'nav.dispositions', icon: FileCheck, permission: PERMISSIONS.RETENTION_MANAGE },
+      { href: '/admin/records-management', labelKey: 'nav.recordsManagement', icon: FolderTree, permission: PERMISSIONS.RECORD_CATEGORY_MANAGE },
+      { href: '/admin/security-audit', labelKey: 'nav.securityAudit', icon: ShieldCheckIcon, permission: PERMISSIONS.SECURITY_AUDIT_READ },
     ],
   },
   {
@@ -75,6 +77,8 @@ const NAV_GROUPS: { titleKey: string; items: NavItem[] }[] = [
       { href: '/admin/service-accounts', labelKey: 'nav.serviceAccounts', icon: Bot, permission: PERMISSIONS.ADMIN_API_KEYS_MANAGE },
       { href: '/admin/webhooks', labelKey: 'nav.webhooks', icon: Webhook, permission: PERMISSIONS.ADMIN_WEBHOOKS_MANAGE },
       { href: '/admin/sso-providers', labelKey: 'nav.ssoProviders', icon: LogIn, permission: PERMISSIONS.ADMIN_INTEGRATIONS_MANAGE },
+      { href: '/admin/signatures', labelKey: 'nav.signatures', icon: PenTool, permission: PERMISSIONS.SIGNATURE_READ },
+      { href: '/admin/bpmn-designer', labelKey: 'nav.bpmnDesigner', icon: Workflow, permission: PERMISSIONS.BPMN_DESIGN_VIEW },
       { href: '/admin/devices', labelKey: 'nav.devices', icon: Smartphone, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
       { href: '/admin/tenant', labelKey: 'nav.tenantSettings', icon: Settings, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
       { href: '/admin/billing', labelKey: 'nav.billing', icon: CreditCard, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },

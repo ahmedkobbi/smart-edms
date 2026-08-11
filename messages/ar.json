@@ -139,7 +139,11 @@
     "account": "الحساب",
     "notifications": "التنبيهات",
     "platform": "المنصة",
-    "platformDashboard": "لوحة تحكم المنصة"
+    "platformDashboard": "لوحة تحكم المنصة",
+    "recordsManagement": "إدارة السجلات",
+    "securityAudit": "تدقيق الأمان",
+    "signatures": "التوقيعات الإلكترونية",
+    "bpmnDesigner": "مصمم BPMN"
   },
   "auth": {
     "signIn": "تسجيل الدخول",

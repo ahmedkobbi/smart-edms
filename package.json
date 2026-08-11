@@ -78,6 +78,7 @@
     "@tus/s3-store": "^2.0.5",
     "@tus/server": "^2.4.3",
     "argon2": "^0.45.1",
+    "bpmn-js": "^18.23.0",
     "bullmq": "^6.0.10",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

@@ -1,0 +1,677 @@
+     1→/**
+     2→ * Smart EDMS — API helper layer
+     3→ *
+     4→ * Wraps every API route handler to:
+     5→ *   - Require authentication (session OR API key/service account)
+     6→ *   - Bind request to the user's tenant
+     7→ *   - Enforce required permissions (RBAC)
+     8→ *   - Apply per-route rate limiting
+     9→ *   - Capture IP, user-agent, correlation ID
+    10→ *   - Emit audit events automatically (allow + deny)
+    11→ *   - Return standardized JSON errors
+    12→ *   - Enforce step-up auth for sensitive routes
+    13→ *   - Apply break-glass permissions when active
+    14→ *
+    15→ * This is the ONLY way API routes should be authored.
+    16→ */
+    17→
+    18→import { NextRequest, NextResponse } from 'next/server';
+    19→import { getServerSession, SmartEdmsSession } from '@/lib/auth/auth-options';
+    20→import { hasPermission, PERMISSIONS } from '@/lib/auth/permissions';
+    21→import { apiRateLimiter, getClientIp } from '@/lib/security/rate-limit';
+    22→import { recordAuditEvent, AuditEventInput } from '@/lib/audit/audit-service';
+    23→import { logger, setRequestContext, clearRequestContext } from '@/lib/config/logger';
+    24→import { isSessionRevoked, getUserSessionRevokeTimestamp } from '@/lib/auth/session-revocation';
+    25→import { evaluatePolicies, buildPolicyContext, type PolicyEvaluationContext } from '@/lib/auth/policy-engine';
+    26→import { sha256, timingSafeEqualStr } from '@/lib/auth/crypto';
+    27→import { randomUUID } from 'crypto';
+    28→import { db } from '@/lib/db';
+    29→
+    30→const MAX_REQUEST_BODY_SIZE = 10 * 1024 * 1024;
+    31→
+    32→export interface ApiContext {
+    33→  session: SmartEdmsSession;
+    34→  tenantId: string;
+    35→  /**
+    36→   * The tenant the request operates on. For platform admins with
+    37→   * ADMIN_PLATFORM_VIEW_ALL, this can be a different tenant than
+    38→   * tenantId (set via ?tenantId= query param or x-target-tenant header).
+    39→   * For all other users, targetTenantId === tenantId.
+    40→   */
+    41→  targetTenantId: string;
+    42→  userId: string;
+    43→  correlationId: string;
+    44→  ip: string;
+    45→  userAgent: string;
+    46→  isBreakGlass: boolean;
+    47→  breakGlassId?: string;
+    48→  isApiKey: boolean;
+    49→  isPlatformAdmin: boolean;
+    50→  audit(input: Omit<AuditEventInput, 'tenantId' | 'actorId' | 'actorEmail' | 'actorIp' | 'actorUserAgent' | 'correlationId' | 'sessionId'>): Promise<void>;
+    51→}
+    52→
+    53→export type ApiHandler<T = unknown> = (
+    54→  req: NextRequest,
+    55→  ctx: ApiContext,
+    56→  params?: Record<string, string>,
+    57→) => Promise<NextResponse<T>> | Promise<NextResponse>;
+    58→
+    59→interface CreateHandlerOptions {
+    60→  requiredPermission?: string;
+    61→  rateLimit?: { max: number; windowMs: number };
+    62→  requireStepUp?: boolean;
+    63→  /** Whether to evaluate ABAC policies after RBAC passes (default: true). */
+    64→  evaluatePolicies?: boolean;
+    65→  /** Document attributes for document-specific policy evaluation. */
+    66→  policyContext?: {
+    67→    document?: PolicyEvaluationContext['document'];
+    68→  };
+    69→  audit?: {
+    70→    eventType: string;
+    71→    action: string;
+    72→    resourceType?: string;
+    73→    resourceIdFromParams?: string;
+    74→    resourceNameFromParams?: string;
+    75→    resourceFromBody?: (body: any) => { id?: string; name?: string };
+    76→    alwaysAudit?: boolean;
+    77→  };
+    78→}
+    79→
+    80→function jsonError(status: number, code: string, message: string, extra: Record<string, unknown> = {}) {
+    81→  return NextResponse.json({ error: { code, message, ...extra } }, { status });
+    82→}
+    83→
+    84→/**
+    85→ * Parse Accept-Language header and return the best matching locale.
+    86→ * Falls back to 'en'.
+    87→ */
+    88→function negotiateLocale(req: NextRequest): string {
+    89→  const acceptLang = req.headers.get('accept-language');
+    90→  if (!acceptLang) return 'en';
+    91→
+    92→  const supported = ['ar', 'en', 'fr', 'es', 'de'];
+    93→  const requested = acceptLang
+    94→    .split(',')
+    95→    .map((l) => {
+    96→      const [lang, q] = l.trim().split(';q=');
+    97→      return { lang: lang.split('-')[0].toLowerCase(), q: q ? parseFloat(q) : 1 };
+    98→    })
+    99→    .sort((a, b) => b.q - a.q);
+   100→
+   101→  for (const r of requested) {
+   102→    if (supported.includes(r.lang)) return r.lang;
+   103→  }
+   104→  return 'en';
+   105→}
+   106→
+   107→/**
+   108→ * Localized error messages for common API errors.
+   109→ */
+   110→const LOCALIZED_ERRORS: Record<string, Record<string, string>> = {
+   111→  unauthenticated: {
+   112→    en: 'Authentication required',
+   113→    ar: 'مطلوب مصادقة',
+   114→    fr: 'Authentification requise',
+   115→    es: 'Se requiere autenticación',
+   116→    de: 'Authentifizierung erforderlich',
+   117→  },
+   118→  forbidden: {
+   119→    en: 'Access denied',
+   120→    ar: 'تم رفض الوصول',
+   121→    fr: 'Accès refusé',
+   122→    es: 'Acceso denegado',
+   123→    de: 'Zugriff verweigert',
+   124→  },
+   125→  rate_limited: {
+   126→    en: 'Too many requests',
+   127→    ar: 'طلبات كثيرة جداً',
+   128→    fr: 'Trop de requêtes',
+   129→    es: 'Demasiadas solicitudes',
+   130→    de: 'Zu viele Anfragen',
+   131→  },
+   132→  not_found: {
+   133→    en: 'Resource not found',
+   134→    ar: 'المورد غير موجود',
+   135→    fr: 'Ressource introuvable',
+   136→    es: 'Recurso no encontrado',
+   137→    de: 'Ressource nicht gefunden',
+   138→  },
+   139→  step_up_required: {
+   140→    en: 'This action requires step-up authentication',
+   141→    ar: 'يتطلب هذا الإجراء مصادقة معززة',
+   142→    fr: 'Cette action nécessite une authentification renforcée',
+   143→    es: 'Esta acción requiere autenticación de paso',
+   144→    de: 'Diese Aktion erfordert Step-up-Authentifizierung',
+   145→  },
+   146→  csrf_missing: {
+   147→    en: 'Missing required header for state-changing request',
+   148→    ar: 'رأس مطلوب مفقود لطلب تغيير الحالة',
+   149→    fr: 'En-tête requis manquant pour une demande de changement d\'état',
+   150→    es: 'Falta el encabezado requerido para una solicitud de cambio de estado',
+   151→    de: 'Erforderlicher Header für zustandsändernde Anfrage fehlt',
+   152→  },
+   153→};
+   154→
+   155→/**
+   156→ * Authenticate via API key or service account.
+   157→ * Returns a synthetic session if the key is valid.
+   158→ */
+   159→async function authenticateWithApiKey(req: NextRequest): Promise<SmartEdmsSession | null> {
+   160→  const authHeader = req.headers.get('authorization');
+   161→  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+   162→
+   163→  const rawKey = authHeader.slice(7);
+   164→  if (!rawKey.startsWith('se_') && !rawKey.startsWith('sa_')) return null;
+   165→
+   166→  const keyHash = sha256(rawKey);
+   167→  const keyPrefix = rawKey.slice(0, 10);
+   168→
+   169→  // Check API keys
+   170→  const apiKey = await db.apiKey.findUnique({
+   171→    where: { keyHash },
+   172→    include: { tenant: true },
+   173→  });
+   174→
+   175→  if (apiKey && !apiKey.revokedAt && apiKey.tenant.status === 'active') {
+   176→    if (apiKey.expiresAt && apiKey.expiresAt < new Date()) return null;
+   177→
+   178→    // Update last used
+   179→    await db.apiKey.update({
+   180→      where: { id: apiKey.id },
+   181→      data: { lastUsedAt: new Date() },
+   182→    });
+   183→
+   184→    const scopes: string[] = JSON.parse(apiKey.scopes || '[]');
+   185→    return {
+   186→      user: {
+   187→        id: `apikey:${apiKey.id}`,
+   188→        tenantId: apiKey.tenantId,
+   189→        email: `api-key:${apiKey.name}`,
+   190→        name: apiKey.name,
+   191→        roles: [],
+   192→        permissions: scopes,
+   193→        mfaVerified: false,
+   194→        isStepUp: false,
+   195→      },
+   196→      expires: new Date(Date.now() + 3600_000).toISOString(),
+   197→    } as SmartEdmsSession;
+   198→  }
+   199→
+   200→  // Check service accounts
+   201→  const svcAccount = await db.serviceAccount.findUnique({
+   202→    where: { keyHash },
+   203→    include: { tenant: true },
+   204→  });
+   205→
+   206→  if (svcAccount && !svcAccount.revokedAt && svcAccount.tenant.status === 'active') {
+   207→    if (svcAccount.expiresAt && svcAccount.expiresAt < new Date()) return null;
+   208→
+   209→    await db.serviceAccount.update({
+   210→      where: { id: svcAccount.id },
+   211→      data: { lastUsedAt: new Date() },
+   212→    });
+   213→
+   214→    const scopes: string[] = JSON.parse(svcAccount.scopes || '[]');
+   215→    return {
+   216→      user: {
+   217→        id: `svc:${svcAccount.id}`,
+   218→        tenantId: svcAccount.tenantId,
+   219→        email: `service:${svcAccount.name}`,
+   220→        name: svcAccount.name,
+   221→        roles: [],
+   222→        permissions: scopes,
+   223→        mfaVerified: false,
+   224→        isStepUp: false,
+   225→      },
+   226→      expires: new Date(Date.now() + 3600_000).toISOString(),
+   227→    } as SmartEdmsSession;
+   228→  }
+   229→
+   230→  return null;
+   231→}
+   232→
+   233→/**
+   234→ * Verify step-up authentication token.
+   235→ */
+   236→async function verifyStepUpToken(tenantId: string, userId: string, token: string): Promise<boolean> {
+   237→  // SECURITY FIX (C5 + M-AUTH-5 + M-AUTH-8): Atomic conditional update prevents
+   238→  // the TOCTOU race where two concurrent requests both pass the "usedAt is null"
+   239→  // check before either marks the token used. The `updateMany` with
+   240→  // WHERE usedAt=null + expiresAt > now ensures only ONE concurrent request
+   241→  // can "win" the token — the others get count=0.
+   242→  //
+   243→  // SECURITY FIX (M-AUTH-5): The token is stored as `sha256(rawToken)` to
+   244→  // prevent a read-only DB compromise from yielding live step-up tokens.
+   245→  // The raw token is sent by the client in the X-Step-Up-Token header and
+   246→  // hashed here before lookup.
+   247→  const tokenHash = sha256(token);
+   248→  const result = await db.stepUpSession.updateMany({
+   249→    where: {
+   250→      token: tokenHash,
+   251→      tenantId,
+   252→      userId,
+   253→      usedAt: null,
+   254→      expiresAt: { gt: new Date() },
+   255→    },
+   256→    data: { usedAt: new Date() },
+   257→  });
+   258→  return result.count === 1;
+   259→}
+   260→
+   261→/**
+   262→ * Check for active break-glass session.
+   263→ */
+   264→async function getBreakGlassContext(tenantId: string, userId: string, token: string | null): Promise<{
+   265→  active: boolean;
+   266→  breakGlassId?: string;
+   267→  permissions?: string[];
+   268→} | null> {
+   269→  if (!token) return null;
+   270→
+   271→  // Find active, APPROVED break-glass for this user
+   272→  const bg = await db.breakGlassAccess.findFirst({
+   273→    where: {
+   274→      tenantId,
+   275→      userId,
+   276→      expiresAt: { gt: new Date() },
+   277→      approved: true,
+   278→    },
+   279→    orderBy: { grantedAt: 'desc' },
+   280→  });
+   281→
+   282→  if (!bg) return null;
+   283→
+   284→  // SECURITY FIX (C1): Verify the token hash using constant-time comparison.
+   285→  // The raw token is never stored — only its SHA-256 hash.
+   286→  if (!bg.tokenHash) return null;
+   287→  const providedHash = sha256(token);
+   288→  if (!timingSafeEqualStr(providedHash, bg.tokenHash)) {
+   289→    // Token mismatch — log and reject
+   290→    logger.warn('breakglass.token_mismatch', { tenantId, userId, breakGlassId: bg.id });
+   291→    return null;
+   292→  }
+   293→
+   294→  const permissions: string[] = JSON.parse(bg.grantedPermissions || '[]');
+   295→  return {
+   296→    active: true,
+   297→    breakGlassId: bg.id,
+   298→    permissions,
+   299→  };
+   300→}
+   301→
+   302→export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHandler) {
+   303→  return async (
+   304→    req: NextRequest,
+   305→    routeContext?: { params: Record<string, string> | Promise<Record<string, string>> },
+   306→  ): Promise<NextResponse> => {
+   307→    const params = routeContext?.params
+   308→      ? routeContext.params instanceof Promise
+   309→        ? await routeContext.params
+   310→        : routeContext.params
+   311→      : {};
+   312→    const correlationId = req.headers.get('x-correlation-id') || randomUUID();
+   313→    const ip = getClientIp(req);
+   314→    const userAgent = req.headers.get('user-agent') || 'unknown';
+   315→    const locale = negotiateLocale(req);
+   316→
+   317→    setRequestContext({ correlationId, ip, userAgent });
+   318→
+   319→    // Helper for localized errors
+   320→    const localizedError = (status: number, code: string, fallbackMsg: string, extra: Record<string, unknown> = {}) => {
+   321→      const messages = LOCALIZED_ERRORS[code];
+   322→      const message = messages?.[locale] || messages?.['en'] || fallbackMsg;
+   323→      return jsonError(status, code, message, extra);
+   324→    };
+   325→
+   326→    // Request body size check
+   327→    const contentType = req.headers.get('content-type') || '';
+   328→    if (contentType.includes('application/json') || contentType.includes('text/')) {
+   329→      const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
+   330→      if (contentLength > MAX_REQUEST_BODY_SIZE) {
+   331→        logger.warn('api.request_too_large', { contentLength, limit: MAX_REQUEST_BODY_SIZE, path: req.nextUrl.pathname });
+   332→        return localizedError(413, 'request_too_large', `Request body exceeds ${MAX_REQUEST_BODY_SIZE} bytes`);
+   333→      }
+   334→    }
+   335→
+   336→    // CSRF protection: require custom header for state-changing requests
+   337→    if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method)) {
+   338→      const isApiRequest = req.headers.get('content-type')?.includes('application/json') ||
+   339→                          req.headers.get('x-requested-with') === 'XMLHttpRequest';
+   340→      if (!isApiRequest && !req.headers.get('authorization')) {
+   341→        // Form submissions without proper headers are rejected
+   342→        // (NextAuth form login is handled separately and doesn't use createApiHandler)
+   343→        return jsonError(403, 'csrf_missing', 'Missing required header for state-changing request');
+   344→      }
+   345→    }
+   346→
+   347→    // Authenticate: try session first, then API key
+   348→    let session = await getServerSession();
+   349→    let isApiKey = false;
+   350→
+   351→    if (!session?.user) {
+   352→      const apiKeySession = await authenticateWithApiKey(req);
+   353→      if (apiKeySession) {
+   354→        session = apiKeySession;
+   355→        isApiKey = true;
+   356→      }
+   357→    }
+   358→
+   359→    if (!session?.user) {
+   360→      return localizedError(401, 'unauthenticated', 'Authentication required');
+   361→    }
+   362→
+   363→    // --- Session revocation check (JWT denylist) ---
+   364→    // Skip for API-key auth (no JWT, revocation is via API key deletion).
+   365→    if (!isApiKey && session.user.jti) {
+   366→      // 1. Check if this specific JWT has been revoked (single-session logout)
+   367→      if (await isSessionRevoked(session.user.jti)) {
+   368→        return jsonError(401, 'session_revoked', 'Your session has been revoked. Please sign in again.');
+   369→      }
+   370→      // 2. Check mass-revoke timestamp (e.g. after password change)
+   371→      //    If the user's `sessionsRevokedAt` is newer than the JWT's `iat`,
+   372→      //    the JWT is invalid.
+   373→      if (session.user.iat) {
+   374→        const revokeTs = await getUserSessionRevokeTimestamp(session.user.id);
+   375→        if (revokeTs) {
+   376→          const jwtIatMs = session.user.iat * 1000;
+   377→          if (jwtIatMs < revokeTs.getTime()) {
+   378→            return jsonError(401, 'session_expired', 'Your session is no longer valid. Please sign in again.');
+   379→          }
+   380→        }
+   381→      }
+   382→    }
+   383→
+   384→    setRequestContext({ tenantId: session.user.tenantId, userId: session.user.id });
+   385→
+   386→    // Rate limit
+   387→    if (opts.rateLimit) {
+   388→      const rlKey = `${session.user.tenantId}:${session.user.id}:${req.method}:${req.nextUrl.pathname}`;
+   389→      const rl = await apiRateLimiter.check(rlKey, opts.rateLimit.max, opts.rateLimit.windowMs);
+   390→      if (!rl.allowed) {
+   391→        return NextResponse.json(
+   392→          { error: { code: 'rate_limited', message: 'Too many requests', retryAfterMs: rl.retryAfterMs } },
+   393→          { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.retryAfterMs / 1000)) } },
+   394→        );
+   395→      }
+   396→    }
+   397→
+   398→    // Step-up authentication check
+   399→    if (opts.requireStepUp && !isApiKey) {
+   400→      const stepUpToken = req.headers.get('x-step-up-token');
+   401→      if (!stepUpToken) {
+   402→        return jsonError(403, 'step_up_required', 'This action requires step-up authentication');
+   403→      }
+   404→      const valid = await verifyStepUpToken(session.user.tenantId, session.user.id, stepUpToken);
+   405→      if (!valid) {
+   406→        return jsonError(403, 'step_up_invalid', 'Step-up token is invalid or expired');
+   407→      }
+   408→    }
+   409→
+   410→    // Break-glass: check for active break-glass session
+   411→    const breakGlassToken = req.headers.get('x-break-glass-token');
+   412→    let isBreakGlass = false;
+   413→    let breakGlassId: string | undefined;
+   414→
+   415→    if (breakGlassToken) {
+   416→      const bgContext = await getBreakGlassContext(session.user.tenantId, session.user.id, breakGlassToken);
+   417→      if (bgContext?.active && bgContext.permissions) {
+   418→        isBreakGlass = true;
+   419→        breakGlassId = bgContext.breakGlassId;
+   420→        // Merge break-glass permissions into session
+   421→        session.user.permissions = [...new Set([...session.user.permissions, ...bgContext.permissions])];
+   422→        logger.warn('break_glass.active', {
+   423→          userId: session.user.id,
+   424→          breakGlassId: bgContext.breakGlassId,
+   425→          path: req.nextUrl.pathname,
+   426→        });
+   427→      }
+   428→    }
+   429→
+   430→    const ctx: ApiContext = {
+   431→      session,
+   432→      tenantId: session.user.tenantId,
+   433→      targetTenantId: session.user.tenantId, // default — may be overridden below
+   434→      userId: session.user.id,
+   435→      correlationId,
+   436→      ip,
+   437→      userAgent,
+   438→      isBreakGlass,
+   439→      breakGlassId,
+   440→      isApiKey,
+   441→      isPlatformAdmin: hasPermission(session.user.permissions, PERMISSIONS.ADMIN_PLATFORM_VIEW_ALL),
+   442→      audit: async (input) => {
+   443→        await recordAuditEvent({
+   444→          ...input,
+   445→          tenantId: session.user.tenantId,
+   446→          actorId: session.user.id,
+   447→          actorEmail: session.user.email,
+   448→          actorIp: ip,
+   449→          actorUserAgent: userAgent,
+   450→          correlationId,
+   451→          metadata: {
+   452→            ...input.metadata,
+   453→            ...(isBreakGlass ? { breakGlassId } : {}),
+   454→            ...(isApiKey ? { authMethod: 'api_key' } : {}),
+   455→          },
+   456→        } as AuditEventInput);
+   457→      },
+   458→    };
+   459→
+   460→    // Platform admin cross-tenant override: if the caller is a platform admin
+   461→    // with ADMIN_PLATFORM_VIEW_ALL, allow them to specify a target tenant via
+   462→    // ?tenantId= query param or x-target-tenant header. This lets platform
+   463→    // admins view/manage any tenant's data. For non-platform admins,
+   464→    // targetTenantId always equals their own tenantId.
+   465→    if (ctx.isPlatformAdmin && !isApiKey) {
+   466→      const targetTenantId = req.nextUrl.searchParams.get('tenantId') ||
+   467→                              req.headers.get('x-target-tenant');
+   468→      if (targetTenantId && targetTenantId !== ctx.tenantId) {
+   469→        // Verify the target tenant exists and is not deleted
+   470→        const targetTenant = await db.tenant.findUnique({
+   471→          where: { id: targetTenantId },
+   472→          select: { id: true, status: true },
+   473→        }).catch(() => null);
+   474→        if (targetTenant && targetTenant.status !== 'deleted') {
+   475→          ctx.targetTenantId = targetTenantId;
+   476→          logger.info('platform_admin.cross_tenant', {
+   477→            actorTenantId: ctx.tenantId,
+   478→            targetTenantId: ctx.targetTenantId,
+   479→            path: req.nextUrl.pathname,
+   480→          });
+   481→        }
+   482→      }
+   483→    }
+   484→
+   485→    // Authorization
+   486→    if (opts.requiredPermission && !hasPermission(session.user.permissions, opts.requiredPermission)) {
+   487→      await ctx.audit({
+   488→        eventType: 'authz.deny',
+   489→        action: req.method.toLowerCase(),
+   490→        resourceType: opts.audit?.resourceType,
+   491→        resourceId: opts.audit?.resourceIdFromParams ? params[opts.audit.resourceIdFromParams] : undefined,
+   492→        resourceName: opts.audit?.resourceNameFromParams ? params[opts.audit.resourceNameFromParams] : undefined,
+   493→        result: 'deny',
+   494→        reason: `missing:${opts.requiredPermission}`,
+   495→        metadata: { path: req.nextUrl.pathname, method: req.method },
+   496→      });
+   497→      return localizedError(403, 'forbidden', `Missing permission: ${opts.requiredPermission}`, { permission: opts.requiredPermission });
+   498→    }
+   499→
+   500→    // ABAC policy evaluation (runs AFTER RBAC passes)
+   501→    // Policies are tenant-scoped rules that can deny or allow based on
+   502→    // document attributes (classification, tags, state), actor context
+   503→    // (role, IP, time of day), and resource type. Deny wins over allow.
+   504→    //
+   505→    // We only evaluate policies when:
+   506→    //   1. The route declares a requiredPermission (so we have an action
+   507→    //      string to match against), AND
+   508→    //   2. The route opts in to policy evaluation via `opts.evaluatePolicies`
+   509→    //      (default: true for routes with requiredPermission).
+   510→    //
+   511→    // Routes that need document-specific policy evaluation (e.g. download,
+   512→    // preview, share) should pass `opts.policyContext` with the document
+   513→    // attributes, OR call `evaluatePolicies()` manually inside the handler
+   514→    // (when the document isn't known until the handler runs).
+   515→    if (opts.requiredPermission && opts.evaluatePolicies !== false) {
+   516→      const policyCtx = buildPolicyContext({
+   517→        tenantId: session.user.tenantId,
+   518→        actorId: session.user.id,
+   519→        actorEmail: session.user.email,
+   520→        actorIp: ctx.ip,
+   521→        actorRoles: session.user.roles,
+   522→        action: opts.requiredPermission,
+   523→        resourceType: opts.audit?.resourceType,
+   524→        resourceId: opts.audit?.resourceIdFromParams ? params[opts.audit.resourceIdFromParams] : undefined,
+   525→        document: opts.policyContext?.document,
+   526→      });
+   527→      const policyDecision = await evaluatePolicies(policyCtx);
+   528→      if (policyDecision.decision === 'deny') {
+   529→        // Alert security officers about the policy violation
+   530→        const { alertPolicyViolation } = await import('@/lib/security/policy-alerts');
+   531→        await alertPolicyViolation(session.user.tenantId, {
+   532→          policyName: policyDecision.matchedPolicy?.name,
+   533→          action: opts.requiredPermission,
+   534→          resourceType: opts.audit?.resourceType || 'unknown',
+   535→          resourceId: (opts.audit?.resourceIdFromParams ? params[opts.audit.resourceIdFromParams] : undefined) || '',
+   536→          actorId: session.user.id,
+   537→          actorEmail: session.user.email,
+   538→          actorIp: ctx.ip,
+   539→          reason: policyDecision.reason,
+   540→        }).catch(() => {});
+   541→
+   542→        await ctx.audit({
+   543→          eventType: 'policy.deny',
+   544→          action: req.method.toLowerCase(),
+   545→          resourceType: opts.audit?.resourceType,
+   546→          resourceId: opts.audit?.resourceIdFromParams ? params[opts.audit.resourceIdFromParams] : undefined,
+   547→          resourceName: opts.audit?.resourceNameFromParams ? params[opts.audit.resourceNameFromParams] : undefined,
+   548→          result: 'deny',
+   549→          reason: policyDecision.reason,
+   550→          metadata: {
+   551→            path: req.nextUrl.pathname,
+   552→            method: req.method,
+   553→            policyName: policyDecision.matchedPolicy?.name,
+   554→            policyId: policyDecision.matchedPolicy?.id,
+   555→            evaluatedCount: policyDecision.evaluatedCount,
+   556→          },
+   557→        });
+   558→        return localizedError(403, 'policy_denied', policyDecision.reason, {
+   559→          policy: policyDecision.matchedPolicy?.name,
+   560→        });
+   561→      }
+   562→    }
+   563→
+   564→    // --- Hardware-key enforcement (§9.1) ---
+   565→    // When a tenant enables `settings.security.requireHardwareKeyForHighPrivilegeRoles`,
+   566→    // users with high-privilege roles (tenant_admin, security_officer) must
+   567→    // have a passkey registered to perform any authenticated action.
+   568→    // This is a defense-in-depth measure against credential theft.
+   569→    //
+   570→    // We skip this check for API-key auth (service accounts are not
+   571→    // interactive users and don't have passkeys).
+   572→    if (!isApiKey) {
+   573→      const { enforceHardwareKey } = await import('@/lib/auth/hardware-key-enforcement');
+   574→      const hwKeyResult = await enforceHardwareKey({
+   575→        tenantId: session.user.tenantId,
+   576→        userId: session.user.id,
+   577→        userRoles: session.user.roles,
+   578→      });
+   579→      if (!hwKeyResult.ok) {
+   580→        return jsonError(403, 'hardware_key_required', hwKeyResult.reason || 'A passkey is required for high-privilege roles.');
+   581→      }
+   582→    }
+   583→
+   584→    try {
+   585→      const result = await handler(req, ctx, params);
+   586→
+   587→      if (opts.audit && opts.audit.alwaysAudit) {
+   588→        await ctx.audit({
+   589→          eventType: opts.audit.eventType,
+   590→          action: opts.audit.action,
+   591→          resourceType: opts.audit.resourceType,
+   592→          resourceId: opts.audit.resourceIdFromParams ? params[opts.audit.resourceIdFromParams] : undefined,
+   593→          resourceName: opts.audit?.resourceNameFromParams ? params[opts.audit.resourceNameFromParams] : undefined,
+   594→          result: 'allow',
+   595→          metadata: { path: req.nextUrl.pathname, method: req.method },
+   596→        });
+   597→      }
+   598→      return result as NextResponse;
+   599→    } catch (err: any) {
+   600→      const status = err?.status || 500;
+   601→      const code = err?.code || 'internal_error';
+   602→      const message = err?.message || 'Internal server error';
+   603→
+   604→      logger.error('api.error', {
+   605→        path: req.nextUrl.pathname,
+   606→        method: req.method,
+   607→        code,
+   608→        status,
+   609→        error: message,
+   610→        stack: process.env.NODE_ENV === 'production' ? undefined : err?.stack,
+   611→      });
+   612→
+   613→      await ctx.audit({
+   614→        eventType: 'api.error',
+   615→        action: req.method.toLowerCase(),
+   616→        resourceType: opts.audit?.resourceType,
+   617→        resourceId: opts.audit?.resourceIdFromParams ? params[opts.audit.resourceIdFromParams] : undefined,
+   618→        result: 'error',
+   619→        reason: message,
+   620→        metadata: { path: req.nextUrl.pathname, method: req.method, code, status },
+   621→      });
+   622→
+   623→      if (status >= 500) {
+   624→        // Report to Sentry (if configured)
+   625→        if (process.env.SENTRY_DSN) {
+   626→          const { Sentry } = await import('@/lib/config/sentry');
+   627→          Sentry.captureException(err, {
+   628→            tags: { path: req.nextUrl.pathname, method: req.method },
+   629→            extra: { code, status },
+   630→          });
+   631→        }
+   632→        return jsonError(500, 'internal_error', 'An unexpected error occurred');
+   633→      }
+   634→      return jsonError(status, code, message);
+   635→    } finally {
+   636→      clearRequestContext();
+   637→    }
+   638→  };
+   639→}
+   640→
+   641→export class ApiError extends Error {
+   642→  status: number;
+   643→  code: string;
+   644→  constructor(status: number, code: string, message: string) {
+   645→    super(message);
+   646→    this.status = status;
+   647→    this.code = code;
+   648→  }
+   649→  static badRequest(code: string, message: string, extra?: Record<string, unknown>): ApiError {
+   650→    const e = new ApiError(400, code, message);
+   651→    Object.assign(e, extra);
+   652→    return e;
+   653→  }
+   654→  static notFound(code: string, message: string): ApiError {
+   655→    return new ApiError(404, code, message);
+   656→  }
+   657→  static forbidden(code: string, message: string): ApiError {
+   658→    return new ApiError(403, code, message);
+   659→  }
+   660→  static conflict(code: string, message: string): ApiError {
+   661→    return new ApiError(409, code, message);
+   662→  }
+   663→  static unprocessable(code: string, message: string): ApiError {
+   664→    return new ApiError(422, code, message);
+   665→  }
+   666→}
+   667→
+   668→export async function parseJsonBody<T = any>(req: NextRequest): Promise<T> {
+   669→  const text = await req.text();
+   670→  if (!text) return {} as T;
+   671→  try {
+   672→    return JSON.parse(text) as T;
+   673→  } catch {
+   674→    throw ApiError.badRequest('invalid_json', 'Request body is not valid JSON');
+   675→  }
+   676→}
+   677→
