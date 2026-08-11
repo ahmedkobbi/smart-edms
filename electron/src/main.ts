@@ -24,6 +24,7 @@ import { verifyLicenseOnStartup } from './license/verify';
 import { initializeKeychain } from './crypto/keychain';
 import { registerIpcHandlers } from './ipc/handlers';
 import { checkForUpdates } from './updater';
+import { runAllTamperChecks, initLicenseLog, logLicenseEvent, startTamperMonitoring, verifyCertificate } from './security/anti-tamper';
 import log from 'electron-log';
 
 // ============================================================================
@@ -80,6 +81,24 @@ app.whenReady().then(async () => {
     app.quit();
     return;
   }
+
+  // --- 2b. Initialize tamper-evident license log ---
+  initLicenseLog();
+  logLicenseEvent('app_starting', { version: app.getVersion() });
+
+  // --- 2c. Run all anti-tamper checks (ASAR, debugger, Frida, injection, log) ---
+  const tamperResult = await runAllTamperChecks();
+  if (!tamperResult.clean) {
+    log.error('🚨 TAMPERING DETECTED AT STARTUP — LOCKING', { signs: tamperResult.signs });
+    showErrorDialog('Security Violation', `Tampering detected: ${tamperResult.signs.join(', ')}. The application will now exit.`);
+    logLicenseEvent('app_locked_tamper_startup', { signs: tamperResult.signs });
+    app.quit();
+    return;
+  }
+  log.info('✅ All anti-tamper checks passed');
+
+  // --- 2d. Start periodic tamper monitoring (every 60 seconds) ---
+  startTamperMonitoring(60_000);
 
   // --- 3. Verify license (Ed25519 public key verification) ---
   let isLocked = false;
@@ -298,11 +317,19 @@ async function startHeartbeatTimer() {
 // ============================================================================
 
 app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
-  // Only allow the vendor server's certificate (pin in production)
+  // TLS CERTIFICATE PINNING: verify the vendor server's certificate fingerprint
   const vendorUrl = process.env.VENDOR_SERVER_URL || 'https://vendor.smartedms.local';
   if (url.startsWith(vendorUrl)) {
     event.preventDefault();
-    callback(true);
+    // Verify the certificate against the pinned fingerprint
+    const isCertValid = verifyCertificate(new URL(url).hostname, certificate);
+    if (isCertValid) {
+      callback(true);
+    } else {
+      log.error('CERTIFICATE PINNING FAILED — possible MITM attack', { url });
+      logLicenseEvent('cert_pinning_failed', { url, error });
+      callback(false);
+    }
   } else {
     callback(false);
   }

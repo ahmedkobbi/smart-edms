@@ -126,7 +126,8 @@ export async function POST(req: NextRequest) {
     status = 'locked';
   }
 
-  return NextResponse.json({
+  // Build the response payload
+  const payload = {
     action,
     status,
     licenseId: license.id,
@@ -136,6 +137,23 @@ export async function POST(req: NextRequest) {
     seats: license.seats,
     storageBytes: license.storageBytes.toString(),
     features: JSON.parse(license.features),
+    // Anti-replay: unique nonce + timestamp + TTL
+    nonce: require('crypto').randomBytes(16).toString('hex'),
+    timestamp: new Date().toISOString(),
+    ttl: 300, // response valid for 5 minutes
+  };
+
+  // --- SIGN the response with Ed25519 private key ---
+  // This prevents local server emulators — they can't forge the signature
+  const { signLicense } = require('@/lib/license-signing');
+  const canonical = JSON.stringify(payload, Object.keys(payload).sort());
+  const { sign } = require('crypto');
+  const privateKeyObj = require('crypto').createPrivateKey(process.env.VENDOR_ED25519_PRIVATE_KEY);
+  const signature = sign(null, Buffer.from(canonical, 'utf-8'), privateKeyObj).toString('base64');
+
+  return NextResponse.json({
+    payload,
+    signature,
   });
 }
 

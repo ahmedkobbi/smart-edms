@@ -56,18 +56,44 @@ export async function sendHeartbeat(licenseKey: string): Promise<HeartbeatRespon
       return null;
     }
 
-    const result: HeartbeatResponse = await response.json();
+    const rawData = await response.json();
+
+    // --- ANTI-TAMPER: Verify the heartbeat response signature ---
+    // The vendor server signs the response with its Ed25519 private key.
+    // A local server emulator can't forge the signature.
+    const { verifyHeartbeatResponse, logLicenseEvent } = require('../security/anti-tamper');
+
+    // Check if this is a signed response (v2) or unsigned (v1 — backward compat)
+    if (rawData.payload && rawData.signature) {
+      // v2: Signed response
+      const isValid = verifyHeartbeatResponse(rawData);
+      if (!isValid) {
+        log.error('HEARTBEAT RESPONSE SIGNATURE INVALID — possible emulator or MITM');
+        logLicenseEvent('heartbeat_signature_invalid', {});
+        // Don't act on unsigned/invalid responses — treat as no response
+        return null;
+      }
+      log.info('✅ Heartbeat response signature verified');
+    } else {
+      // v1: Unsigned response (backward compatibility) — log warning
+      log.warn('Received unsigned heartbeat response (v1) — signature verification skipped');
+      logLicenseEvent('heartbeat_unsigned_response', {});
+    }
+
+    const result: HeartbeatResponse = rawData.payload || rawData;
 
     // Handle the vendor's response
     if (result.action === 'lock') {
       log.error('Vendor server requested LOCK:', result.reason);
-      // Lock the application — the main process will show the locked screen
+      logLicenseEvent('heartbeat_lock_received', { reason: result.reason });
       handleLockAction(result);
     } else if (result.action === 'read_only') {
       log.warn('Vendor server requested READ-ONLY mode');
+      logLicenseEvent('heartbeat_readonly_received', {});
       handleReadOnlyAction(result);
     } else {
       log.info('Heartbeat OK — license is active');
+      logLicenseEvent('heartbeat_ok', { status: result.status });
     }
 
     return result;
