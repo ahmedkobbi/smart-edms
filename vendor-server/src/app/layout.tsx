@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { MantineProvider, ColorSchemeScript, createTheme } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
+import { QueryProvider } from '@/lib/query-provider';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/dates/styles.css';
@@ -41,8 +42,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body style={{ background: 'var(--mantine-color-dark-8)', minHeight: '100vh' }}>
         <MantineProvider theme={theme} defaultColorScheme="dark">
-          <Notifications position="top-right" />
-          {children}
+          <QueryProvider>
+            <Notifications position="top-right" />
+            {children}
+          </QueryProvider>
         </MantineProvider>
       </body>
     </html>
