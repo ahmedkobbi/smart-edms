@@ -73,6 +73,8 @@ export interface SmartEdmsSession {
     roles: string[];
     permissions: string[];
     mfaVerified: boolean;
+    /** Forces password change — user can only access /settings */
+    mustChangePassword?: boolean;
     isStepUp: boolean;
     stepUpExpiresAt?: number;
     /** JWT ID — used for session revocation. Undefined for API-key auth. */
@@ -436,6 +438,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           tenantId: user.tenantId,
           mfaVerified: user.mfaEnabled,
+          mustChangePassword: (user as any).mustChangePassword || false,
         } as any;
       },
     }),
@@ -460,6 +463,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.tenantId = (user as any).tenantId;
         token.mfaVerified = (user as any).mfaVerified;
+        token.mustChangePassword = (user as any).mustChangePassword || false;
         const roles = await resolveUserRoles(user.id, (user as any).tenantId);
         const permissions = await resolveUserPermissions(user.id, (user as any).tenantId);
         token.roles = roles;
@@ -480,9 +484,11 @@ export const authOptions: NextAuthOptions = {
         try {
           const u = await db.user.findUnique({
             where: { id: token.id as string },
-            select: { mfaEnabled: true },
+            select: { mfaEnabled: true, mustChangePassword: true },
           });
           token.mfaVerified = !!(u?.mfaEnabled);
+          // Refresh mustChangePassword so admin-forced reset takes effect
+          token.mustChangePassword = !!(u?.mustChangePassword);
         } catch {
           // DB error — leave the existing claim in place (fail safe)
         }
@@ -498,6 +504,7 @@ export const authOptions: NextAuthOptions = {
         roles: (token.roles as string[]) || [],
         permissions: (token.permissions as string[]) || [],
         mfaVerified: !!token.mfaVerified,
+        mustChangePassword: !!token.mustChangePassword,
         isStepUp: false,
         jti: token.jti as string | undefined,
         iat: token.iat as number | undefined,

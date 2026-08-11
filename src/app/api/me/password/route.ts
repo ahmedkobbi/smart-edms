@@ -41,7 +41,14 @@ export const POST = createApiHandler(
     if (!ok) throw ApiError.forbidden('invalid_password', 'Current password is incorrect');
 
     const newHash = await hashPassword(body.newPassword);
-    await db.user.update({ where: { id: user.id }, data: { passwordHash: newHash } });
+    await db.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: newHash,
+        // Clear the mustChangePassword flag — the user has changed their password
+        mustChangePassword: false,
+      },
+    });
 
     // Revoke ALL sessions for this user (including the current one) —
     // standard security practice on password change. The user must sign

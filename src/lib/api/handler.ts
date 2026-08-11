@@ -462,6 +462,15 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
     // and public endpoints (webhooks, health, cron).
     const skipAccessGate = isPlatformAdminEndpoint(req.nextUrl.pathname);
     if (!skipAccessGate) {
+      // --- Forced password change gate ---
+      // If the user's mustChangePassword flag is set, block all API requests
+      // except /api/me/password (so they can change their password).
+      // This prevents an attacker who finds the default admin credentials
+      // from doing anything until the password is changed.
+      if (session.user.mustChangePassword && !req.nextUrl.pathname.startsWith('/api/me/password')) {
+        return jsonError(403, 'password_change_required', 'You must change your password before accessing the system. Please change your password in Settings.');
+      }
+
       const { checkAccess, isWriteAllowed } = await import('@/lib/billing/access-gate');
       const accessResult = await checkAccess(session.user.tenantId);
 

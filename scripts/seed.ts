@@ -124,16 +124,20 @@ async function main() {
   console.log(`  ✓ ${classifications.length} default classifications`);
 
   // 4. Admin user
+  // SECURITY: mustChangePassword=true forces the admin to change the default
+  // password on first login. The JWT carries this flag; the API handler
+  // blocks all non-/settings requests until the password is changed.
   const adminPasswordHash = await hashPassword(adminPassword);
   const admin = await db.user.upsert({
     where: { tenantId_email: { tenantId: tenant.id, email: adminEmail } },
-    update: { passwordHash: adminPasswordHash, status: 'active', name: adminName },
+    update: { passwordHash: adminPasswordHash, status: 'active', name: adminName, mustChangePassword: true },
     create: {
       tenantId: tenant.id,
       email: adminEmail,
       name: adminName,
       passwordHash: adminPasswordHash,
       status: 'active',
+      mustChangePassword: true,
       jobTitle: 'Tenant Administrator',
       department: 'IT',
     },

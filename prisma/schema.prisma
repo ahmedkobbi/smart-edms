@@ -130,6 +130,10 @@ model User {
   failedLoginAttempts Int    @default(0)
   lockedUntil       DateTime?
   sessionsRevokedAt DateTime? // mass-revoke timestamp; JWTs with iat < this are invalid
+  // SECURITY: Forces password change on first login or after admin reset.
+  // The seed script sets this to true for the default admin. The user cannot
+  // access any page except /settings until the password is changed.
+  mustChangePassword Boolean @default(false)
   avatarUrl         String?
   jobTitle          String?
   department        String?
