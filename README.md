@@ -731,10 +731,14 @@ Smart EDMS is a fully installable PWA:
 | [API Auth Guide](docs/API-AUTH.md) | Authentication methods, authorization model, rate limits |
 | [Security Policy](SECURITY.md) | How to report vulnerabilities, SLAs, supported versions, scope |
 | [Security Architecture](docs/SECURITY.md) | Threat model, encryption, audit, anomaly detection |
+| [Security Audit Framework](docs/SECURITY-AUDIT.md) | Third-party audit prep, automated scanning, compliance mapping |
+| [E-Signature Integration](docs/E-SIGNATURE.md) | DocuSign and Adobe Sign integration guide |
+| [BPMN Workflow Designer](docs/BPMN-DESIGNER.md) | Visual BPMN 2.0 process designer |
+| [DoD 5015.02 Records Management](docs/DOD-501502.md) | Records management compliance (15 requirements) |
 | [Security Hall of Fame](docs/SECURITY-HALL-OF-FAME.md) | Recognizing security researchers |
 | [Operations Runbook](docs/OPERATIONS-RUNBOOK.md) | Incident response, backup/restore, scaling, troubleshooting |
 | [PostgreSQL Migration](docs/POSTGRESQL-MIGRATION.md) | SQLite → PostgreSQL with Row-Level Security |
-| [Architecture Decision Records](docs/adr/README.md) | 16 ADRs covering key design decisions |
+| [Architecture Decision Records](docs/adr/README.md) | 20 ADRs covering key design decisions |
 | [Kubernetes Deployment](k8s/README.md) | Manifest ordering, TLS ingress, scaling notes |
 | [Backup & Restore](scripts/backup.sh) | Database + storage backup scripts |
 | [Deployment Verification](scripts/verify-deployment.sh) | Post-deploy smoke test |

@@ -732,7 +732,7 @@ export async function collectEvidence(tenantId: string, auditId: string, evidenc
   return evidencePath;
 }
 
-function verifyHashChain(events: any[]): boolean {
+export function verifyHashChain(events: any[]): boolean {
   // Verify the hash chain integrity (simplified — real verification is in audit-service.ts)
   for (let i = 1; i < events.length; i++) {
     if (!events[i].prevHash || events[i].prevHash !== events[i - 1].eventHash) {

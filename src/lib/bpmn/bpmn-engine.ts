@@ -84,53 +84,49 @@ export interface SaveDefinitionInput {
 export function parseBpmnXml(xml: string): ParsedBpmn {
   const elements: BpmnElement[] = [];
 
-  // Extract all BPMN elements using regex (server-side, no DOM)
-  const elementPatterns: Array<{ type: BpmnElementType; regex: RegExp }> = [
-    { type: 'startEvent', regex: /<bpmn:startEvent\s+[^>]*id="([^"]+)"[^>]*(?:name="([^"]*)")?[^>]*>/g },
-    { type: 'endEvent', regex: /<bpmn:endEvent\s+[^>]*id="([^"]+)"[^>]*(?:name="([^"]*)")?[^>]*>/g },
-    { type: 'userTask', regex: /<bpmn:userTask\s+[^>]*id="([^"]+)"[^>]*(?:name="([^"]*)")?[^>]*>/g },
-    { type: 'serviceTask', regex: /<bpmn:serviceTask\s+[^>]*id="([^"]+)"[^>]*(?:name="([^"]*)")?[^>]*>/g },
-    { type: 'exclusiveGateway', regex: /<bpmn:exclusiveGateway\s+[^>]*id="([^"]+)"[^>]*(?:name="([^"]*)")?[^>]*>/g },
-    { type: 'parallelGateway', regex: /<bpmn:parallelGateway\s+[^>]*id="([^"]+)"[^>]*(?:name="([^"]*)")?[^>]*>/g },
-    { type: 'inclusiveGateway', regex: /<bpmn:inclusiveGateway\s+[^>]*id="([^"]+)"[^>]*(?:name="([^"]*)")?[^>]*>/g },
-    { type: 'scriptTask', regex: /<bpmn:scriptTask\s+[^>]*id="([^"]+)"[^>]*(?:name="([^"]*)")?[^>]*>/g },
-  ];
+  // Helper: extract an attribute value from an XML tag
+  function extractAttr(tag: string, attr: string): string | undefined {
+    const re = new RegExp(`\\s${attr}="([^"]*)"`, 'i');
+    const m = tag.match(re);
+    return m ? m[1] : undefined;
+  }
 
-  for (const { type, regex } of elementPatterns) {
-    let match;
-    while ((match = regex.exec(xml)) !== null) {
-      const id = match[1];
-      const name = match[2] || '';
-      const element: BpmnElement = { id, name, type };
+  // Match all BPMN element opening tags and extract their type, id, and name
+  const elementRegex = /<bpmn:(startEvent|endEvent|userTask|serviceTask|exclusiveGateway|parallelGateway|inclusiveGateway|scriptTask|callActivity)\b([^>]*)>/g;
+  let match;
+  while ((match = elementRegex.exec(xml)) !== null) {
+    const tagName = match[1];
+    const attrs = match[2];
+    const id = extractAttr(attrs, 'id') || '';
+    const name = extractAttr(attrs, 'name') || '';
+    const element: BpmnElement = { id, name, type: tagName as BpmnElementType };
 
-      // Extract assignee for user tasks (from extension elements or attributes)
-      if (type === 'userTask') {
-        const assigneeMatch = xml.match(
-          new RegExp(`<bpmn:userTask[^>]*id="${id}"[^>]*>[\\s\\S]*?<bpmn:extensionElements>[\\s\\S]*?camunda:assignee>([^<]+)`)
-        );
-        if (assigneeMatch) element.assignee = assigneeMatch[1];
+    // Extract assignee for user tasks (from extension elements or attributes)
+    if (tagName === 'userTask') {
+      const assigneeMatch = xml.match(
+        new RegExp(`<bpmn:userTask[^>]*id="${id}"[^>]*>[\\s\\S]*?<bpmn:extensionElements>[\\s\\S]*?camunda:assignee>([^<]+)`)
+      );
+      if (assigneeMatch) element.assignee = assigneeMatch[1];
 
-        const candidateMatch = xml.match(
-          new RegExp(`<bpmn:userTask[^>]*id="${id}"[^>]*>[\\s\\S]*?<bpmn:extensionElements>[\\s\\S]*?camunda:candidateGroups>([^<]+)`)
-        );
-        if (candidateMatch) element.candidateGroups = candidateMatch[1].split(',');
-      }
-
-      elements.push(element);
+      const candidateMatch = xml.match(
+        new RegExp(`<bpmn:userTask[^>]*id="${id}"[^>]*>[\\s\\S]*?<bpmn:extensionElements>[\\s\\S]*?camunda:candidateGroups>([^<]+)`)
+      );
+      if (candidateMatch) element.candidateGroups = candidateMatch[1].split(',');
     }
+
+    elements.push(element);
   }
 
   // Extract sequence flows
-  const flowRegex = /<bpmn:sequenceFlow\s+[^>]*id="([^"]+)"[^>]*sourceRef="([^"]+)"[^>]*targetRef="([^"]+)"[^>]*(?:name="([^"]*)")?[^>]*>/g;
+  const flowRegex = /<bpmn:sequenceFlow\b([^>]*)>/g;
   let flowMatch;
   while ((flowMatch = flowRegex.exec(xml)) !== null) {
-    elements.push({
-      id: flowMatch[1],
-      name: flowMatch[4] || '',
-      type: 'sequenceFlow',
-      sourceRef: flowMatch[2],
-      targetRef: flowMatch[3],
-    });
+    const attrs = flowMatch[1];
+    const id = extractAttr(attrs, 'id') || '';
+    const name = extractAttr(attrs, 'name') || '';
+    const sourceRef = extractAttr(attrs, 'sourceRef');
+    const targetRef = extractAttr(attrs, 'targetRef');
+    elements.push({ id, name, type: 'sequenceFlow', sourceRef, targetRef });
   }
 
   // Categorize elements

@@ -11,6 +11,11 @@ import { useToast } from '@/hooks/use-toast';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
+// Import bpmn-js CSS for proper diagram rendering
+import 'bpmn-js/dist/assets/diagram-js.css';
+import 'bpmn-js/dist/assets/bpmn-js.css';
+import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css';
+
 export default function BpmnEditorPage() {
   const { t } = useI18n();
   const { toast } = useToast();

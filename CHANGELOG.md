@@ -15,6 +15,79 @@ Nothing yet. Future releases will be documented here as they ship.
 
 ---
 
+## [2.0.0] — 2026-08-11
+
+### Added — Enterprise Feature Pack
+
+#### Feature 1: Third-Party Security Audit Framework
+- 3 Prisma models (SecurityAudit, SecurityAuditFinding, SecurityScanResult)
+- 6 compliance frameworks (ISO 27001, SOC 2, GDPR, HIPAA, DoD 5015.02, Internal) with 87 pre-mapped controls
+- 3 automated scanners (npm-audit, secret detection, config validation)
+- Evidence collection (audit chain verification, user access review, permissions matrix)
+- Risk scoring (0-100) with weighted severity
+- Finding lifecycle: open → in_remediation → remediated → verified
+- JSON report export
+- 5 API endpoints + 2 admin UI pages
+- 14 unit tests
+- ADR-017
+
+#### Feature 2: DocuSign / Adobe Sign E-Signature Integration
+- 2 Prisma models (SignatureRequest, SignatureEnvelope)
+- DocuSign integration (JWT auth, envelope creation, signing URLs, HMAC webhooks)
+- Adobe Sign integration (OAuth client credentials, agreement creation, HMAC webhooks)
+- Internal provider fallback (in-app signing page at /shared/sign/[id])
+- SSRF DNS pinning on all outbound provider API calls
+- Step-up auth for voiding requests
+- Full audit trail per signature request
+- 7 API endpoints (including both provider webhooks) + 1 admin UI page
+- 10 unit tests
+- ADR-018
+
+#### Feature 3: Visual BPMN Workflow Designer
+- 2 Prisma models (BpmnProcessDefinition, BpmnProcessInstance)
+- bpmn-js visual modeler with CSS imports for proper rendering
+- Custom BPMN 2.0 XML parser (start/end events, user tasks, service tasks, gateways, flows)
+- Definition versioning with full history
+- Publish → maps BPMN user tasks to WorkflowDefinition approval steps
+- Instance management: start, terminate (step-up auth)
+- Default BPMN template generator
+- 7 API endpoints + 2 admin UI pages
+- 10 unit tests
+- ADR-019
+
+#### Feature 4: DoD 5015.02 Records Management
+- 4 Prisma models (RecordCategory, RecordFolder, VitalRecord, DispositionAuthority)
+- 15 DoD 5015.02 requirements mapped (C2.1-C2.9 core, C3.1-C3.6 optional) — all implemented
+- Hierarchical file plan (parent/child categories)
+- Folder lifecycle: open → cutoff → disposed (destroyed/transferred)
+- Legal hold enforcement (blocks disposition)
+- Vital records: designation, backup verification, review cycles, due-for-review
+- Disposition authorities: NARA GRS, NARA SF, agency-specific, court orders
+- JSON compliance report
+- 14 API endpoints + 4 admin UI pages
+- 18 unit tests
+- ADR-020
+
+#### Cross-cutting
+- 12 new permissions wired into 7 system roles
+- 4 sidebar navigation entries
+- i18n keys in all 5 locales (en, fr, ar, es, de)
+- Premium glassmorphism UI on all 9 new admin pages
+- Environment variables added to .env.example and .env.lan.template
+- Feature maintenance cron job (/api/cron/features)
+- 4 documentation pages (SECURITY-AUDIT.md, E-SIGNATURE.md, BPMN-DESIGNER.md, DOD-501502.md)
+- 52 new unit tests (total now 452, all passing)
+- Zero TypeScript errors
+
+### Security
+- All new API routes use createApiHandler (auth + RBAC + ABAC + rate-limit + audit)
+- Step-up auth on sensitive actions (void signature, publish BPMN, cutoff/dispose folders)
+- Hash-chained audit events for all feature actions
+- HMAC-SHA256 webhook verification for both DocuSign and Adobe Sign (timing-safe)
+- SSRF DNS pinning on all outbound provider API calls
+
+---
+
 ## [1.0.0] — 2026-08-11
 
 The inaugural release of Smart EDMS — an Algerian-built, internationally-standards-aligned SaaS Electronic Document Management System. This release ships the complete platform: multi-tenant architecture, tamper-evident audit, classification-driven access control, AI-assisted intelligence with human oversight, dual payment providers, full i18n (5 locales), PWA, and a comprehensive security posture with 125+ findings patched.
