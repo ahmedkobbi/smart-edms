@@ -1626,5 +1626,28 @@
     "cancel": "Cancelar",
     "create": "Crear",
     "failedShort": "Fallido"
+  },
+  "subscription": {
+    "renewNow": "Renovar Ahora",
+    "uploadLicense": "Subir Licencia",
+    "readOnlyTitle": "Modo Solo Lectura — Suscripción Expirada",
+    "lockedTitle": "Acceso Bloqueado — Acción Requerida"
+  },
+  "license": {
+    "title": "Gestión de Licencias",
+    "subtitle": "Administre su licencia local",
+    "currentLicense": "Licencia Actual",
+    "noLicense": "No hay licencia instalada. Sube un archivo de licencia para activar.",
+    "uploadNew": "Subir Nueva Licencia",
+    "pasteKey": "Pega tu clave de licencia aquí...",
+    "install": "Instalar",
+    "licensee": "Licenciatario",
+    "plan": "Plan",
+    "seats": "Asientos",
+    "storage": "Almacenamiento",
+    "issuedAt": "Emitido",
+    "expiresAt": "Expira",
+    "gracePeriodEnds": "Fin del período de gracia",
+    "features": "Características"
   }
 }

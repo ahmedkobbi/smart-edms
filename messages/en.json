@@ -1626,5 +1626,28 @@
     "cancel": "Cancel",
     "create": "Create",
     "failedShort": "Failed"
+  },
+  "subscription": {
+    "renewNow": "Renew Now",
+    "uploadLicense": "Upload License",
+    "readOnlyTitle": "Read-Only Mode — Subscription Expired",
+    "lockedTitle": "Access Locked — Action Required"
+  },
+  "license": {
+    "title": "License Management",
+    "subtitle": "Manage your on-premise license",
+    "currentLicense": "Current License",
+    "noLicense": "No license installed. Upload a license file to activate.",
+    "uploadNew": "Upload New License",
+    "pasteKey": "Paste your license key here...",
+    "install": "Install",
+    "licensee": "Licensee",
+    "plan": "Plan",
+    "seats": "Seats",
+    "storage": "Storage",
+    "issuedAt": "Issued",
+    "expiresAt": "Expires",
+    "gracePeriodEnds": "Grace period ends",
+    "features": "Features"
   }
 }

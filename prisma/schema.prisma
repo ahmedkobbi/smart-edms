@@ -68,6 +68,8 @@ model Tenant {
   ssoProviders           SsoProvider[]
   auditReceipts          AuditReceipt[]
   subscription           Subscription?
+  // On-premise license (for LAN deployments — HMAC-signed license files)
+  license                License?
   // NowPayments / Stripe payment invoices for crypto + card checkout.
   // SECURITY: every invoice has a unique idempotency key (prevents
   // duplicate charges from network retries) and a strict status machine
@@ -1312,21 +1314,67 @@ model Subscription {
   id           String   @id @default(cuid())
   tenantId     String   @unique
   plan         String   @default("trial") // trial | starter | business | enterprise
-  status       String   @default("active") // active | past_due | canceled | trialing
+  status       String   @default("active") // active | past_due | canceled | trialing | suspended | locked
   seats        Int      @default(1)
   storageBytes BigInt   @default(1073741824) // 1GB default
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
+  // Subscription lifecycle tracking (SaaS billing)
+  // Tracks grace period and suspension timeline for automated dunning
+  gracePeriodEndsAt  DateTime?   // when the read-only grace period ends
+  suspendedAt        DateTime?   // when the tenant entered read-only mode
+  lockedAt           DateTime?   // when the tenant was fully locked
+  dataExportDeadline DateTime?   // when data will be deleted (90 days after lock)
   // SECURITY FIX (L-ADM-6): Stripe identifiers for webhook reconciliation.
-  // When Stripe is the source of truth for billing, the webhook uses these
-  // to match events to tenants. Set when the customer first subscribes via
-  // Stripe Checkout; null for trial / manually-managed subscriptions.
   stripeCustomerId       String?
   stripeSubscriptionId   String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================================
+//  ON-PREMISE LICENSE (for LAN/air-gapped deployments)
+// ============================================================================
+// HMAC-SHA256 signed license files issued by the vendor.
+// The license is verified on every request — tampering causes immediate lock.
+// Unlike SaaS subscriptions, on-premise licenses don't delete data (it's the
+// customer's data on their server). Expired licenses enter read-only mode
+// then fully lock, but data is never deleted.
+
+model License {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique
+  // The license key (HMAC-signed JSON, base64-encoded)
+  licenseKey      String   @unique
+  // Parsed license data (JSON: { tenantName, plan, seats, storageBytes, features, issuedAt, expiresAt, signature })
+  licenseData     String   @default("{}")
+  // Status: active | grace_period | expired | locked | revoked
+  status          String   @default("active")
+  // License metadata
+  licenseeName    String   // organization name
+  plan            String   @default("enterprise") // on-prem is always enterprise-tier
+  seats           Int      @default(25)
+  storageBytes    BigInt   @default(5368709120) // 5GB default
+  features        String   @default("[]") // JSON array of enabled features
+  issuedAt        DateTime
+  expiresAt       DateTime
+  // Grace period tracking (configurable, default 30 days)
+  gracePeriodDays Int      @default(30)
+  gracePeriodEndsAt DateTime?
+  lockedAt        DateTime?
+  // The vendor signature (HMAC-SHA256 of the license data)
+  signature       String
+  // Who issued the license (for audit)
+  issuedBy        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([status])
 }
 
 // ============================================================================

@@ -1626,5 +1626,28 @@
     "cancel": "إلغاء",
     "create": "إنشاء",
     "failedShort": "فشل"
+  },
+  "subscription": {
+    "renewNow": "تجديد الآن",
+    "uploadLicense": "تحميل الترخيص",
+    "readOnlyTitle": "وضع القراءة فقط — انتهاء الاشتراك",
+    "lockedTitle": "الوصول مقفل — إجراء مطلوب"
+  },
+  "license": {
+    "title": "إدارة الترخيص",
+    "subtitle": "إدارة ترخيصك في الموقع",
+    "currentLicense": "الترخيص الحالي",
+    "noLicense": "لا يوجد ترخيص مثبت. قم بتحميل ملف ترخيص للتفعيل.",
+    "uploadNew": "تحميل ترخيص جديد",
+    "pasteKey": "الصق مفتاح الترخيص هنا...",
+    "install": "تثبيت",
+    "licensee": "المرخص له",
+    "plan": "الخطة",
+    "seats": "المقاعد",
+    "storage": "التخزين",
+    "issuedAt": "صدر في",
+    "expiresAt": "ينتهي في",
+    "gracePeriodEnds": "نهاية فترة السماح",
+    "features": "الميزات"
   }
 }

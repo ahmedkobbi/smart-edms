@@ -1626,5 +1626,28 @@
     "cancel": "Abbrechen",
     "create": "Erstellen",
     "failedShort": "Fehlgeschlagen"
+  },
+  "subscription": {
+    "renewNow": "Jetzt Erneuern",
+    "uploadLicense": "Lizenz Hochladen",
+    "readOnlyTitle": "Nur-Lese-Modus — Abonnement Abgelaufen",
+    "lockedTitle": "Zugriff Gesperrt — Aktion Erforderlich"
+  },
+  "license": {
+    "title": "Lizenzverwaltung",
+    "subtitle": "Verwalten Sie Ihre On-Premise-Lizenz",
+    "currentLicense": "Aktuelle Lizenz",
+    "noLicense": "Keine Lizenz installiert. Laden Sie eine Lizenzdatei hoch.",
+    "uploadNew": "Neue Lizenz Hochladen",
+    "pasteKey": "Fügen Sie hier Ihren Lizenzschlüssel ein...",
+    "install": "Installieren",
+    "licensee": "Lizenznehmer",
+    "plan": "Plan",
+    "seats": "Sitze",
+    "storage": "Speicher",
+    "issuedAt": "Ausgestellt",
+    "expiresAt": "Läuft ab",
+    "gracePeriodEnds": "Ende der Kulanzfrist",
+    "features": "Funktionen"
   }
 }

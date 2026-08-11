@@ -82,6 +82,32 @@ function jsonError(status: number, code: string, message: string, extra: Record<
 }
 
 /**
+ * Check if the endpoint is a platform-admin or public endpoint that should
+ * bypass the subscription/license access gate. Platform admins need to
+ * manage tenants (including suspended ones), and public endpoints (webhooks,
+ * health, cron) don't have a user session to check against.
+ */
+function isPlatformAdminEndpoint(pathname: string): boolean {
+  // Platform admin endpoints
+  if (pathname.startsWith('/api/admin/tenants')) return true;
+  if (pathname.startsWith('/api/admin/platform')) return true;
+  // Public endpoints (no auth, no subscription check)
+  if (pathname.startsWith('/api/auth/')) return true;
+  if (pathname.startsWith('/api/health')) return true;
+  if (pathname.startsWith('/api/cron/')) return true;
+  if (pathname.startsWith('/api/billing/webhook')) return true;
+  if (pathname.startsWith('/api/billing/return')) return true;
+  if (pathname.startsWith('/api/signatures/webhooks/')) return true;
+  if (pathname.startsWith('/api/public-sign/')) return true;
+  if (pathname.startsWith('/api/shared/')) return true;
+  // License management endpoints must be accessible even when locked
+  if (pathname.startsWith('/api/license')) return true;
+  // Access status endpoint must be accessible for the banner
+  if (pathname === '/api/access-status') return true;
+  return false;
+}
+
+/**
  * Parse Accept-Language header and return the best matching locale.
  * Falls back to 'en'.
  */
@@ -424,6 +450,27 @@ export function createApiHandler(opts: CreateHandlerOptions = {}, handler: ApiHa
           breakGlassId: bgContext.breakGlassId,
           path: req.nextUrl.pathname,
         });
+      }
+    }
+
+    // --- Subscription / License access gate ---
+    // Checks SaaS subscription or on-prem license status on every request.
+    // - locked: block all access (402 Payment Required)
+    // - read_only: block writes (POST/PUT/PATCH/DELETE) with 403
+    // - full: allow
+    // Skip for platform admin endpoints (they need to manage tenants)
+    // and public endpoints (webhooks, health, cron).
+    const skipAccessGate = isPlatformAdminEndpoint(req.nextUrl.pathname);
+    if (!skipAccessGate) {
+      const { checkAccess, isWriteAllowed } = await import('@/lib/billing/access-gate');
+      const accessResult = await checkAccess(session.user.tenantId);
+
+      if (accessResult.level === 'locked') {
+        return jsonError(402, 'subscription_locked', accessResult.message || 'Access locked. Contact your administrator.');
+      }
+
+      if (!isWriteAllowed(accessResult, req.method)) {
+        return jsonError(403, 'read_only_mode', accessResult.message || 'This tenant is in read-only mode. Write operations are blocked.');
       }
     }
 

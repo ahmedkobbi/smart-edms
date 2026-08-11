@@ -1626,5 +1626,28 @@
     "cancel": "Annuler",
     "create": "Créer",
     "failedShort": "Échec"
+  },
+  "subscription": {
+    "renewNow": "Renouveler",
+    "uploadLicense": "Télécharger la Licence",
+    "readOnlyTitle": "Mode Lecture Seule — Abonnement Expiré",
+    "lockedTitle": "Accès Verrouillé — Action Requise"
+  },
+  "license": {
+    "title": "Gestion des Licences",
+    "subtitle": "Gérez votre licence sur site",
+    "currentLicense": "Licence Actuelle",
+    "noLicense": "Aucune licence installée. Téléchargez un fichier de licence pour activer.",
+    "uploadNew": "Télécharger une Nouvelle Licence",
+    "pasteKey": "Collez votre clé de licence ici...",
+    "install": "Installer",
+    "licensee": "Licencié",
+    "plan": "Plan",
+    "seats": "Sièges",
+    "storage": "Stockage",
+    "issuedAt": "Émis",
+    "expiresAt": "Expire",
+    "gracePeriodEnds": "Fin de période de grâce",
+    "features": "Fonctionnalités"
   }
 }

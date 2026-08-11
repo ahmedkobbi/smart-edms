@@ -82,6 +82,7 @@ const NAV_GROUPS: { titleKey: string; items: NavItem[] }[] = [
       { href: '/admin/devices', labelKey: 'nav.devices', icon: Smartphone, permission: PERMISSIONS.ADMIN_USERS_MANAGE },
       { href: '/admin/tenant', labelKey: 'nav.tenantSettings', icon: Settings, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
       { href: '/admin/billing', labelKey: 'nav.billing', icon: CreditCard, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
+      { href: '/admin/license', labelKey: 'license.title', icon: KeyRound, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
     ],
   },
   {

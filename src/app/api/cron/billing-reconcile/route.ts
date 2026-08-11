@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  const results = {
+  const results: Record<string, any> = {
     timestamp: new Date().toISOString(),
     expired: 0,
     reconciled: 0,
@@ -148,6 +148,23 @@ export async function GET(req: NextRequest) {
       results.errors.push(`reconcile: ${err.message}`);
       logger.error('billing_cron.reconcile_failed', { error: err.message });
     }
+  }
+
+  // --- 3. Process expired subscriptions (SaaS lifecycle) ---
+  try {
+    const { processExpiredSubscriptions, processExpiredLicenses, getDeploymentMode } = await import('@/lib/billing/access-gate');
+    const mode = getDeploymentMode();
+
+    if (mode === 'saas') {
+      await processExpiredSubscriptions();
+      results.subscriptionProcessing = 'completed';
+    } else {
+      await processExpiredLicenses();
+      results.licenseProcessing = 'completed';
+    }
+  } catch (err: any) {
+    results.errors.push(`lifecycle: ${err.message}`);
+    logger.error('billing_cron.lifecycle_failed', { error: err.message });
   }
 
   // --- Audit ---

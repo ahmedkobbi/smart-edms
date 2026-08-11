@@ -3,6 +3,7 @@
 import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/top-bar';
 import { BottomNav } from '@/components/layout/bottom-nav';
+import { SubscriptionBanner } from '@/components/layout/subscription-banner';
 import { useSessionData } from '@/components/providers/use-session-data';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -66,6 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </a>
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
+          <SubscriptionBanner />
           <TopBar />
           <main id="main-content" className="flex-1 p-4 md:p-6 lg:p-8 pb-20 md:pb-6">
             <motion.div
