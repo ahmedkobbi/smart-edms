@@ -1,0 +1,79 @@
+{
+  "name": "smart-edms-desktop",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Smart EDMS — On-Premise Desktop Application (Electron)",
+  "main": "dist/main.js",
+  "scripts": {
+    "build:main": "tsc -p tsconfig.json",
+    "build:renderer": "cd .. && next build && cp -r .next/standalone electron/renderer && cp -r .next/static electron/renderer/.next/ && cp -r public electron/renderer/",
+    "build": "npm run build:main && npm run build:renderer",
+    "dev": "tsc -p tsconfig.json --watch & cd .. && next dev",
+    "start": "electron .",
+    "dist": "npm run build && electron-builder --win --x64",
+    "dist:dir": "npm run build && electron-builder --win --x64 --dir"
+  },
+  "build": {
+    "appId": "dz.smartedms.desktop",
+    "productName": "Smart EDMS",
+    "copyright": "Copyright © 2026 Ahmed Kobbi. All rights reserved.",
+    "directories": {
+      "output": "release",
+      "buildResources": "resources"
+    },
+    "files": [
+      "dist/**/*",
+      "renderer/**/*",
+      "resources/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "msi",
+          "arch": ["x64"]
+        },
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "publisherName": "Ahmed Kobbi",
+      "verifyUpdateCodeSignature": true,
+      "signingHashAlgorithms": ["sha256"],
+      "signAndEditExecutable": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": true,
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Smart EDMS"
+    },
+    "msi": {
+      "oneClick": false,
+      "perMachine": true,
+      "runAfterFinish": true
+    },
+    "publish": {
+      "provider": "generic",
+      "url": "https://vendor.smartedms.local/updates/",
+      "channel": "latest"
+    }
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.2.0",
+    "better-sqlite3": "^11.3.0",
+    "keytar": "^7.9.0",
+    "electron-updater": "^6.3.9",
+    "electron-log": "^5.2.0"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.1.0",
+    "typescript": "^5"
+  }
+}

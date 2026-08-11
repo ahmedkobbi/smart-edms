@@ -80,3 +80,7 @@ vendor-server/node_modules/
 vendor-server/.next/
 vendor-server/vendor-server.db
 vendor-server/.env
+electron/node_modules/
+electron/dist/
+electron/renderer/
+electron/release/
