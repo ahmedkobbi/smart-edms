@@ -74,7 +74,7 @@ export const GET = createApiHandler(
         ? db.legalHold.count({ where: { tenantId: ctx.tenantId, releasedAt: null } })
         : Promise.resolve(0),
       db.favorite.findMany({
-        where: { userId: ctx.userId, tenantId: ctx.tenantId },
+        where: { userId: ctx.userId, tenantId: ctx.targetTenantId },
         orderBy: { createdAt: 'desc' },
         take: 5,
         include: {
@@ -84,7 +84,7 @@ export const GET = createApiHandler(
         },
       }),
       db.recentView.findMany({
-        where: { userId: ctx.userId, tenantId: ctx.tenantId },
+        where: { userId: ctx.userId, tenantId: ctx.targetTenantId },
         orderBy: { viewedAt: 'desc' },
         take: 5,
         include: {

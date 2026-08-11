@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { GlassCard } from '@/components/ui/premium';
-import { CreditCard, Loader2, HardDrive, Users, FileText, Bitcoin, Check, ExternalLink, Clock, AlertCircle } from 'lucide-react';
+import { CreditCard, Loader2, HardDrive, Users, FileText, Bitcoin, Check, ExternalLink, Clock, AlertCircle, CreditCard as CardIcon } from 'lucide-react';
 import { formatBytes } from '@/lib/utils/format';
 import { useI18n } from '@/i18n/use-i18n';
 import { useToast } from '@/hooks/use-toast';
@@ -49,6 +49,7 @@ export default function AdminBillingPage() {
   const [selectedPlan, setSelectedPlan] = useState<string>('');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [payCurrency, setPayCurrency] = useState<string>('btc');
+  const [paymentMethod, setPaymentMethod] = useState<'crypto' | 'card'>('crypto');
   const [showCheckout, setShowCheckout] = useState(false);
   const [pollingInvoiceId, setPollingInvoiceId] = useState<string | null>(null);
 
@@ -72,6 +73,20 @@ export default function AdminBillingPage() {
       setPollingInvoiceId(res.invoiceId);
       // Redirect to NowPayments invoice page
       window.location.href = res.invoiceUrl;
+    },
+    onError: (err: any) => {
+      toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' });
+      setShowCheckout(false);
+    },
+  });
+
+  // Stripe checkout mutation
+  const stripeCheckout = useMutation({
+    mutationFn: (params: { plan: string; billingCycle: string; idempotencyKey: string }) =>
+      api.post<any>('/api/billing/stripe-checkout', params),
+    onSuccess: (res) => {
+      setPollingInvoiceId(res.invoiceId);
+      window.location.href = res.checkoutUrl;
     },
     onError: (err: any) => {
       toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' });
@@ -184,7 +199,10 @@ export default function AdminBillingPage() {
               <h3 className="text-base font-semibold">{t('admin.billing.upgradePlan')}</h3>
               <p className="text-xs text-muted-foreground mt-1">{t('admin.billing.upgradeDesc')}</p>
             </div>
-            <Bitcoin className="h-6 w-6 text-amber-500" />
+            <div className="flex items-center gap-2">
+              <Bitcoin className="h-6 w-6 text-amber-500" />
+              <CardIcon className="h-6 w-6 text-blue-500" />
+            </div>
           </div>
 
           {/* Billing cycle toggle */}
@@ -239,47 +257,101 @@ export default function AdminBillingPage() {
             })}
           </div>
 
-          {/* Crypto currency selector */}
+          {/* Payment method + checkout */}
           {selectedPlan && !showCheckout && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="overflow-hidden">
               <div className="pt-4 border-t">
+                {/* Payment method toggle */}
                 <p className="text-xs font-medium text-muted-foreground mb-2">{t('admin.billing.payWith')}</p>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {CRYPTO_OPTIONS.map((crypto) => (
-                    <button
-                      key={crypto.id}
-                      onClick={() => setPayCurrency(crypto.id)}
-                      className={`p-2 rounded-lg border text-center transition-all ${
-                        payCurrency === crypto.id
-                          ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                          : 'border-border hover:border-primary/30 glass-card'
-                      }`}
-                    >
-                      <p className="text-xs font-medium">{crypto.symbol}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{crypto.name}</p>
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2 mb-4">
+                  <button
+                    onClick={() => setPaymentMethod('crypto')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      paymentMethod === 'crypto' ? 'bg-primary text-primary-foreground' : 'glass border-0'
+                    }`}
+                  >
+                    <Bitcoin className="h-4 w-4" /> Crypto
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod('card')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      paymentMethod === 'card' ? 'bg-primary text-primary-foreground' : 'glass border-0'
+                    }`}
+                  >
+                    <CardIcon className="h-4 w-4" /> Card
+                  </button>
                 </div>
 
-                <Button
-                  className="w-full mt-4"
-                  size="lg"
-                  onClick={() => {
-                    checkout.mutate({
-                      plan: selectedPlan,
-                      billingCycle,
-                      payCurrency,
-                      idempotencyKey: crypto.randomUUID(),
-                    });
-                  }}
-                  disabled={checkout.isPending}
-                >
-                  {checkout.isPending ? (
-                    <><Loader2 className="h-4 w-4 animate-spin me-2" /> {t('admin.billing.redirecting')}</>
-                  ) : (
-                    <><Bitcoin className="h-4 w-4 me-2" /> {t('admin.billing.continueToPayment')}</>
-                  )}
-                </Button>
+                {/* Crypto currency selector (only when crypto is selected) */}
+                {paymentMethod === 'crypto' && (
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
+                    {CRYPTO_OPTIONS.map((crypto) => (
+                      <button
+                        key={crypto.id}
+                        onClick={() => setPayCurrency(crypto.id)}
+                        className={`p-2 rounded-lg border text-center transition-all ${
+                          payCurrency === crypto.id
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                            : 'border-border hover:border-primary/30 glass-card'
+                        }`}
+                      >
+                        <p className="text-xs font-medium">{crypto.symbol}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{crypto.name}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Crypto checkout button */}
+                {paymentMethod === 'crypto' && (
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    onClick={() => {
+                      checkout.mutate({
+                        plan: selectedPlan,
+                        billingCycle,
+                        payCurrency,
+                        idempotencyKey: crypto.randomUUID(),
+                      });
+                    }}
+                    disabled={checkout.isPending}
+                  >
+                    {checkout.isPending ? (
+                      <><Loader2 className="h-4 w-4 animate-spin me-2" /> {t('admin.billing.redirecting')}</>
+                    ) : (
+                      <><Bitcoin className="h-4 w-4 me-2" /> {t('admin.billing.continueToPayment')}</>
+                    )}
+                  </Button>
+                )}
+
+                {/* Stripe card checkout button */}
+                {paymentMethod === 'card' && (
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    onClick={() => {
+                      stripeCheckout.mutate({
+                        plan: selectedPlan,
+                        billingCycle,
+                        idempotencyKey: crypto.randomUUID(),
+                      });
+                    }}
+                    disabled={stripeCheckout.isPending}
+                  >
+                    {stripeCheckout.isPending ? (
+                      <><Loader2 className="h-4 w-4 animate-spin me-2" /> {t('admin.billing.redirecting')}</>
+                    ) : (
+                      <><CardIcon className="h-4 w-4 me-2" /> {t('admin.billing.continueToPayment')}</>
+                    )}
+                  </Button>
+                )}
+
+                <p className="text-xs text-muted-foreground text-center mt-3">
+                  {paymentMethod === 'crypto'
+                    ? 'BTC, ETH, USDT, USDC, LTC accepted. Payment confirmed on blockchain confirmation.'
+                    : 'Visa, Mastercard, Amex via Stripe. Payment confirmed instantly.'}
+                </p>
               </div>
             </motion.div>
           )}

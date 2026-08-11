@@ -12,7 +12,7 @@ export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.SEARCH_USE },
   async (req: NextRequest, ctx) => {
     const items = await db.controlledVocabulary.findMany({
-      where: { tenantId: ctx.tenantId },
+      where: { tenantId: ctx.targetTenantId },
       orderBy: { name: 'asc' },
     });
     return NextResponse.json({
@@ -36,7 +36,7 @@ export const POST = createApiHandler(
   async (req: NextRequest, ctx) => {
     const body = createSchema.parse(await req.json());
     const existing = await db.controlledVocabulary.findFirst({
-      where: { name: body.name, tenantId: ctx.tenantId },
+      where: { name: body.name, tenantId: ctx.targetTenantId },
     });
     if (existing) throw ApiError.conflict('exists', 'Vocabulary with this name already exists');
 

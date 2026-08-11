@@ -39,7 +39,7 @@ import { z } from 'zod';
 export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.ADMIN_TENANT_MANAGE },
   async (req: NextRequest, ctx) => {
-    let sub = await db.subscription.findUnique({ where: { tenantId: ctx.tenantId } });
+    let sub = await db.subscription.findUnique({ where: { tenantId: ctx.targetTenantId } });
     if (!sub) {
       // Auto-create trial subscription
       sub = await db.subscription.create({
@@ -60,7 +60,7 @@ export const GET = createApiHandler(
       db.user.count({ where: { tenantId: ctx.tenantId, status: 'active' } }),
       db.document.count({ where: { tenantId: ctx.tenantId, deletedAt: null } }),
       db.documentVersion.aggregate({
-        where: { tenantId: ctx.tenantId },
+        where: { tenantId: ctx.targetTenantId },
         _sum: { sizeBytes: true },
       }),
     ]);
@@ -120,7 +120,7 @@ export const PATCH = createApiHandler(
       );
     }
 
-    let sub = await db.subscription.findUnique({ where: { tenantId: ctx.tenantId } });
+    let sub = await db.subscription.findUnique({ where: { tenantId: ctx.targetTenantId } });
     if (!sub) {
       sub = await db.subscription.create({
         data: {
@@ -168,7 +168,7 @@ export const PATCH = createApiHandler(
       }
 
       sub = await db.subscription.update({
-        where: { tenantId: ctx.tenantId },
+        where: { tenantId: ctx.targetTenantId },
         data: {
           ...(body.plan !== undefined ? { plan: body.plan } : {}),
           ...(body.status !== undefined ? { status: body.status } : {}),

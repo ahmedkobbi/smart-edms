@@ -139,21 +139,21 @@ export const POST = createApiHandler(
     // Validate classification exists if provided
     if (classificationId) {
       const cls = await db.classification.findFirst({
-        where: { id: classificationId, tenantId: ctx.tenantId },
+        where: { id: classificationId, tenantId: ctx.targetTenantId },
       });
       if (!cls) throw ApiError.badRequest('invalid_classification', 'Classification not found');
     }
 
     // Validate folder if provided
     if (folderId) {
-      const folder = await db.folder.findFirst({ where: { id: folderId, tenantId: ctx.tenantId } });
+      const folder = await db.folder.findFirst({ where: { id: folderId, tenantId: ctx.targetTenantId } });
       if (!folder) throw ApiError.badRequest('invalid_folder', 'Folder not found');
     }
 
     // Validate retention schedule if provided
     if (retentionScheduleId) {
       const sched = await db.retentionSchedule.findFirst({
-        where: { id: retentionScheduleId, tenantId: ctx.tenantId },
+        where: { id: retentionScheduleId, tenantId: ctx.targetTenantId },
       });
       if (!sched) throw ApiError.badRequest('invalid_retention', 'Retention schedule not found');
     }

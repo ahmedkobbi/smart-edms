@@ -74,7 +74,7 @@ export const POST = createApiHandler(
     const body = createSchema.parse(await req.json());
 
     const existing = await db.user.findFirst({
-      where: { email: body.email.toLowerCase(), tenantId: ctx.tenantId },
+      where: { email: body.email.toLowerCase(), tenantId: ctx.targetTenantId },
     });
     if (existing) throw ApiError.conflict('user_exists', 'User with this email already exists');
 

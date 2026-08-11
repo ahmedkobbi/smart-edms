@@ -60,7 +60,7 @@ export const POST = createApiHandler(
 
     if (body.parentId) {
       const parent = await db.folder.findFirst({
-        where: { id: body.parentId, tenantId: ctx.tenantId },
+        where: { id: body.parentId, tenantId: ctx.targetTenantId },
       });
       if (!parent) throw ApiError.badRequest('invalid_parent', 'Parent folder not found');
     }

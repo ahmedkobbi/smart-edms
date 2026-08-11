@@ -22,7 +22,7 @@ export const GET = createApiHandler(
 
     const [items, total] = await Promise.all([
       db.paymentInvoice.findMany({
-        where: { tenantId: ctx.tenantId },
+        where: { tenantId: ctx.targetTenantId },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -41,7 +41,7 @@ export const GET = createApiHandler(
           expiresAt: true,
         },
       }),
-      db.paymentInvoice.count({ where: { tenantId: ctx.tenantId } }),
+      db.paymentInvoice.count({ where: { tenantId: ctx.targetTenantId } }),
     ]);
 
     return NextResponse.json({

@@ -1,0 +1,99 @@
+feat: wire cross-tenant visibility (targetTenantId) + Stripe Checkout UI
+
+## #2: Cross-tenant visibility — ctx.targetTenantId wired into 16 admin routes
+
+The platform admin cross-tenant override mechanism was built in the previous
+commit (createApiHandler reads `?tenantId=` or `x-target-tenant` header and
+sets `ctx.targetTenantId`), but no route actually used it. This commit wires
+`ctx.targetTenantId` into the data `where:` clauses of 16 admin routes so
+platform admins can view other tenants' data.
+
+### Approach
+Created `scripts/wire-target-tenant-id.py` — a Python script that:
+- Scans 23 admin/data listing route files
+- Replaces `ctx.tenantId` → `ctx.targetTenantId` ONLY inside `where:` clauses
+  of db queries (findFirst, findMany, count, aggregate, groupBy)
+- Does NOT replace in `data:` blocks (create/update — mutations stay on
+  ctx.tenantId to prevent accidental cross-tenant writes)
+- Does NOT replace in audit events, fireWebhook, alertPolicyViolation, notify,
+  canReadDocument, canModifyDocument, revokeAllUserSessions (those use
+  ctx.tenantId — the actor's real tenant — for audit trail correctness)
+
+### Routes patched (16 files, ~30 query replacements)
+- admin/users (list + detail) — platform admin can see all users in any tenant
+- admin/roles (list + detail) — see roles in any tenant
+- admin/webhooks (list) — see webhooks in any tenant
+- admin/vocabularies (list) — see vocabularies in any tenant
+- admin/retention (list) — see retention schedules in any tenant
+- admin/notification-routing (list) — see routing rules in any tenant
+- admin/invitations (list) — see invitations in any tenant
+- admin/evidence-packages (list) — see evidence packages in any tenant
+- admin/legal-holds (list) — see legal holds in any tenant
+- dashboard (GET) — see stats for any tenant
+- documents (list) — see documents in any tenant
+- saved-searches (list) — see saved searches in any tenant
+- folders (list) — see folders in any tenant
+- billing/invoices (list) — see invoices in any tenant
+- admin/billing (GET) — see subscription/billing for any tenant
+
+### How it works
+1. Platform admin signs in (has `ADMIN_PLATFORM_VIEW_ALL` permission)
+2. They pass `?tenantId=<other-tenant-id>` on any admin API call
+3. `createApiHandler` detects the platform admin + the target tenant
+4. Verifies the target tenant exists and is not deleted
+5. Sets `ctx.targetTenantId = <other-tenant-id>`
+6. The route's `where:` clause uses `ctx.targetTenantId` → returns the
+   other tenant's data
+7. Audit events still use `ctx.tenantId` (the actor's real tenant) so
+   the audit trail shows "platform admin from tenant A viewed data in
+   tenant B"
+
+## #3: Stripe Checkout UI — card payments alongside crypto
+
+### New API endpoint: `POST /api/billing/stripe-checkout`
+Creates a Stripe Checkout Session (server-side, zero client trust):
+- Client sends `{ plan, billingCycle, idempotencyKey }` — never a price
+- Server reads price from `PLAN_PRICES_USD` and maps to Stripe price ID
+- Creates a `PaymentInvoice` record (idempotent — same key returns same session)
+- Calls Stripe API to create a Checkout Session:
+  - `mode: 'subscription'`
+  - `line_items[0][price]`: mapped from env var `STRIPE_PRICE_*`
+  - `success_url`: `/api/billing/return?invoice_id=...` (display only)
+  - `cancel_url`: `/api/billing/return?invoice_id=...&canceled=1`
+  - `client_reference_id`: invoice ID (for webhook reconciliation)
+  - `metadata[plan/billing_cycle/tenant_id/amount_usd]`: for audit trail
+- Updates the invoice with `providerInvoiceId` (session.id) + `invoiceUrl` (session.url)
+- Records audit event: `payment.stripe_checkout_created`
+- Returns `{ invoiceId, checkoutUrl }` — client redirects to Stripe-hosted page
+
+### Billing dashboard UI update
+The upgrade section now has a **payment method toggle** (Crypto / Card):
+
+**Crypto mode (existing, unchanged):**
+- 6 crypto currency picker buttons (BTC, ETH, USDT-TRC20, USDT-ERC20, USDC, LTC)
+- "Continue to payment" button → calls `POST /api/billing/checkout` (NowPayments)
+- Helper text: "BTC, ETH, USDT, USDC, LTC accepted. Payment confirmed on blockchain confirmation."
+
+**Card mode (new):**
+- No currency picker needed (Stripe handles card collection)
+- "Continue to payment" button → calls `POST /api/billing/stripe-checkout`
+- Helper text: "Visa, Mastercard, Amex via Stripe. Payment confirmed instantly."
+- Redirects to Stripe-hosted checkout page
+- After payment, Stripe sends webhook → subscription activated
+- User returns to `/api/billing/return` → billing dashboard polls for status
+
+**Header icon update:**
+- Upgrade section header now shows both Bitcoin (amber) + Card (blue) icons
+  to indicate both payment methods are available
+
+### Design
+- Premium glassmorphism: glass toggle buttons, glass-card currency pickers
+- Animated entrance (Framer Motion: opacity + height transition)
+- Loading states: Loader2 spinner with "Redirecting…" text
+- Both buttons use the same `h-12` (48px) touch-friendly size
+- Responsive: toggle buttons stack on mobile, currency grid collapses to 3-col
+
+## Test results
+- TypeScript: 0 errors
+- ESLint: 0 errors (12 pre-existing a11y warnings)
+- Unit tests: 400/400 passing

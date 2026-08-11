@@ -40,7 +40,7 @@ export const POST = createApiHandler(
   async (req: NextRequest, ctx) => {
     const body = createSchema.parse(await req.json());
     const existing = await db.savedSearch.findFirst({
-      where: { name: body.name, userId: ctx.userId, tenantId: ctx.tenantId },
+      where: { name: body.name, userId: ctx.userId, tenantId: ctx.targetTenantId },
     });
     if (existing) throw ApiError.conflict('exists', 'Saved search with this name already exists');
 

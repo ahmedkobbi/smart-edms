@@ -21,7 +21,7 @@ export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.ADMIN_TENANT_MANAGE },
   async (req: NextRequest, ctx) => {
     const items = await db.notificationRouting.findMany({
-      where: { tenantId: ctx.tenantId },
+      where: { tenantId: ctx.targetTenantId },
       orderBy: [{ priority: 'desc' }, { name: 'asc' }],
     });
     return NextResponse.json({
@@ -52,7 +52,7 @@ export const POST = createApiHandler(
   },
   async (req: NextRequest, ctx) => {
     const body = createSchema.parse(await req.json());
-    const existing = await db.notificationRouting.findFirst({ where: { name: body.name, tenantId: ctx.tenantId } });
+    const existing = await db.notificationRouting.findFirst({ where: { name: body.name, tenantId: ctx.targetTenantId } });
     if (existing) throw ApiError.conflict('exists', 'Routing rule with this name already exists');
 
     const route = await db.notificationRouting.create({

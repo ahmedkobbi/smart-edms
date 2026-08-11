@@ -13,7 +13,7 @@ export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.RETENTION_MANAGE },
   async (req: NextRequest, ctx) => {
     const items = await db.retentionSchedule.findMany({
-      where: { tenantId: ctx.tenantId },
+      where: { tenantId: ctx.targetTenantId },
       orderBy: { retentionDays: 'asc' },
       include: { _count: { select: { documents: true } } },
     });
@@ -39,7 +39,7 @@ export const POST = createApiHandler(
   async (req: NextRequest, ctx) => {
     const body = createSchema.parse(await req.json());
     const existing = await db.retentionSchedule.findFirst({
-      where: { name: body.name, tenantId: ctx.tenantId },
+      where: { name: body.name, tenantId: ctx.targetTenantId },
     });
     if (existing) throw ApiError.conflict('exists', 'Schedule with this name already exists');
 

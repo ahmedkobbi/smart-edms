@@ -51,7 +51,7 @@ export const POST = createApiHandler(
       });
 
       for (const docId of body.documentIds) {
-        const doc = await tx.document.findFirst({ where: { id: docId, tenantId: ctx.tenantId } });
+        const doc = await tx.document.findFirst({ where: { id: docId, tenantId: ctx.targetTenantId } });
         if (!doc) continue;
         await tx.legalHoldDocument.create({
           data: {

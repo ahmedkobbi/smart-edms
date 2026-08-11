@@ -18,7 +18,7 @@ export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.ADMIN_USERS_MANAGE },
   async (req: NextRequest, ctx, params) => {
     const user = await db.user.findFirst({
-      where: { id: params!.id, tenantId: ctx.tenantId },
+      where: { id: params!.id, tenantId: ctx.targetTenantId },
       select: {
         id: true, email: true, name: true, status: true, mfaEnabled: true,
         lastLoginAt: true, lastLoginIp: true, lastLoginUserAgent: true,
@@ -52,7 +52,7 @@ export const PATCH = createApiHandler(
   },
   async (req: NextRequest, ctx, params) => {
     const body = patchSchema.parse(await req.json());
-    const user = await db.user.findFirst({ where: { id: params!.id, tenantId: ctx.tenantId } });
+    const user = await db.user.findFirst({ where: { id: params!.id, tenantId: ctx.targetTenantId } });
     if (!user) throw ApiError.notFound('user_not_found', 'User not found');
 
     if (user.id === ctx.userId && body.status === 'suspended') {
@@ -79,7 +79,7 @@ export const PATCH = createApiHandler(
 
       if (body.roleNames !== undefined) {
         // Replace all role assignments
-        await tx.roleAssignment.deleteMany({ where: { userId: user.id, tenantId: ctx.tenantId } });
+        await tx.roleAssignment.deleteMany({ where: { userId: user.id, tenantId: ctx.targetTenantId } });
         if (body.roleNames.length > 0) {
           const roles = await tx.role.findMany({
             where: { tenantId: ctx.tenantId, name: { in: body.roleNames } },
@@ -144,7 +144,7 @@ export const DELETE = createApiHandler(
     audit: { eventType: 'admin.user.suspend', action: 'delete', resourceType: 'user', alwaysAudit: true },
   },
   async (req: NextRequest, ctx, params) => {
-    const user = await db.user.findFirst({ where: { id: params!.id, tenantId: ctx.tenantId } });
+    const user = await db.user.findFirst({ where: { id: params!.id, tenantId: ctx.targetTenantId } });
     if (!user) throw ApiError.notFound('user_not_found', 'User not found');
     if (user.id === ctx.userId) throw ApiError.badRequest('cannot_delete_self', 'Cannot delete your own account');
 

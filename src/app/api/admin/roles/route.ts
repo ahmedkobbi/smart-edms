@@ -13,7 +13,7 @@ export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.ADMIN_ROLES_MANAGE },
   async (req: NextRequest, ctx) => {
     const items = await db.role.findMany({
-      where: { tenantId: ctx.tenantId },
+      where: { tenantId: ctx.targetTenantId },
       orderBy: { isSystem: 'desc' },
       include: { _count: { select: { assignments: true } } },
     });
@@ -37,7 +37,7 @@ export const POST = createApiHandler(
   },
   async (req: NextRequest, ctx) => {
     const body = createSchema.parse(await req.json());
-    const existing = await db.role.findFirst({ where: { name: body.name, tenantId: ctx.tenantId } });
+    const existing = await db.role.findFirst({ where: { name: body.name, tenantId: ctx.targetTenantId } });
     if (existing) throw ApiError.conflict('exists', 'Role with this name already exists');
 
     const role = await db.role.create({

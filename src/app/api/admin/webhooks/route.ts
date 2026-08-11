@@ -13,7 +13,7 @@ export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.ADMIN_WEBHOOKS_MANAGE },
   async (req: NextRequest, ctx) => {
     const items = await db.webhook.findMany({
-      where: { tenantId: ctx.tenantId },
+      where: { tenantId: ctx.targetTenantId },
       orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json({

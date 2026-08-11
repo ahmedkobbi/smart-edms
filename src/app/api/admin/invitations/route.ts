@@ -66,7 +66,7 @@ export const POST = createApiHandler(
     const body = createSchema.parse(await req.json());
 
     const existing = await db.user.findFirst({
-      where: { email: body.email.toLowerCase(), tenantId: ctx.tenantId },
+      where: { email: body.email.toLowerCase(), tenantId: ctx.targetTenantId },
     });
     if (existing) throw ApiError.conflict('user_exists', 'User with this email already exists');
 
@@ -113,7 +113,7 @@ export const POST = createApiHandler(
     const inviteUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/accept-invite?token=${token}`;
 
     const tenant = await db.tenant.findUnique({
-      where: { id: ctx.tenantId },
+      where: { id: ctx.targetTenantId },
       select: { name: true },
     });
     // Send invitation email — invitation is for a NEW user (no UserLocalePreference yet),

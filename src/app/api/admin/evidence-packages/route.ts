@@ -28,7 +28,7 @@ export const GET = createApiHandler(
   { requiredPermission: PERMISSIONS.AUDIT_EXPORT },
   async (req: NextRequest, ctx) => {
     const items = await db.evidencePackage.findMany({
-      where: { tenantId: ctx.tenantId },
+      where: { tenantId: ctx.targetTenantId },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
