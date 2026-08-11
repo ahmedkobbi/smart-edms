@@ -1,0 +1,62 @@
+# Smart EDMS — Caddyfile for LAN deployment
+#
+# Caddy automatically provisions TLS certificates:
+#   - For internal hostnames (smartedms.internal.company.dz): uses its internal CA
+#     → distribute the root CA cert to employee machines via GPO/MDM
+#   - For public domains with DNS: uses Let's Encrypt automatically
+#
+# To use your enterprise CA instead:
+#   1. Obtain a cert (fullchain.pem + privkey.pem) from your CA
+#   2. Place them in ./certs/
+#   3. Uncomment the tls line below
+#
+# See docs/LAN-DEPLOYMENT.md for the full guide.
+
+# Replace smartedms.internal.company.dz with your actual hostname or LAN IP.
+# If using a LAN IP, also uncomment the tls line with self-signed cert paths.
+smartedms.internal.company.dz {
+	# Option A: Caddy internal CA (default — uncomment to use your enterprise CA)
+	# tls /certs/fullchain.pem /certs/privkey.pem
+
+	# Security headers
+	header {
+		# HSTS — 2 years, include subdomains, preload
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		# Prevent clickjacking
+		X-Frame-Options "DENY"
+		# Prevent MIME-type sniffing
+		X-Content-Type-Options "nosniff"
+		# Referrer policy
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Permissions policy — disable features we don't use
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		# Remove Caddy version header
+		-Server
+	}
+
+	# Reverse proxy to the Next.js app
+	reverse_proxy app:3000 {
+		# WebSocket support (real-time collaboration, notifications)
+		flush_interval -1
+	}
+
+	# Request size limit — 100MB for large document uploads
+	# (TUS resumable upload handles larger files in chunks)
+	request_body {
+		max_size 100MB
+	}
+
+	# Logging
+	log {
+		output stdout
+		format json
+	}
+
+	# Compression
+	encode gzip zstd
+}
+
+# HTTP → HTTPS redirect (Caddy does this automatically, but explicit is clearer)
+# :80 {
+# 	redir https://{host}{uri} permanent
+# }

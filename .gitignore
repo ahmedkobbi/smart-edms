@@ -72,7 +72,6 @@ skills/
 examples/
 mini-services/
 .zscripts/
-Caddyfile
 download/
 .kee
 agent-ctx/

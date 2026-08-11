@@ -698,6 +698,7 @@ bun run check:translations    # التحقق من اكتمال المفاتيح 
 | الوثيقة | الوصف |
 |----------|-------------|
 | [دليل النشر](docs/DEPLOYMENT.md) | إعداد Docker، PostgreSQL، S3، SMTP، WebSocket |
+| [دليل النشر على الشبكة المحلية](docs/LAN-DEPLOYMENT.md) | شبكة مؤسسية محلية + خروج إنترنت (هجين داخلي) |
 | [توثيق الـ API (Swagger)](api-docs) | مواصفات OpenAPI 3.1 تفاعلية لكل الـ 148 نقطة |
 | [مواصفات OpenAPI](docs/openapi.json) | JSON الخام لـ OpenAPI 3.1 |
 | [دليل مصادقة الـ API](docs/API-AUTH.md) | طرق المصادقة، نموذج التفويض، حدود المعدل |

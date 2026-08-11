@@ -725,6 +725,7 @@ Smart EDMS is a fully installable PWA:
 | Document | Description |
 |----------|-------------|
 | [Deployment Guide](docs/DEPLOYMENT.md) | Docker, PostgreSQL, S3, SMTP, WebSocket setup |
+| [LAN Deployment Guide](docs/LAN-DEPLOYMENT.md) | Enterprise LAN + internet egress (on-premise hybrid) |
 | [API Documentation (Swagger)](api-docs) | Interactive OpenAPI 3.1 spec for all 148 endpoints |
 | [OpenAPI Spec](docs/openapi.json) | Raw OpenAPI 3.1 JSON |
 | [API Auth Guide](docs/API-AUTH.md) | Authentication methods, authorization model, rate limits |
