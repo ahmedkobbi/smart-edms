@@ -1,18 +1,23 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { GlassCard } from '@/components/ui/premium';
-import { Loader2, FolderTree, ShieldCheck, AlertCircle, FileCheck, Download } from 'lucide-react';
+import { Loader2, FolderTree, ShieldCheck, AlertCircle, FileCheck, Download, Plus } from 'lucide-react';
 import { useI18n } from '@/i18n/use-i18n';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 
 export default function RecordsManagementPage() {
   const { t } = useI18n();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [showCreate, setShowCreate] = useState(false);
 
   const { data: reportData, isLoading: reportLoading } = useQuery<any>({
     queryKey: ['dod-compliance-report'],
@@ -112,8 +117,13 @@ export default function RecordsManagementPage() {
         </>
       )}
 
+      {showCreate && <CreateCategoryForm onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); queryClient.invalidateQueries({ queryKey: ['record-categories'] }); queryClient.invalidateQueries({ queryKey: ['dod-compliance-report'] }); }} />}
+
       <div>
-        <h2 className="text-lg font-semibold mb-3">Record Categories</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold">Record Categories</h2>
+          <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="h-4 w-4" /> New Category</Button>
+        </div>
         <div className="space-y-2">
           {categories.length === 0 ? (
             <GlassCard className="p-8 text-center" hover={false}>
@@ -148,5 +158,56 @@ export default function RecordsManagementPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+
+function CreateCategoryForm({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { toast } = useToast();
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [disposition, setDisposition] = useState('temporary');
+  const [retentionActiveYears, setRetentionActiveYears] = useState(3);
+  const [isVital, setIsVital] = useState(false);
+
+  const createMutation = useMutation({
+    mutationFn: (data: any) => api.post('/api/records/categories', data),
+    onSuccess: () => { toast({ title: 'Category created' }); onCreated(); },
+    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+  });
+
+  return (
+    <GlassCard className="p-6">
+      <h3 className="font-semibold mb-4">Create Record Category</h3>
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <input className="glass-input px-3 py-2 rounded-lg" placeholder="Code (e.g., 1000)" value={code} onChange={e => setCode(e.target.value)} />
+          <input className="glass-input px-3 py-2 rounded-lg" placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
+        </div>
+        <textarea className="glass-input w-full px-3 py-2 rounded-lg" placeholder="Description (optional)" rows={2} value={description} onChange={e => setDescription(e.target.value)} />
+        <div className="grid grid-cols-2 gap-4">
+          <select className="glass-input px-3 py-2 rounded-lg" value={disposition} onChange={e => setDisposition(e.target.value)}>
+            <option value="temporary">Temporary</option>
+            <option value="permanent">Permanent</option>
+            <option value="unscheduled">Unscheduled</option>
+          </select>
+          <div className="flex items-center gap-2">
+            <label className="text-sm whitespace-nowrap">Active years:</label>
+            <input type="number" min="0" className="glass-input w-20 px-3 py-2 rounded-lg" value={retentionActiveYears} onChange={e => setRetentionActiveYears(Number(e.target.value))} />
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={isVital} onChange={e => setIsVital(e.target.checked)} />
+          Designate as Vital Record category
+        </label>
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button size="sm" onClick={() => createMutation.mutate({ code, name, description, disposition, retentionActiveYears, isVital })} disabled={!code || !name || createMutation.isPending}>
+            {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
+          </Button>
+        </div>
+      </div>
+    </GlassCard>
   );
 }

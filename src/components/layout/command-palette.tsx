@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
-import { FileText, Search, GitBranch, ScrollText, Settings, LayoutDashboard, Users, KeyRound, BookMarked, ShieldCheck, FileLock, Clock, Shield, Upload, Plus, Bell, FolderOpen } from 'lucide-react';
+import { FileText, Search, GitBranch, ScrollText, Settings, LayoutDashboard, Users, KeyRound, BookMarked, ShieldCheck, FileLock, Clock, Shield, Upload, Plus, Bell, FolderOpen, FolderTree, PenTool, Workflow } from 'lucide-react';
 import { useSessionData } from '@/components/providers/use-session-data';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions.client';
 import { useI18n } from '@/i18n/use-i18n';
@@ -103,6 +103,30 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 <CommandItem onSelect={() => go('/admin/retention')}>
                   <Clock className="ms-2 h-4 w-4" />
                   {t('nav.retention')}
+                </CommandItem>
+              )}
+              {hasPermission(perms, PERMISSIONS.RECORD_CATEGORY_MANAGE) && (
+                <CommandItem onSelect={() => go('/admin/records-management')}>
+                  <FolderTree className="ms-2 h-4 w-4" />
+                  {t('nav.recordsManagement')}
+                </CommandItem>
+              )}
+              {hasPermission(perms, PERMISSIONS.SECURITY_AUDIT_READ) && (
+                <CommandItem onSelect={() => go('/admin/security-audit')}>
+                  <ShieldCheck className="ms-2 h-4 w-4" />
+                  {t('nav.securityAudit')}
+                </CommandItem>
+              )}
+              {hasPermission(perms, PERMISSIONS.SIGNATURE_READ) && (
+                <CommandItem onSelect={() => go('/admin/signatures')}>
+                  <PenTool className="ms-2 h-4 w-4" />
+                  {t('nav.signatures')}
+                </CommandItem>
+              )}
+              {hasPermission(perms, PERMISSIONS.BPMN_DESIGN_VIEW) && (
+                <CommandItem onSelect={() => go('/admin/bpmn-designer')}>
+                  <Workflow className="ms-2 h-4 w-4" />
+                  {t('nav.bpmnDesigner')}
                 </CommandItem>
               )}
             </CommandGroup>

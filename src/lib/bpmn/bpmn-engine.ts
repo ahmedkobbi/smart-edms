@@ -421,6 +421,136 @@ export async function startBpmnInstance(
   return instance;
 }
 
+/**
+ * Advance a BPMN instance to the next activity in the execution path.
+ * Called when a user task (approval step) is completed.
+ */
+export async function advanceBpmnInstance(
+  instanceId: string,
+  tenantId: string,
+  advancedBy: string,
+  taskOutcome: 'approved' | 'rejected',
+  comment?: string,
+) {
+  const instance = await db.bpmnProcessInstance.findFirst({
+    where: { id: instanceId, tenantId },
+    include: { definition: true },
+  });
+  if (!instance) throw new Error('Instance not found');
+  if (instance.status !== 'running') throw new Error(`Instance is ${instance.status}, cannot advance`);
+
+  const parsed: ParsedBpmn = JSON.parse(instance.definition.parsedElements);
+  const executionPath = parsed.executionPath;
+
+  // Find the current activity index
+  const currentIdx = executionPath.findIndex(e => e.id === instance.currentActivityId);
+  if (currentIdx === -1) throw new Error('Current activity not found in execution path');
+
+  // Update execution state
+  const state = JSON.parse(instance.executionState);
+  if (!state.history) state.history = [];
+  state.history.push({
+    activityId: instance.currentActivityId,
+    exitedAt: new Date().toISOString(),
+    actorId: advancedBy,
+    outcome: taskOutcome,
+    comment,
+  });
+
+  // If rejected, terminate the instance
+  if (taskOutcome === 'rejected') {
+    const updated = await db.bpmnProcessInstance.update({
+      where: { id: instanceId },
+      data: {
+        status: 'terminated',
+        terminatedAt: new Date(),
+        terminatedBy: advancedBy,
+        terminatedReason: `Task rejected: ${comment || 'No comment'}`,
+        executionState: JSON.stringify(state) as any,
+      },
+    });
+
+    await recordAuditEvent({
+      tenantId,
+      eventType: 'bpmn.instance.rejected',
+      action: 'update',
+      resourceType: 'bpmn_instance',
+      resourceId: instanceId,
+      metadata: { activityId: instance.currentActivityId, advancedBy, comment },
+    });
+
+    return updated;
+  }
+
+  // Find the next user task (skip non-userTask elements)
+  let nextActivity: BpmnElement | undefined;
+  for (let i = currentIdx + 1; i < executionPath.length; i++) {
+    if (executionPath[i].type === 'userTask' || executionPath[i].type === 'endEvent') {
+      nextActivity = executionPath[i];
+      break;
+    }
+  }
+
+  if (!nextActivity || nextActivity.type === 'endEvent') {
+    // Reached the end — complete the instance
+    state.history.push({
+      activityId: nextActivity?.id || 'end',
+      enteredAt: new Date().toISOString(),
+      actorId: advancedBy,
+    });
+
+    const updated = await db.bpmnProcessInstance.update({
+      where: { id: instanceId },
+      data: {
+        status: 'completed',
+        completedAt: new Date(),
+        currentActivityId: null,
+        executionState: JSON.stringify(state) as any,
+      },
+    });
+
+    await recordAuditEvent({
+      tenantId,
+      eventType: 'bpmn.instance.completed',
+      action: 'update',
+      resourceType: 'bpmn_instance',
+      resourceId: instanceId,
+      metadata: { advancedBy },
+    });
+
+    logger.info('BPMN instance completed', { instanceId });
+    return updated;
+  }
+
+  // Advance to the next activity
+  state.history.push({
+    activityId: nextActivity.id,
+    activityName: nextActivity.name,
+    enteredAt: new Date().toISOString(),
+    actorId: advancedBy,
+  });
+
+  const updated = await db.bpmnProcessInstance.update({
+    where: { id: instanceId },
+    data: {
+      currentActivityId: nextActivity.id,
+      executionState: JSON.stringify(state) as any,
+    },
+  });
+
+  await recordAuditEvent({
+    tenantId,
+    eventType: 'bpmn.instance.advanced',
+    action: 'update',
+    resourceType: 'bpmn_instance',
+    resourceId: instanceId,
+    metadata: { from: instance.currentActivityId, to: nextActivity.id, advancedBy },
+  });
+
+  logger.info('BPMN instance advanced', { instanceId, from: instance.currentActivityId, to: nextActivity.id });
+  return updated;
+}
+
 export async function terminateBpmnInstance(
   instanceId: string,
   tenantId: string,

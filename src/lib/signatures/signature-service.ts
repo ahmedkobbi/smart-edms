@@ -181,15 +181,45 @@ async function createDocusignEnvelope(
   const latestVersion = document.versions[0];
   if (!latestVersion) throw new Error('Document has no versions');
 
+  // Read the actual file content from storage
+  const { getFileStorage } = await import('@/lib/storage/file-storage');
+  const storage = getFileStorage();
+  let documentBase64: string;
+  try {
+    const fileBuffer = await storage.get(latestVersion.storageKey);
+    documentBase64 = fileBuffer.toString('base64');
+  } catch (err) {
+    logger.error('Failed to read document from storage for DocuSign upload', {
+      documentId,
+      storageKey: latestVersion.storageKey,
+      error: (err as Error).message,
+    });
+    throw new Error('Failed to read document file for upload to DocuSign');
+  }
+
+  const fileExtension = latestVersion.mimeType.split('/').pop() || 'pdf';
+
   const envelopeDefinition = {
     emailSubject: emailConfig.subject,
     emailBlurb: emailConfig.message,
     status: 'sent',
     expiry: emailConfig.expiryDays ? { expireAfter: String(emailConfig.expiryDays) } : undefined,
+    notification: emailConfig.reminderDays ? {
+      reminders: {
+        reminderEnabled: 'true',
+        reminderDelay: String(emailConfig.reminderDays),
+        reminderFrequency: '3',
+      },
+      expirations: {
+        expireEnabled: 'true',
+        expireAfter: String(emailConfig.expiryDays),
+      },
+    } : undefined,
     documents: [{
       documentId: '1',
       name: document.title,
-      fileExtension: latestVersion.mimeType.split('/').pop() || 'pdf',
+      fileExtension,
+      documentBase64,
     }],
     recipients: {
       signers: recipients
@@ -200,7 +230,12 @@ async function createDocusignEnvelope(
           name: r.name,
           routingOrder: String(r.routingOrder),
           tabs: {
-            signHereTabs: [{ anchorString: '/sn1/', anchorUnits: 'pixels', anchorYOffset: '10', anchorXOffset: '20' }],
+            signHereTabs: [{
+              anchorString: '/sn1/',
+              anchorUnits: 'pixels',
+              anchorYOffset: '10',
+              anchorXOffset: '20',
+            }],
           },
         })),
     },
@@ -482,7 +517,8 @@ export async function processSignatureWebhook(event: WebhookEvent) {
         userId: request.initiatedBy,
         type: 'signature_completed',
         title: 'Signature Request Completed',
-        // message field may vary by NotificationInput type
+        body: 'Your signature request has been completed by all recipients.',
+        link: '/admin/signatures',
         metadata: { requestId: request.id, documentId: request.documentId },
       });
     } catch {
