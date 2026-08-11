@@ -161,7 +161,10 @@
     "invalidCredentials": "بريد إلكتروني أو كلمة مرور غير صحيحة",
     "accountLocked": "تم قفل الحساب مؤقتًا. حاول مرة أخرى لاحقًا.",
     "welcomeBack": "مرحبًا بك في Smart EDMS",
-    "passwordMinHint": "Min 8 chars"
+    "passwordMinHint": "Min 8 chars",
+    "mustChangePasswordTitle": "تغيير كلمة المرور مطلوب",
+    "mustChangePasswordDesc": "لأسباب أمنية، يجب تغيير كلمة المرور قبل الوصول إلى النظام. يرجى تحديثها في تبويب الأمان أدناه.",
+    "mustChangePasswordButton": "تغيير كلمة المرور الآن"
   },
   "dashboard": {
     "title": "لوحة التحكم",
@@ -1074,7 +1077,7 @@
   },
   "settings": {
     "title": "الإعدادات",
-    "subtitle": "إدارة ملفك الشخصي والأمان والمصادقة",
+    "subtitle": "إدارة ملفك الشخصي وأمانك ومصادقتك.",
     "profile": "الملف الشخصي",
     "security": "الأمان",
     "changePassword": "تغيير كلمة المرور",

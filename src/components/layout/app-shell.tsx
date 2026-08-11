@@ -5,10 +5,12 @@ import { TopBar } from '@/components/layout/top-bar';
 import { BottomNav } from '@/components/layout/bottom-nav';
 import { SubscriptionBanner } from '@/components/layout/subscription-banner';
 import { useSessionData } from '@/components/providers/use-session-data';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { motion, MotionConfig } from 'framer-motion';
 import { DualSpinner } from '@/components/ui/premium';
+import { Button } from '@/components/ui/button';
+import { ShieldAlert } from 'lucide-react';
 import { useI18n } from '@/i18n/use-i18n';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -47,6 +49,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           <DualSpinner />
           <p className="text-sm text-muted-foreground animate-pulse">{t('common.loadingApp')}</p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Forced password change: redirect to /settings if the flag is set
+  // and the user is not already on /settings
+  const pathname = usePathname();
+  useEffect(() => {
+    if (session?.user?.mustChangePassword && !pathname.startsWith('/settings')) {
+      router.push('/settings?forced=1');
+    }
+  }, [session?.user?.mustChangePassword, pathname, router]);
+
+  // Show a forced password change screen instead of the app
+  if (session?.user?.mustChangePassword && !pathname.startsWith('/settings')) {
+    return (
+      <div className="min-h-screen flex items-center justify-center mesh-bg p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card p-8 max-w-md text-center space-y-4"
+        >
+          <ShieldAlert className="h-12 w-12 mx-auto text-amber-500" />
+          <h2 className="text-xl font-semibold">{t('auth.mustChangePasswordTitle')}</h2>
+          <p className="text-sm text-muted-foreground">{t('auth.mustChangePasswordDesc')}</p>
+          <Button onClick={() => router.push('/settings?forced=1')} className="w-full">
+            {t('auth.mustChangePasswordButton')}
+          </Button>
         </motion.div>
       </div>
     );

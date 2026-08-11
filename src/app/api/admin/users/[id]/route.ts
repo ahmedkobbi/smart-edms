@@ -42,6 +42,9 @@ const patchSchema = z.object({
   roleNames: z.array(z.string()).optional(),
   resetMfa: z.boolean().optional(),
   unlockAccount: z.boolean().optional(),
+  // Admin force-resets the user's password — generates a temp password
+  // and sets mustChangePassword=true so the user must change it on next login
+  resetPassword: z.boolean().optional(),
 });
 
 export const PATCH = createApiHandler(
@@ -72,6 +75,19 @@ export const PATCH = createApiHandler(
       updates.mfaEnabled = false;
       updates.mfaSecretEnc = null;
       updates.mfaBackupCodesEnc = null;
+    }
+
+    let tempPassword: string | undefined;
+    if (body.resetPassword) {
+      const { hashPassword } = await import('@/lib/auth/crypto');
+      // Generate a random temporary password
+      const { randomBytes } = await import('crypto');
+      tempPassword = randomBytes(12).toString('base64url').slice(0, 16) + '!1Aa';
+      updates.passwordHash = await hashPassword(tempPassword);
+      updates.mustChangePassword = true;
+      // Revoke all sessions — user must log in with the new temp password
+      const { revokeAllUserSessions } = await import('@/lib/auth/session-revocation');
+      await revokeAllUserSessions(user.id, 'admin_password_reset');
     }
 
     await db.$transaction(async (tx) => {
@@ -133,7 +149,10 @@ export const PATCH = createApiHandler(
       },
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      ...(tempPassword ? { temporaryPassword: tempPassword } : {}),
+    });
   },
 );
 

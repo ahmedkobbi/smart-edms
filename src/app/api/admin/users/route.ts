@@ -88,6 +88,9 @@ export const POST = createApiHandler(
         name: body.name,
         passwordHash,
         status: 'active',
+        // Force the user to change their password on first login
+        // (admin set a temporary password — user must set their own)
+        mustChangePassword: !body.password,
         jobTitle: body.jobTitle,
         department: body.department,
         createdBy: ctx.userId,

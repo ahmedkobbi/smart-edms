@@ -104,6 +104,11 @@ function isPlatformAdminEndpoint(pathname: string): boolean {
   if (pathname.startsWith('/api/license')) return true;
   // Access status endpoint must be accessible for the banner
   if (pathname === '/api/access-status') return true;
+  // Password change must be accessible even when locked or mustChangePassword
+  // — the user needs to change their password regardless of subscription status
+  if (pathname === '/api/me/password') return true;
+  // Me endpoint needed for the session/profile page
+  if (pathname === '/api/me') return true;
   return false;
 }
 

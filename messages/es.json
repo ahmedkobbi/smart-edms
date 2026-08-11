@@ -161,7 +161,10 @@
     "invalidCredentials": "Invalid email or contraseña",
     "accountLocked": "Account temporarily locked. Try again later.",
     "welcomeBack": "Bienvenido a Smart EDMS",
-    "passwordMinHint": "Min 8 chars"
+    "passwordMinHint": "Min 8 chars",
+    "mustChangePasswordTitle": "Cambio de Contraseña Requerido",
+    "mustChangePasswordDesc": "Por seguridad, debe cambiar su contraseña antes de acceder al sistema. Actualícela en la pestaña Seguridad a continuación.",
+    "mustChangePasswordButton": "Cambiar Contraseña Ahora"
   },
   "dashboard": {
     "title": "Panel",
@@ -1074,7 +1077,7 @@
   },
   "settings": {
     "title": "Configuración",
-    "subtitle": "Manage your profile, security, and authentication",
+    "subtitle": "Administre su perfil, seguridad y autenticación.",
     "profile": "Perfil",
     "security": "Seguridad",
     "changePassword": "Change contraseña",

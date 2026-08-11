@@ -161,7 +161,10 @@
     "invalidCredentials": "Email ou mot de passe invalide",
     "accountLocked": "Compte temporairement verrouillé. Réessayez plus tard.",
     "welcomeBack": "Bienvenue sur Smart EDMS",
-    "passwordMinHint": "Min 8 chars"
+    "passwordMinHint": "Min 8 chars",
+    "mustChangePasswordTitle": "Changement de Mot de Passe Requis",
+    "mustChangePasswordDesc": "Pour des raisons de sécurité, vous devez changer votre mot de passe avant d'accéder au système. Veuillez le mettre à jour dans l'onglet Sécurité ci-dessous.",
+    "mustChangePasswordButton": "Changer le Mot de Passe"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -1074,7 +1077,7 @@
   },
   "settings": {
     "title": "Paramètres",
-    "subtitle": "Manage your profil, security, and authentication",
+    "subtitle": "Gérez votre profil, votre sécurité et votre authentification.",
     "profile": "Profil",
     "security": "Sécurité",
     "changePassword": "Changer le mot de passe",
