@@ -730,6 +730,7 @@ Smart EDMS is a fully installable PWA:
 | [API Auth Guide](docs/API-AUTH.md) | Authentication methods, authorization model, rate limits |
 | [Security Policy](SECURITY.md) | How to report vulnerabilities, SLAs, supported versions, scope |
 | [Security Architecture](docs/SECURITY.md) | Threat model, encryption, audit, anomaly detection |
+| [Security Hall of Fame](docs/SECURITY-HALL-OF-FAME.md) | Recognizing security researchers |
 | [Operations Runbook](docs/OPERATIONS-RUNBOOK.md) | Incident response, backup/restore, scaling, troubleshooting |
 | [PostgreSQL Migration](docs/POSTGRESQL-MIGRATION.md) | SQLite → PostgreSQL with Row-Level Security |
 | [Architecture Decision Records](docs/adr/README.md) | 16 ADRs covering key design decisions |
@@ -742,6 +743,9 @@ Smart EDMS is a fully installable PWA:
 | [Contributing](CONTRIBUTING.md) | Guidelines, dev setup, code style, commit conventions |
 | [Contributing (العربية)](CONTRIBUTING.ar.md) | دليل المساهمة باللغة العربية |
 | [Code of Conduct](CODE_OF_CONDUCT.md) | Community standards (Contributor Covenant v2.1) |
+| [Code of Conduct (العربية)](CODE_OF_CONDUCT.ar.md) | معايير المجتمع باللغة العربية |
+| [Contributors](CONTRIBUTORS.md) | Project maintainers, contributors, and security researchers |
+| [Changelog](CHANGELOG.md) | Release history (Keep a Changelog format) |
 | [Support](SUPPORT.md) | How to get help — routing table & response times |
 | [License](LICENSE) | Full proprietary license (Algerian governing law) |
 

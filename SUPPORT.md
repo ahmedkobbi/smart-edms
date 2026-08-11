@@ -19,7 +19,7 @@ channel, please use the routing table below.
 
 | I want to... | Use this channel | Do NOT use |
 |---|---|---|
-| **Report a security vulnerability** | [Private Security Advisory](https://github.com/ahmedkobbi/smart-edms/security/advisories/new) (see [`SECURITY.md`](./SECURITY.md)) | Public GitHub Issues, Discussions, email, social media |
+| **Report a security vulnerability** | [Private Security Advisory](https://github.com/ahmedkobbi/smart-edms/security/advisories/new) (see [`SECURITY.md`](./SECURITY.md)) — recognized reporters are listed in the [Hall of Fame](./docs/SECURITY-HALL-OF-FAME.md) | Public GitHub Issues, Discussions, email, social media |
 | **Report a bug** (functional defect) | [GitHub Issue — Bug Report](https://github.com/ahmedkobbi/smart-edms/issues/new?template=bug_report.yml) | Private advisories, direct email |
 | **Request a feature** | [GitHub Issue — Feature Request](https://github.com/ahmedkobbi/smart-edms/issues/new?template=feature_request.yml) | Direct email to the Author |
 | **Ask "how do I..." or discuss architecture** | [GitHub Discussions](https://github.com/ahmedkobbi/smart-edms/discussions) | GitHub Issues (Issues are for actionable defects/requests only) |

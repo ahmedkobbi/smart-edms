@@ -178,9 +178,10 @@ Smart EDMS is a proprietary project without a bug bounty program. The
 Author cannot offer monetary rewards. Recognized reporters will be:
 
 - **Credited** in the GitHub Security Advisory (unless they request anonymity).
-- **Listed** in a future `docs/SECURITY-HALL-OF-FAME.md` if the volume of
-  quality reports justifies it.
+- **Listed** in the [Security Hall of Fame](./docs/SECURITY-HALL-OF-FAME.md)
+  with their name, profile link, and advisory (once published).
 - **Thanked publicly** in the release notes of the fix release.
+- **Mentioned** in [`CONTRIBUTORS.md`](./CONTRIBUTORS.md) under Security Researchers.
 
 ---
 
@@ -192,6 +193,7 @@ This policy covers **how to report** vulnerabilities. For the project's
 | Document | Scope |
 |----------|-------|
 | [`docs/SECURITY.md`](./docs/SECURITY.md) | Threat model, encryption, audit integrity, anomaly detection |
+| [`docs/SECURITY-HALL-OF-FAME.md`](./docs/SECURITY-HALL-OF-FAME.md) | Recognition for security researchers |
 | [`docs/adr/`](./docs/adr/) | 16 Architecture Decision Records covering key security design choices |
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Development security practices (audit-log every sensitive action, test every control) |
 | [`LICENSE`](./LICENSE) | Proprietary license — Algerian governing law (Law No. 18-07 referenced) |

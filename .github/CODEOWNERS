@@ -68,6 +68,8 @@
 /CONTRIBUTING.md            @ahmedkobbi
 /CODE_OF_CONDUCT.md         @ahmedkobbi
 /SUPPORT.md                 @ahmedkobbi
+/CHANGELOG.md               @ahmedkobbi
+/CONTRIBUTORS.md            @ahmedkobbi
 
 # ============================================================================
 # Security regression tests — any change here signals a security fix

@@ -703,6 +703,7 @@ bun run check:translations    # التحقق من اكتمال المفاتيح 
 | [دليل مصادقة الـ API](docs/API-AUTH.md) | طرق المصادقة، نموذج التفويض، حدود المعدل |
 | [سياسة الأمان](SECURITY.md) | كيفية الإبلاغ عن الثغرات، SLAs، الإصدارات المدعومة، النطاق |
 | [معمارية الأمان](docs/SECURITY.md) | نموذج التهديد، التشفير، التدقيق، كشف الشذوذ |
+| [قاعة الشرف الأمنية](docs/SECURITY-HALL-OF-FAME.md) | تكريم الباحثين الأمنيين |
 | [دليل العمليات](docs/OPERATIONS-RUNBOOK.md) | الاستجابة للحوادث، النسخ/الاستعادة، التوسع، استكشاف الأخطاء |
 | [ترحيل PostgreSQL](docs/POSTGRESQL-MIGRATION.md) | SQLite → PostgreSQL مع Row-Level Security |
 | [سجلات قرارات المعمارية](docs/adr/README.md) | 16 ADR يغطي قرارات التصميم الرئيسية |
@@ -715,6 +716,9 @@ bun run check:translations    # التحقق من اكتمال المفاتيح 
 | [المساهمة (العربية)](CONTRIBUTING.ar.md) | الإرشادات، الإعداد، أسلوب الكود، اصطلاحات الالتزام |
 | [المساهمة (English)](CONTRIBUTING.md) | Contributing guidelines in English |
 | [مدونة قواعد السلوك](CODE_OF_CONDUCT.md) | معايير المجتمع (Contributor Covenant v2.1) |
+| [مدونة قواعد السلوك (العربية)](CODE_OF_CONDUCT.ar.md) | معايير المجتمع باللغة العربية |
+| [المساهمون](CONTRIBUTORS.md) | مشرفو المشروع، المساهمون، والباحثون الأمنيون |
+| [سجل التغييرات](CHANGELOG.md) | تاريخ الإصدارات (نسق Keep a Changelog) |
 | [الدعم](SUPPORT.md) | كيف تحصل على المساعدة — جدول التوجيه وأوقات الاستجابة |
 | [الرخصة](LICENSE) | الرخصة الملكية الكاملة (القانون الجزائري الحاكم) |
 
