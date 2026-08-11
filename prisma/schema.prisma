@@ -1369,6 +1369,13 @@ model License {
   // but it catches casual clock manipulation without requiring NTP or internet.
   lastCheckedAt   DateTime?
   clockRollbackDetected Boolean @default(false)
+  // ANTI-CRACK: Database integrity verification (HMAC of critical fields)
+  // If this doesn't match the computed hash, the DB was tampered with
+  integrityHash   String?
+  // ANTI-CRACK: Hardware fingerprint binding (license tied to this server)
+  hardwareFingerprint String?
+  // ANTI-CRACK: License nonce (replay protection)
+  nonce           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

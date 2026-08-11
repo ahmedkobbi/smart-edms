@@ -384,6 +384,81 @@ export async function checkLicenseAccess(tenantId: string): Promise<AccessCheckR
     };
   }
 
+  // --- ANTI-CRACK: Database integrity verification ---
+  // If the integrity hash doesn't match, someone modified the DB directly
+  const { verifyLicenseIntegrity, verifyHardwareFingerprint, detectTampering } = await import('@/lib/billing/anti-crack');
+
+  if (license.integrityHash) {
+    const integrityValid = verifyLicenseIntegrity(license, license.integrityHash);
+    if (!integrityValid) {
+      // Database tampering detected — lock immediately
+      logger.error('DATABASE TAMPERING DETECTED', {
+        tenantId,
+        licenseId: license.id,
+      });
+
+      await db.license.update({
+        where: { id: license.id },
+        data: { status: 'locked', lockedAt: new Date() },
+      });
+
+      await recordAuditEvent({
+        tenantId,
+        eventType: 'security.license_db_tampering',
+        action: 'update',
+        resourceType: 'license',
+        resourceId: license.id,
+        result: 'deny',
+        reason: 'Database integrity check failed — license record was modified directly',
+        metadata: { detectedAt: new Date().toISOString() },
+      });
+
+      return {
+        allowed: false,
+        level: 'locked',
+        mode: 'onprem',
+        status: 'locked',
+        message: 'License locked: database integrity violation detected. Contact the vendor immediately.',
+      };
+    }
+  }
+
+  // --- ANTI-CRACK: Hardware fingerprint verification ---
+  if (license.hardwareFingerprint) {
+    const hardwareValid = verifyHardwareFingerprint(license.hardwareFingerprint);
+    if (!hardwareValid) {
+      // License is running on different hardware — cloning detected
+      logger.error('HARDWARE FINGERPRINT MISMATCH', {
+        tenantId,
+        licenseId: license.id,
+      });
+
+      await db.license.update({
+        where: { id: license.id },
+        data: { status: 'locked', lockedAt: new Date() },
+      });
+
+      await recordAuditEvent({
+        tenantId,
+        eventType: 'security.license_hardware_mismatch',
+        action: 'update',
+        resourceType: 'license',
+        resourceId: license.id,
+        result: 'deny',
+        reason: 'Hardware fingerprint mismatch — license may have been cloned to another server',
+        metadata: { detectedAt: new Date().toISOString() },
+      });
+
+      return {
+        allowed: false,
+        level: 'locked',
+        mode: 'onprem',
+        status: 'locked',
+        message: 'License locked: this license is bound to different hardware. Contact the vendor to transfer the license.',
+      };
+    }
+  }
+
   // Revoked license — immediate lock
   if (license.status === 'revoked') {
     return {
@@ -632,45 +707,56 @@ export async function installLicense(licenseKey: string, tenantId: string): Prom
     throw new Error(`License expired on ${expiresAt.toLocaleDateString()}`);
   }
 
+  // --- ANTI-CRACK: Compute hardware fingerprint and bind it to this license ---
+  const { computeHardwareFingerprint, computeLicenseIntegrityHash, generateLicenseNonce } = await import('@/lib/billing/anti-crack');
+  const fingerprint = computeHardwareFingerprint();
+  const nonce = generateLicenseNonce();
+
+  // Build the license record (we need it to compute the integrity hash)
+  const licenseRecord = {
+    tenantId,
+    licenseKey,
+    status: 'active',
+    licenseeName: parsed.tenantName,
+    plan: parsed.plan,
+    seats: parsed.seats,
+    storageBytes: BigInt(parsed.storageBytes),
+    issuedAt: new Date(parsed.issuedAt),
+    expiresAt,
+    gracePeriodDays: parsed.gracePeriodDays || ONPREM_DEFAULT_GRACE_PERIOD_DAYS,
+    signature: parsed.signature,
+    clockRollbackDetected: false,
+    lastCheckedAt: new Date(),
+  };
+
+  const integrityHash = computeLicenseIntegrityHash(licenseRecord);
+
   // Upsert the license record
   await db.license.upsert({
     where: { tenantId },
     create: {
-      tenantId,
-      licenseKey,
+      ...licenseRecord,
       licenseData: JSON.stringify(parsed),
-      status: 'active',
-      licenseeName: parsed.tenantName,
-      plan: parsed.plan,
-      seats: parsed.seats,
       storageBytes: BigInt(parsed.storageBytes),
       features: JSON.stringify(parsed.features),
-      issuedAt: new Date(parsed.issuedAt),
-      expiresAt,
-      gracePeriodDays: parsed.gracePeriodDays || ONPREM_DEFAULT_GRACE_PERIOD_DAYS,
-      signature: parsed.signature,
       issuedBy: parsed.issuedBy,
+      integrityHash,
+      hardwareFingerprint: fingerprint.hash,
+      nonce,
     },
     update: {
-      licenseKey,
+      ...licenseRecord,
       licenseData: JSON.stringify(parsed),
-      status: 'active',
-      licenseeName: parsed.tenantName,
-      plan: parsed.plan,
-      seats: parsed.seats,
       storageBytes: BigInt(parsed.storageBytes),
       features: JSON.stringify(parsed.features),
-      issuedAt: new Date(parsed.issuedAt),
-      expiresAt,
-      gracePeriodDays: parsed.gracePeriodDays || ONPREM_DEFAULT_GRACE_PERIOD_DAYS,
-      signature: parsed.signature,
       issuedBy: parsed.issuedBy,
       lockedAt: null,
       gracePeriodEndsAt: null,
-      // Reset clock rollback detection when a new valid license is installed
-      // (the new license is HMAC-signed, so it's from the vendor)
       clockRollbackDetected: false,
       lastCheckedAt: new Date(),
+      integrityHash,
+      hardwareFingerprint: fingerprint.hash,
+      nonce,
     },
   });
 
