@@ -1,0 +1,37 @@
+{
+  "name": "smart-edms-vendor-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Smart EDMS — Vendor Licensing & Administration Server",
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "lint": "eslint .",
+    "db:push": "prisma db push --schema=prisma/schema.prisma --accept-data-loss",
+    "db:generate": "prisma generate --schema=prisma/schema.prisma",
+    "seed": "bun run src/seed.ts",
+    "gen-keys": "bun run src/gen-keys.ts"
+  },
+  "dependencies": {
+    "@mantine/core": "^7.13.0",
+    "@mantine/hooks": "^7.13.0",
+    "@mantine/form": "^7.13.0",
+    "@mantine/notifications": "^7.13.0",
+    "@mantine/dates": "^7.13.0",
+    "@mantine/charts": "^7.13.0",
+    "@prisma/client": "^6.11.1",
+    "@tabler/icons-react": "^3.19.0",
+    "next": "^16.1.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^4.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "prisma": "^6.11.1",
+    "typescript": "^5"
+  }
+}

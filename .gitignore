@@ -76,3 +76,7 @@ download/
 .kee
 agent-ctx/
 tool-results/
+vendor-server/node_modules/
+vendor-server/.next/
+vendor-server/vendor-server.db
+vendor-server/.env

@@ -1,0 +1,175 @@
+// Smart EDMS Vendor Server — Prisma Schema
+// The licensing server's database. Contains ALL issued licenses, customers,
+// heartbeats, and revocation records. The Ed25519 private key is stored
+// in the environment (NEVER in the database).
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client-vendor"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("VENDOR_DATABASE_URL")
+}
+
+// ============================================================================
+// CUSTOMERS — Organizations that have purchased licenses
+// ============================================================================
+
+model Customer {
+  id          String   @id @default(cuid())
+  name        String   // Organization name
+  email       String   @unique // Primary contact email
+  phone       String?
+  address     String?
+  country     String?
+  notes       String?
+  status      String   @default("active") // active | suspended | churned
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  licenses    License[]
+  heartbeats  Heartbeat[]
+  payments    Payment[]
+
+  @@index([status])
+}
+
+// ============================================================================
+// LICENSES — Issued license records
+// ============================================================================
+
+model License {
+  id              String   @id @default(cuid())
+  customerId      String
+  // The license key (base64-encoded JSON with Ed25519 signature)
+  licenseKey      String   @unique
+  // The tenant ID that the license is bound to (must match on the on-prem server)
+  tenantId        String
+  tenantName      String
+  // License terms
+  plan            String   @default("enterprise")
+  seats           Int      @default(25)
+  storageBytes    BigInt   @default(5368709120) // 5GB
+  features        String   @default("[]") // JSON array
+  // Validity
+  issuedAt        DateTime @default(now())
+  expiresAt       DateTime
+  gracePeriodDays Int      @default(30)
+  // Status: active | expired | revoked | replaced
+  status          String   @default("active")
+  revokedAt       DateTime?
+  revokedReason   String?
+  // Hardware fingerprint (bound on first activation)
+  hardwareFingerprint String?
+  activatedAt     DateTime?
+  // Who issued it
+  issuedBy        String?
+  // Signature (Ed25519)
+  signature       String
+  // Nonce for replay protection
+  nonce           String   @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  customer    Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  heartbeats  Heartbeat[]
+  payments    Payment[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+// ============================================================================
+// HEARTBEATS — Phone-home signals from on-prem deployments
+// ============================================================================
+
+model Heartbeat {
+  id              String   @id @default(cuid())
+  licenseId       String
+  customerId      String
+  // Server info
+  version         String?
+  activeUsers     Int?
+  documentCount   Int?
+  storageUsed     BigInt?
+  // Status reported by the on-prem server
+  licenseStatus   String   // active | grace_period | locked
+  clockRollbackDetected Boolean @default(false)
+  integrityValid  Boolean  @default(true)
+  // Network info
+  ipAddress       String?
+  // Timestamp
+  receivedAt      DateTime @default(now())
+
+  license   License   @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([licenseId, receivedAt])
+  @@index([customerId])
+}
+
+// ============================================================================
+// PAYMENTS — License purchase/renewal payments
+// ============================================================================
+
+model Payment {
+  id              String   @id @default(cuid())
+  licenseId       String?
+  customerId      String
+  amountUsd       Float
+  currency        String   @default("USD")
+  // Status: pending | completed | refunded | failed
+  status          String   @default("pending")
+  stripePaymentId String?
+  invoiceUrl      String?
+  // What was purchased
+  plan            String
+  seats           Int
+  storageBytes    BigInt
+  durationMonths  Int      // 12 = annual, 1 = monthly
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  license   License?  @relation(fields: [licenseId], references: [id], onDelete: SetNull)
+  customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([status])
+}
+
+// ============================================================================
+// ADMIN USERS — Vendor-side administrators (you)
+// ============================================================================
+
+model AdminUser {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  passwordHash  String
+  role          String   @default("admin") // admin | superadmin
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ============================================================================
+// AUDIT LOG — All administrative actions
+// ============================================================================
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  adminId     String?
+  adminEmail  String?
+  action      String   // license.issued | license.revoked | customer.created | etc.
+  resourceType String?
+  resourceId  String?
+  details     String   @default("{}") // JSON
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+}
