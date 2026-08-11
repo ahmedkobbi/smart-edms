@@ -1,0 +1,86 @@
+# CODEOWNERS — Smart EDMS
+#
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Each line: <pattern> <owner1> <owner2> ...
+# GitHub will automatically request review from the owner(s) when a PR
+# modifies files matching the pattern.
+#
+# The project is maintained by a single author today. As the project grows,
+# split ownership by subsystem (auth, billing, audit, etc.).
+
+# ============================================================================
+# Default — every change requires review by the project author
+# ============================================================================
+*                           @ahmedkobbi
+
+# ============================================================================
+# Security-critical paths — these must ALWAYS be reviewed by the author.
+# Do not delegate. Do not auto-merge. Treat every change as if it could
+# leak data or break compliance posture.
+# ============================================================================
+
+# Authentication, authorization, crypto, sessions
+/src/lib/auth/              @ahmedkobbi
+/src/lib/security/          @ahmedkobbi
+/src/middleware.ts          @ahmedkobbi
+
+# Audit integrity (hash-chained log)
+/src/lib/audit/             @ahmedkobbi
+
+# Payment / billing (Stripe + NowPayments, 12-rule security model)
+/src/lib/billing/           @ahmedkobbi
+/src/app/api/billing/       @ahmedkobbi
+/src/app/api/webhooks/      @ahmedkobbi
+
+# API handler core (createApiHandler, tenant scoping, rate limit)
+/src/lib/api/               @ahmedkobbi
+
+# Storage adapters + file validation (path-traversal defense, magic bytes)
+/src/lib/storage/           @ahmedkobbi
+
+# Database schema (multi-tenant, RLS-ready)
+/prisma/                    @ahmedkobbi
+/scripts/rls-policies.sql   @ahmedkobbi
+
+# Secrets & environment validation
+/src/lib/config/            @ahmedkobbi
+/.env.example               @ahmedkobbi
+/.env.production.template   @ahmedkobbi
+
+# CI / CD pipeline
+/.github/workflows/         @ahmedkobbi
+
+# Containerization & orchestration
+/Dockerfile                 @ahmedkobbi
+/docker-compose.yml         @ahmedkobbi
+/docker-compose.staging.yml @ahmedkobbi
+/k8s/                       @ahmedkobbi
+
+# Security docs
+/docs/SECURITY.md           @ahmedkobbi
+/docs/adr/                  @ahmedkobbi
+
+# License & legal
+/LICENSE                    @ahmedkobbi
+/CONTRIBUTING.md            @ahmedkobbi
+
+# ============================================================================
+# Security regression tests — any change here signals a security fix
+# ============================================================================
+/tests/unit/security-regression.test.ts    @ahmedkobbi
+/tests/unit/payment-security.test.ts       @ahmedkobbi
+/tests/unit/audit-hash-chain.test.ts       @ahmedkobbi
+/tests/unit/envelope-encryption.test.ts    @ahmedkobbi
+/tests/unit/signed-url.test.ts             @ahmedkobbi
+/tests/unit/file-validation.test.ts        @ahmedkobbi
+/tests/unit/permissions.test.ts            @ahmedkobbi
+/tests/unit/rate-limit.test.ts             @ahmedkobbi
+
+# ============================================================================
+# Note on Arabic / RTL paths — handled by the same author for now.
+# If an Arabic-speaking co-maintainer joins, add them here:
+#   /README.ar.md              @arabic-maintainer
+#   /CONTRIBUTING.ar.md        @arabic-maintainer
+#   /messages/ar.json          @arabic-maintainer
+# ============================================================================

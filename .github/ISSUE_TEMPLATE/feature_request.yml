@@ -1,0 +1,125 @@
+name: Feature Request
+description: Suggest an enhancement or new feature for Smart EDMS
+title: "feat: <one-line summary>"
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting an enhancement!
+
+        **Before continuing:**
+        - Search [existing issues](https://github.com/ahmedkobbi/smart-edms/issues?q=is%3Aissue+label%3Aenhancement)
+          to avoid duplicates.
+        - For non-trivial changes (more than ~50 lines of logic), consider opening a
+          discussion issue first before writing code — see [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One-sentence description of the proposed feature.
+      placeholder: "e.g. Add bulk classification change for selected documents"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What problem does this feature solve? Describe the current pain point before describing the solution.
+      placeholder: "Currently, when I need to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you solve this? Be as specific as possible — UI mockups, API shape, data model changes.
+      placeholder: "I propose adding a /api/documents/bulk-classify endpoint that..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you consider, and why did you reject them?
+      placeholder: "Alternative 1: ... rejected because... Alternative 2: ... rejected because..."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Which part of the system does this touch?
+      options:
+        - Authentication / Identity
+        - Authorization (RBAC / ABAC)
+        - Document lifecycle
+        - Classification
+        - Audit log
+        - Workflow / approvals
+        - Search
+        - Sharing
+        - AI assistance
+        - Billing / payments
+        - Admin console
+        - Platform / multi-tenant
+        - i18n
+        - PWA / mobile
+        - Infrastructure / DevOps
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Estimated scope
+      description: Rough size of the change.
+      options:
+        - "Small — single file / function (~1-50 lines)"
+        - "Medium — single feature (~50-500 lines)"
+        - "Large — cross-cutting (~500+ lines, multiple files)"
+        - "Not sure yet"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: breaking
+    attributes:
+      label: Breaking change?
+      description: Does this change break existing API contracts, data models, or user workflows?
+      options:
+        - label: This is a breaking change (I have documented the migration path below)
+          required: false
+
+  - type: textarea
+    id: breaking-detail
+    attributes:
+      label: If breaking, migration path
+      description: Describe how existing deployments should migrate.
+    validations:
+      required: false
+
+  - type: input
+    id: adr
+    attributes:
+      label: Related ADR (if any)
+      description: Does this contradict or extend an existing Architecture Decision Record?
+      placeholder: "e.g. ADR-007 (RBAC + ABAC), ADR-010 (AI human-in-loop)"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this request, you agree to follow the project's [Code of Conduct](../CONTRIBUTING.md#code-of-conduct).
+      options:
+        - label: I have searched existing issues and this is not a duplicate.
+          required: true

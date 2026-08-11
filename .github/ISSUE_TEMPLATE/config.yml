@@ -1,0 +1,22 @@
+# Issue template configuration
+# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository#configuring-the-template-chooser
+
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/ahmedkobbi/smart-edms/security/advisories/new
+    about: |
+      Security vulnerabilities MUST be reported privately — do NOT open a
+      public issue. Use a private security advisory instead.
+      The Author acknowledges receipt within 72 hours and provides an initial
+      assessment within 7 days.
+  - name: 📖 Read the documentation first
+    url: https://github.com/ahmedkobbi/smart-edms#documentation
+    about: |
+      Before opening an issue, check the README, docs/SECURITY.md, the 16
+      ADRs in docs/adr/, and the interactive OpenAPI spec at /api-docs.
+  - name: 💬 Ask a question
+    url: https://github.com/ahmedkobbi/smart-edms/discussions
+    about: |
+      For "how do I..." questions, architecture clarifications, and general
+      discussion, use GitHub Discussions instead of opening an issue.

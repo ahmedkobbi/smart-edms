@@ -711,8 +711,9 @@ bun run check:translations    # التحقق من اكتمال المفاتيح 
 | [اختبارات عزل المستأجرين](scripts/test-isolation.ts) | مجموعة 5 اختبارات تتحقق من عزل المستأجر |
 | [التحقق من الأداء](scripts/performance-verify.ts) | فحص زمن الاستجابة + الإنتاجية للنقاط |
 | [المسرد (EN/AR)](docs/GLOSSARY-EN-AR.md) | مصطلحات إدارة السجلات ثنائية اللغة |
-| [المساهمة](CONTRIBUTING.md) | الإرشادات، الإعداد، أسلوب الكود |
-| [الرخصة](LICENSE) | رخصة ملكية كاملة |
+| [المساهمة (العربية)](CONTRIBUTING.ar.md) | الإرشادات، الإعداد، أسلوب الكود، اصطلاحات الالتزام |
+| [المساهمة (English)](CONTRIBUTING.md) | Contributing guidelines in English |
+| [الرخصة](LICENSE) | الرخصة الملكية الكاملة (القانون الجزائري الحاكم) |
 
 ---
 

@@ -1,0 +1,154 @@
+name: Bug Report
+description: Report a defect or unexpected behavior in Smart EDMS
+title: "bug: <one-line summary>"
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report a bug in Smart EDMS.
+
+        **Before continuing:**
+        - If this is a **security vulnerability**, do NOT use this form. Open a
+          [private security advisory](https://github.com/ahmedkobbi/smart-edms/security/advisories/new) instead.
+        - Search [existing issues](https://github.com/ahmedkobbi/smart-edms/issues?q=is%3Aissue+label%3Abug)
+          to avoid duplicates.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One-sentence description of the bug.
+      placeholder: "e.g. Document download returns 500 when S3 driver is enabled"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+      placeholder: "Describe the expected outcome..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Include error messages, stack traces, or audit-event IDs.
+      placeholder: "Describe what happened, with any error output..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Minimal, ordered steps to reproduce the issue.
+      placeholder: |
+        1. Log in as tenant_admin
+        2. Navigate to /documents
+        3. Click on document "X"
+        4. Click "Download"
+        5. Observe 500 error
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How impactful is this bug?
+      options:
+        - "Blocker — workflow cannot proceed / data loss / security exposure"
+        - "High — major feature broken, no workaround"
+        - "Medium — feature broken, workaround exists"
+        - "Low — cosmetic, minor inconvenience"
+    validations:
+      required: true
+
+  - type: input
+    id: smart-edms-version
+    attributes:
+      label: Smart EDMS version
+      description: Git commit SHA, tag, or "main @ <date>".
+      placeholder: "e.g. main @ 2026-08-11, or commit a6a48b8"
+    validations:
+      required: true
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Runtime
+      description: Node.js / Bun version.
+      placeholder: "e.g. Node 20.11.0 / Bun 1.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: database
+    attributes:
+      label: Database
+      description: Which database driver are you using?
+      placeholder: "SQLite (dev) / PostgreSQL 15 / PostgreSQL 16"
+    validations:
+      required: true
+
+  - type: input
+    id: storage
+    attributes:
+      label: Storage driver
+      description: Which storage backend are you using?
+      placeholder: "local / S3 / MinIO / R2"
+    validations:
+      required: false
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "e.g. macOS 14 / Ubuntu 22.04 / Windows 11"
+    validations:
+      required: false
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser (if UI-related)
+      placeholder: "e.g. Chrome 127 / Safari 17 / Firefox 128"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: |
+        Redact all secrets. Include relevant `dev.log` / `server.log` excerpts,
+        audit-event IDs, or browser console output.
+        **Do NOT paste real document content, tokens, passwords, or KEK values.**
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else that might help diagnose the issue — screenshots, related issues, workarounds you tried.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow the project's [Code of Conduct](../CONTRIBUTING.md#code-of-conduct).
+      options:
+        - label: I have searched existing issues and this is not a duplicate.
+          required: true
+        - label: This is not a security vulnerability (I will use a private advisory for those).
+          required: true
+        - label: I have redacted all secrets, tokens, and sensitive data from this report.
+          required: true

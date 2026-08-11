@@ -739,6 +739,7 @@ Smart EDMS is a fully installable PWA:
 | [Performance Verification](scripts/performance-verify.ts) | Endpoint latency + throughput check |
 | [Glossary (EN/AR)](docs/GLOSSARY-EN-AR.md) | Bilingual records-management terminology |
 | [Contributing](CONTRIBUTING.md) | Guidelines, dev setup, code style, commit conventions |
+| [Contributing (العربية)](CONTRIBUTING.ar.md) | دليل المساهمة باللغة العربية |
 | [License](LICENSE) | Full proprietary license (Algerian governing law) |
 
 ### Architecture Decision Records

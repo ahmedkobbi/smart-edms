@@ -5,7 +5,7 @@
 **صُنع في الجزائر — يخدم العالم**
 *Made in Algeria — built for the world.*
 
-[English](./README.md) · [العربية](./README.ar.md)
+**🌐 Read this guide in:** [English](./CONTRIBUTING.md) · [العربية](./CONTRIBUTING.ar.md)
 
 </div>
 
