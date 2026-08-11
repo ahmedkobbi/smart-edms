@@ -34,7 +34,7 @@ import { networkInterfaces, cpus, hostname, platform, arch, totalmem } from 'os'
 // Even if the attacker extracts the public key, they can't sign new licenses.
 
 const VENDOR_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEA7Z5xQ9jP3KvR8NmY4Wx2tF1vQhJ6bL5sE8dT3KmV9CqR4nV2
+MCowBQYDK2VwAyEA5ovMYn22Om0x+uPQlRMojE7EdUAcGZWzXMdVpROQkR0=
 -----END PUBLIC KEY-----`;
 
 /**
