@@ -24,10 +24,10 @@ export default function DualControlPage() {
     mutationFn: ({ id, decision }: { id: string; decision: 'approve' | 'reject' }) =>
       api.post(`/api/admin/dual-control/${id}`, { decision }),
     onSuccess: (_, vars) => {
-      toast({ title: vars.decision === 'approve' ? 'Request approved' : 'Request rejected' });
+      toast({ title: vars.decision === 'approve' ? t('admin.dualControlPage.approvedToast') : t('admin.dualControlPage.rejectedToast') });
       qc.invalidateQueries({ queryKey: ['dual-control'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
@@ -37,20 +37,20 @@ export default function DualControlPage() {
           <ShieldCheck className="h-6 w-6" /> {t('admin.dualControl')}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Destructive admin actions require approval from a second administrator.
+          {t('admin.dualControlPage.subtitle')}
         </p>
       </div>
 
       <Card className="glass-card border-0">
         <CardHeader>
-          <CardTitle className="text-base">Requests</CardTitle>
-          <CardDescription>Pending, approved, and rejected dual-control requests</CardDescription>
+          <CardTitle className="text-base">{t('admin.dualControlPage.requestsTitle')}</CardTitle>
+          <CardDescription>{t('admin.dualControlPage.requestsDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : !data?.items?.length ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">No dual-control requests.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">{t('admin.dualControlPage.empty')}</p>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-900">
               {data.items.map((r: any) => (
@@ -64,15 +64,15 @@ export default function DualControlPage() {
                   </div>
                   <p className="text-sm">{r.reason}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Requested {formatDistanceToNow(new Date(r.createdAt), { addSuffix: true })}
+                    {t('common.requestedPrefix')} {formatDistanceToNow(new Date(r.createdAt), { addSuffix: true })}
                   </p>
                   {r.status === 'pending' && (
                     <div className="flex gap-2 mt-3">
                       <Button size="sm" variant="outline" onClick={() => decide.mutate({ id: r.id, decision: 'approve' })} disabled={decide.isPending}>
-                        <CheckCircle2 className="me-1 h-3 w-3" /> Approve
+                        <CheckCircle2 className="me-1 h-3 w-3" /> {t('admin.dualControlPage.approveButton')}
                       </Button>
                       <Button size="sm" variant="ghost" className="text-red-600" onClick={() => decide.mutate({ id: r.id, decision: 'reject' })} disabled={decide.isPending}>
-                        <XCircle className="me-1 h-3 w-3" /> Reject
+                        <XCircle className="me-1 h-3 w-3" /> {t('admin.dualControlPage.rejectButton')}
                       </Button>
                     </div>
                   )}

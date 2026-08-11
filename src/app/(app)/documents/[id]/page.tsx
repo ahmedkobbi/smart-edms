@@ -22,6 +22,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useI18n } from '@/i18n/use-i18n';
 import { useSessionData } from '@/components/providers/use-session-data';
 import { PERMISSIONS, hasPermission } from '@/lib/auth/permissions.client';
 import { formatDistanceToNow } from 'date-fns';
@@ -64,15 +65,12 @@ interface DocDetail {
   };
 }
 
-const STATE_LABELS: Record<string, string> = {
-  draft: 'Draft', active: 'Active', record: 'Record', archived: 'Archived', disposed: 'Disposed',
-};
-
 export default function DocumentDetailPage() {
   const params = useParams<{ id: string }>();
   const search = useSearchParams();
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const { session } = useSessionData();
   const perms = session?.user?.permissions ?? [];
@@ -84,7 +82,7 @@ export default function DocumentDetailPage() {
     if (search.get('action') === 'download') {
       api.get<{ url: string }>(`/api/documents/${params.id}/download`)
         .then((res) => window.open(res.url, '_blank'))
-        .catch((err: any) => toast({ title: 'Download failed', description: err?.message, variant: 'destructive' }))
+        .catch((err: any) => toast({ title: t('documents.downloadFailedToast'), description: err?.message, variant: 'destructive' }))
         .finally(() => router.replace(`/documents/${params.id}`));
     }
   }, [search, params.id, router, toast]);
@@ -113,58 +111,58 @@ export default function DocumentDetailPage() {
   const handleDownload = () => {
     api.get<{ url: string }>(`/api/documents/${params.id}/download`)
       .then((res) => window.open(res.url, '_blank'))
-      .catch((err: any) => toast({ title: 'Download failed', description: err?.message, variant: 'destructive' }));
+      .catch((err: any) => toast({ title: t('documents.downloadFailedToast'), description: err?.message, variant: 'destructive' }));
   };
 
   const lockMutation = useMutation({
     mutationFn: (lock: boolean) =>
       lock
-        ? api.post(`/api/documents/${params.id}/lock`, { reason: 'Manual lock' })
+        ? api.post(`/api/documents/${params.id}/lock`, { reason: t('documents.manualLockReason') })
         : api.delete(`/api/documents/${params.id}/lock`),
     onSuccess: () => {
-      toast({ title: 'Updated', description: 'Lock state changed' });
+      toast({ title: t('documents.lockChangedDesc'), description: t('documents.lockChangedToast') });
       qc.invalidateQueries({ queryKey: ['document', params.id] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const aiSuggestMutation = useMutation({
     mutationFn: () => api.post(`/api/documents/${params.id}/ai-suggest`),
     onSuccess: (res: any) => {
       toast({
-        title: 'AI suggestion ready',
-        description: `Suggested: ${res.suggestion.name}. Review and approve to apply.`,
+        title: t('documents.aiSuggestionReadyToast'),
+        description: t('documents.aiSuggestionReadyToastDesc', { name: res.suggestion.name }),
       });
       qc.invalidateQueries({ queryKey: ['document', params.id] });
     },
-    onError: (err: any) => toast({ title: 'AI failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('documents.aiFailedToast'), description: err?.message, variant: 'destructive' }),
   });
 
   const classifyMutation = useMutation({
     mutationFn: (classificationId: string) =>
-      api.patch(`/api/documents/${params.id}`, { classificationId, reason: 'Manual classification' }),
+      api.patch(`/api/documents/${params.id}`, { classificationId, reason: t('documents.manualClassificationReason') }),
     onSuccess: () => {
-      toast({ title: 'Classification updated' });
+      toast({ title: t('documents.classificationUpdatedToast') });
       qc.invalidateQueries({ queryKey: ['document', params.id] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const uploadVersionMutation = useMutation({
     mutationFn: async () => {
-      if (!newVersionFile) throw new Error('No file');
+      if (!newVersionFile) throw new Error(t('documents.noFileError'));
       const fd = new FormData();
       fd.append('file', newVersionFile);
-      fd.append('changeReason', changeReason || 'New version upload');
+      fd.append('changeReason', changeReason || t('documents.newVersionUploadReason'));
       return uploadFile(`/api/documents/${params.id}/versions`, fd);
     },
     onSuccess: () => {
-      toast({ title: 'Version uploaded' });
+      toast({ title: t('documents.versionUploadedToast') });
       setNewVersionFile(null);
       setChangeReason('');
       qc.invalidateQueries({ queryKey: ['document', params.id] });
     },
-    onError: (err: any) => toast({ title: 'Upload failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('documents.uploadFailedToast'), description: err?.message, variant: 'destructive' }),
   });
 
   // Restore a previous version (creates a new forward-only version)
@@ -172,10 +170,10 @@ export default function DocumentDetailPage() {
     mutationFn: ({ versionId, reason }: { versionId: string; reason: string }) =>
       api.post(`/api/documents/${params.id}/versions/${versionId}/restore`, { reason }),
     onSuccess: () => {
-      toast({ title: 'Version restored', description: 'A new version was created with the restored content.' });
+      toast({ title: t('documents.versionRestoredToast'), description: t('documents.versionRestoredDesc') });
       qc.invalidateQueries({ queryKey: ['document', params.id] });
     },
-    onError: (err: any) => toast({ title: 'Restore failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('documents.restoreFailedToast'), description: err?.message, variant: 'destructive' }),
   });
 
   if (isLoading || !data) {
@@ -195,7 +193,7 @@ export default function DocumentDetailPage() {
     <div className="space-y-6 max-w-6xl mx-auto">
       <div>
         <Link href="/documents" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-3">
-          <ArrowLeft className="me-1 h-3.5 w-3.5" /> Back to documents
+          <ArrowLeft className="me-1 h-3.5 w-3.5" /> {t('documents.backToDocuments')}
         </Link>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex-1 min-w-0">
@@ -206,16 +204,16 @@ export default function DocumentDetailPage() {
                   {doc.classification.code}
                 </Badge>
               )}
-              <Badge variant="secondary" className="text-xs">{STATE_LABELS[doc.state] ?? doc.state}</Badge>
-              {doc.isRecord && <Badge variant="outline" className="text-xs">Record</Badge>}
+              <Badge variant="secondary" className="text-xs">{t(`state.${doc.state}`, doc.state)}</Badge>
+              {doc.isRecord && <Badge variant="outline" className="text-xs">{t('documents.recordBadge')}</Badge>}
               {doc.legalHold && (
                 <Badge variant="outline" className="text-xs text-red-600 border-red-300">
-                  <FileLock className="me-1 h-3 w-3" /> Legal hold
+                  <FileLock className="me-1 h-3 w-3" /> {t('documents.legalHoldBadge')}
                 </Badge>
               )}
               {doc.isLocked && (
                 <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                  <Lock className="me-1 h-3 w-3" /> Locked
+                  <Lock className="me-1 h-3 w-3" /> {t('documents.lockedBadge')}
                 </Badge>
               )}
             </div>
@@ -224,7 +222,7 @@ export default function DocumentDetailPage() {
           <div className="flex gap-2">
             {hasPermission(perms, PERMISSIONS.DOCUMENT_DOWNLOAD) && doc.downloadAllowed && (
               <Button variant="outline" size="sm" onClick={handleDownload}>
-                <Download className="me-2 h-3.5 w-3.5" /> Download
+                <Download className="me-2 h-3.5 w-3.5" /> {t('documents.download')}
               </Button>
             )}
             <FavoriteButton docId={params.id} />
@@ -233,14 +231,14 @@ export default function DocumentDetailPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  if (confirm('Declare this document as a record? Records are immutable and can only be disposed via retention disposition.')) {
-                    api.post(`/api/documents/${params.id}/declare-record`, { reason: 'Manual declaration' })
-                      .then(() => { toast({ title: 'Record declared' }); qc.invalidateQueries({ queryKey: ['document', params.id] }); })
-                      .catch((err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }));
+                  if (confirm(t('documents.declareRecordConfirm'))) {
+                    api.post(`/api/documents/${params.id}/declare-record`, { reason: t('documents.manualDeclarationReason') })
+                      .then(() => { toast({ title: t('documents.recordDeclaredToast') }); qc.invalidateQueries({ queryKey: ['document', params.id] }); })
+                      .catch((err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }));
                   }
                 }}
               >
-                <ShieldCheck className="me-2 h-3.5 w-3.5" /> Declare Record
+                <ShieldCheck className="me-2 h-3.5 w-3.5" /> {t('documents.declareRecord')}
               </Button>
             )}
             <MoveCopyDialog docId={params.id} />
@@ -252,7 +250,7 @@ export default function DocumentDetailPage() {
                 disabled={lockMutation.isPending}
               >
                 {doc.isLocked ? <Unlock className="me-2 h-3.5 w-3.5" /> : <Lock className="me-2 h-3.5 w-3.5" />}
-                {doc.isLocked ? 'Unlock' : 'Lock'}
+                {doc.isLocked ? t('documents.unlock') : t('documents.lock')}
               </Button>
             )}
           </div>
@@ -266,64 +264,64 @@ export default function DocumentDetailPage() {
           style={{ backgroundColor: doc.classification.color }}
         >
           <Shield className="h-4 w-4" />
-          Classification: {doc.classification.name} — {(doc.classification as any).description ?? 'Sensitive document'}
+          {t('documents.classification')}: {doc.classification.name} — {(doc.classification as any).description ?? t('documents.sensitiveDefault')}
         </div>
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-7 lg:w-fit">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="preview">Preview</TabsTrigger>
-          <TabsTrigger value="versions">Versions</TabsTrigger>
-          <TabsTrigger value="comments">Comments</TabsTrigger>
-          <TabsTrigger value="audit">Audit</TabsTrigger>
-          <TabsTrigger value="share">Share</TabsTrigger>
-          <TabsTrigger value="collab">Collab</TabsTrigger>
-          <TabsTrigger value="ai">AI</TabsTrigger>
+          <TabsTrigger value="overview">{t('documents.tabs.overview')}</TabsTrigger>
+          <TabsTrigger value="preview">{t('documents.tabs.preview')}</TabsTrigger>
+          <TabsTrigger value="versions">{t('documents.tabs.versions')}</TabsTrigger>
+          <TabsTrigger value="comments">{t('documents.tabs.comments')}</TabsTrigger>
+          <TabsTrigger value="audit">{t('documents.tabs.audit')}</TabsTrigger>
+          <TabsTrigger value="share">{t('documents.tabs.share')}</TabsTrigger>
+          <TabsTrigger value="collab">{t('documents.tabs.collab')}</TabsTrigger>
+          <TabsTrigger value="ai">{t('documents.tabs.ai')}</TabsTrigger>
         </TabsList>
 
         {/* Overview */}
         <TabsContent value="overview" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Owner</CardTitle></CardHeader>
-              <CardContent className="text-sm">{doc.owner?.name ?? doc.owner?.email ?? 'Unknown'}</CardContent>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">{t('documents.owner')}</CardTitle></CardHeader>
+              <CardContent className="text-sm">{doc.owner?.name ?? doc.owner?.email ?? t('common.unknown')}</CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Type</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">{t('documents.type')}</CardTitle></CardHeader>
               <CardContent className="text-sm font-mono">{doc.documentType}</CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Created</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">{t('common.createdAt')}</CardTitle></CardHeader>
               <CardContent className="text-sm">{formatDistanceToNow(new Date(doc.createdAt), { addSuffix: true })}</CardContent>
             </Card>
           </div>
 
           {latestVersion && (
             <Card>
-              <CardHeader><CardTitle className="text-base">Current version (v{latestVersion.versionNumber})</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base">{t('documents.currentVersionLabel', { version: latestVersion.versionNumber })}</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                   <div>
-                    <p className="text-xs text-muted-foreground">File name</p>
+                    <p className="text-xs text-muted-foreground">{t('documents.fileName')}</p>
                     <p className="font-medium truncate">{latestVersion.fileName}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Size</p>
+                    <p className="text-xs text-muted-foreground">{t('documents.fileSize')}</p>
                     <p className="font-medium">{formatBytes(latestVersion.sizeBytes)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">MIME type</p>
+                    <p className="text-xs text-muted-foreground">{t('documents.mimeType')}</p>
                     <p className="font-medium font-mono text-xs">{latestVersion.mimeType}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">SHA-256</p>
+                    <p className="text-xs text-muted-foreground">{t('documents.checksum')}</p>
                     <p className="font-mono text-xs">{truncateHash(latestVersion.checksumSha256, 12, 8)}</p>
                   </div>
                 </div>
                 {latestVersion.changeReason && (
                   <div>
-                    <p className="text-xs text-muted-foreground">Change reason</p>
+                    <p className="text-xs text-muted-foreground">{t('documents.changeReason')}</p>
                     <p className="text-sm">{latestVersion.changeReason}</p>
                   </div>
                 )}
@@ -333,7 +331,7 @@ export default function DocumentDetailPage() {
 
           {tags.length > 0 && (
             <Card>
-              <CardHeader><CardTitle className="text-base">Tags</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base">{t('documents.tags')}</CardTitle></CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {tags.map((t: string) => <Badge key={t} variant="secondary">{t}</Badge>)}
@@ -344,7 +342,7 @@ export default function DocumentDetailPage() {
 
           {Object.keys(metadata).length > 0 && (
             <Card>
-              <CardHeader><CardTitle className="text-base">Metadata</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base">{t('documents.metadata')}</CardTitle></CardHeader>
               <CardContent>
                 <dl className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                   {Object.entries(metadata).map(([k, v]) => (
@@ -360,13 +358,13 @@ export default function DocumentDetailPage() {
 
           {doc.retentionSchedule && (
             <Card>
-              <CardHeader><CardTitle className="text-base">Retention</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base">{t('documents.retention')}</CardTitle></CardHeader>
               <CardContent className="text-sm space-y-1">
-                <p><span className="text-muted-foreground">Schedule:</span> {doc.retentionSchedule.name}</p>
-                <p><span className="text-muted-foreground">Retention:</span> {doc.retentionSchedule.retentionDays} days</p>
-                <p><span className="text-muted-foreground">Disposition:</span> {doc.retentionSchedule.dispositionAction}</p>
+                <p><span className="text-muted-foreground">{t('documents.scheduleLabel')}</span> {doc.retentionSchedule.name}</p>
+                <p><span className="text-muted-foreground">{t('documents.retentionLabel')}</span> {doc.retentionSchedule.retentionDays} {t('documents.daysUnit')}</p>
+                <p><span className="text-muted-foreground">{t('documents.dispositionLabel')}</span> {doc.retentionSchedule.dispositionAction}</p>
                 {doc.retentionDisposeAfter && (
-                  <p><span className="text-muted-foreground">Dispose after:</span> {new Date(doc.retentionDisposeAfter).toLocaleDateString()}</p>
+                  <p><span className="text-muted-foreground">{t('documents.disposeAfterLabel')}</span> {new Date(doc.retentionDisposeAfter).toLocaleDateString()}</p>
                 )}
               </CardContent>
             </Card>
@@ -375,15 +373,15 @@ export default function DocumentDetailPage() {
           {hasPermission(perms, PERMISSIONS.DOCUMENT_CLASSIFY) && classificationsData && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Classification</CardTitle>
-                <CardDescription>Change with audit; downgrades require elevated permission and are blocked under legal hold.</CardDescription>
+                <CardTitle className="text-base">{t('documents.classification')}</CardTitle>
+                <CardDescription>{t('documents.classificationCardDesc')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <Select
                   value={doc.classification?.id ?? ''}
                   onValueChange={(v) => classifyMutation.mutate(v)}
                 >
-                  <SelectTrigger className="w-full md:w-72"><SelectValue placeholder="Select classification" /></SelectTrigger>
+                  <SelectTrigger className="w-full md:w-72"><SelectValue placeholder={t('documents.selectClassification')} /></SelectTrigger>
                   <SelectContent>
                     {classificationsData.items.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
@@ -406,32 +404,32 @@ export default function DocumentDetailPage() {
           <Card className="glass-card border-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <div>
-                <CardTitle className="text-base">Version history</CardTitle>
-                <CardDescription>{doc.versions.length} version(s)</CardDescription>
+                <CardTitle className="text-base">{t('documents.versionHistory')}</CardTitle>
+                <CardDescription>{t('documents.versionCount', { count: doc.versions.length })}</CardDescription>
               </div>
               {hasPermission(perms, PERMISSIONS.DOCUMENT_UPDATE) && !doc.isLocked && (
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm">
-                      <History className="me-2 h-3.5 w-3.5" /> Upload new version
+                      <History className="me-2 h-3.5 w-3.5" /> {t('documents.uploadNewVersion')}
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Upload new version</DialogTitle>
-                      <DialogDescription>The previous version is preserved immutably.</DialogDescription>
+                      <DialogTitle>{t('documents.uploadNewVersion')}</DialogTitle>
+                      <DialogDescription>{t('documents.previousVersionPreserved')}</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3 py-2">
                       <Input type="file" onChange={(e) => setNewVersionFile(e.target.files?.[0] ?? null)} />
                       <div className="space-y-1">
-                        <Label htmlFor="reason">Change reason</Label>
+                        <Label htmlFor="reason">{t('documents.changeReason')}</Label>
                         <Textarea id="reason" value={changeReason} onChange={(e) => setChangeReason(e.target.value)} rows={2} />
                       </div>
                     </div>
                     <DialogFooter>
                       <Button onClick={() => uploadVersionMutation.mutate()} disabled={!newVersionFile || uploadVersionMutation.isPending}>
                         {uploadVersionMutation.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                        Upload
+                        {t('documents.uploadButton')}
                       </Button>
                     </DialogFooter>
                   </DialogContent>
@@ -448,7 +446,7 @@ export default function DocumentDetailPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{v.fileName}</p>
                       <p className="text-xs text-muted-foreground">
-                        {formatBytes(v.sizeBytes)} · {v.mimeType} · {v.uploader?.name ?? v.uploader?.email ?? 'Unknown'} · {formatDistanceToNow(new Date(v.createdAt), { addSuffix: true })}
+                        {formatBytes(v.sizeBytes)} · {v.mimeType} · {v.uploader?.name ?? v.uploader?.email ?? t('common.unknown')} · {formatDistanceToNow(new Date(v.createdAt), { addSuffix: true })}
                       </p>
                       {v.changeReason && <p className="text-xs mt-1 italic text-muted-foreground">"{v.changeReason}"</p>}
                       <p className="text-[10px] font-mono text-muted-foreground mt-1">sha256:{truncateHash(v.checksumSha256, 16, 12)}</p>
@@ -460,17 +458,17 @@ export default function DocumentDetailPage() {
                           variant="outline"
                           disabled={restoreVersionMutation.isPending}
                           onClick={() => {
-                            const reason = window.prompt(`Restore version ${v.versionNumber}? This creates a NEW version with the old content (the current version is preserved). Enter a reason:`);
+                            const reason = window.prompt(t('documents.restoreVersionPrompt', { version: v.versionNumber }));
                             if (reason) {
                               restoreVersionMutation.mutate({ versionId: v.id, reason });
                             }
                           }}
                         >
-                          <RotateCcw className="me-1 h-3 w-3" /> Restore
+                          <RotateCcw className="me-1 h-3 w-3" /> {t('documents.restore')}
                         </Button>
                       )}
                       {v.versionNumber === doc.currentVersion && (
-                        <Badge variant="secondary" className="text-xs">Current</Badge>
+                        <Badge variant="secondary" className="text-xs">{t('documents.currentVersion')}</Badge>
                       )}
                     </div>
                   </div>
@@ -484,8 +482,8 @@ export default function DocumentDetailPage() {
         <TabsContent value="audit" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Audit timeline</CardTitle>
-              <CardDescription>Tamper-evident, hash-chained events for this document.</CardDescription>
+              <CardTitle className="text-base">{t('documents.auditTimelineTitle')}</CardTitle>
+              <CardDescription>{t('documents.auditTimelineDesc')}</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {auditData?.events?.length ? (
@@ -498,7 +496,7 @@ export default function DocumentDetailPage() {
                       <div className="flex-1 min-w-0">
                         <p className="font-mono text-xs">{ev.eventType}</p>
                         <p className="text-xs text-muted-foreground">
-                          {ev.actorEmail ?? 'system'} · {formatDistanceToNow(new Date(ev.createdAt), { addSuffix: true })}
+                          {ev.actorEmail ?? t('audit.systemActor')} · {formatDistanceToNow(new Date(ev.createdAt), { addSuffix: true })}
                           {ev.reason && ` · ${ev.reason}`}
                         </p>
                       </div>
@@ -507,7 +505,7 @@ export default function DocumentDetailPage() {
                   ))}
                 </div>
               ) : (
-                <p className="p-6 text-center text-sm text-muted-foreground">No audit events yet.</p>
+                <p className="p-6 text-center text-sm text-muted-foreground">{t('documents.noAuditEvents')}</p>
               )}
             </CardContent>
           </Card>
@@ -527,7 +525,7 @@ export default function DocumentDetailPage() {
               <CardContent className="p-6 text-center">
                 <Lock className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
                 <p className="text-sm font-medium">
-                  {doc.isLocked ? 'Document is locked' : 'No permission to edit'}
+                  {doc.isLocked ? t('documents.lockedNoEdit') : t('documents.noPermissionNoEdit')}
                 </p>
               </CardContent>
             </Card>
@@ -552,11 +550,10 @@ export default function DocumentDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Sparkles className="h-4 w-4" /> AI-assisted classification
+                <Sparkles className="h-4 w-4" /> {t('documents.aiClassificationTitle')}
               </CardTitle>
               <CardDescription>
-                AI suggestions are advisory only. Applying them requires human approval.
-                AI never performs downgrades, deletions, or legal-hold changes silently.
+                {t('documents.aiClassificationDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -565,19 +562,19 @@ export default function DocumentDetailPage() {
                   <Sparkles className="h-4 w-4" />
                   <AlertDescription>
                     <div className="space-y-1">
-                      <p><strong>Suggested:</strong> {doc.aiClassificationSuggested}</p>
+                      <p><strong>{t('documents.suggestedLabel')}</strong> {doc.aiClassificationSuggested}</p>
                       {doc.aiClassificationReason && <p className="text-sm">{doc.aiClassificationReason}</p>}
-                      <p className="text-xs text-muted-foreground">Status: {doc.aiSuggestionState}</p>
+                      <p className="text-xs text-muted-foreground">{t('documents.statusLabel')} {doc.aiSuggestionState}</p>
                     </div>
                   </AlertDescription>
                 </Alert>
               ) : (
-                <p className="text-sm text-muted-foreground">No AI suggestion yet. Click below to request one.</p>
+                <p className="text-sm text-muted-foreground">{t('documents.aiNoSuggestion')}</p>
               )}
               {hasPermission(perms, PERMISSIONS.AI_SUGGESTION_REQUEST) && (
                 <Button variant="outline" size="sm" onClick={() => aiSuggestMutation.mutate()} disabled={aiSuggestMutation.isPending}>
                   {aiSuggestMutation.isPending ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="me-2 h-3.5 w-3.5" />}
-                  Request suggestion
+                  {t('documents.aiRequestSuggestion')}
                 </Button>
               )}
             </CardContent>
@@ -587,9 +584,9 @@ export default function DocumentDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Shield className="h-4 w-4" /> PII detection
+                <Shield className="h-4 w-4" /> {t('documents.piiTitle')}
               </CardTitle>
-              <CardDescription>Heuristic regex-based scan for personal data (email, phone, SSN, credit card, IBAN, IP, passport).</CardDescription>
+              <CardDescription>{t('documents.piiDesc')}</CardDescription>
             </CardHeader>
             <CardContent>
               <PiiScanner docId={params.id} />
@@ -600,9 +597,9 @@ export default function DocumentDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Sparkles className="h-4 w-4" /> Document summary
+                <Sparkles className="h-4 w-4" /> {t('documents.summaryTitle')}
               </CardTitle>
-              <CardDescription>LLM-powered summary (falls back to heuristic when no AI key configured).</CardDescription>
+              <CardDescription>{t('documents.summaryDesc')}</CardDescription>
             </CardHeader>
             <CardContent>
               <Summarizer docId={params.id} />
@@ -613,9 +610,9 @@ export default function DocumentDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4" /> Policy risk analysis
+                <ShieldAlert className="h-4 w-4" /> {t('documents.policyRiskTitle')}
               </CardTitle>
-              <CardDescription>Identifies policy violations, mis-classifications, and compliance gaps.</CardDescription>
+              <CardDescription>{t('documents.policyRiskDesc')}</CardDescription>
             </CardHeader>
             <CardContent>
               <PolicyRiskAnalyzer docId={params.id} />
@@ -626,9 +623,9 @@ export default function DocumentDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Copy className="h-4 w-4" /> Duplicate detection
+                <Copy className="h-4 w-4" /> {t('documents.duplicateTitle')}
               </CardTitle>
-              <CardDescription>Finds exact (SHA-256) and near (same name + size) duplicates in your tenant.</CardDescription>
+              <CardDescription>{t('documents.duplicateDesc')}</CardDescription>
             </CardHeader>
             <CardContent>
               <DuplicateChecker docId={params.id} />
@@ -642,6 +639,7 @@ export default function DocumentDetailPage() {
 
 function ShareManager({ docId, shares, doc }: { docId: string; shares: any[]; doc: any; classifications: any[] }) {
   const { toast } = useToast();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const [recipientEmail, setRecipientEmail] = useState('');
   const [mode, setMode] = useState('view');
@@ -663,13 +661,13 @@ function ShareManager({ docId, shares, doc }: { docId: string; shares: any[]; do
     },
     onSuccess: (res: any) => {
       toast({
-        title: 'Share link created',
-        description: 'The link has been generated and audit-logged.',
+        title: t('documents.shareCreatedToast'),
+        description: t('documents.shareCreatedDesc'),
       });
       qc.invalidateQueries({ queryKey: ['document-shares', docId] });
       setRecipientEmail(''); setPassword('');
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   if (!doc.shareAllowed) {
@@ -677,9 +675,9 @@ function ShareManager({ docId, shares, doc }: { docId: string; shares: any[]; do
       <Card>
         <CardContent className="p-6 text-center">
           <AlertTriangle className="h-8 w-8 mx-auto text-amber-500 mb-2" />
-          <p className="text-sm font-medium">Sharing is disabled for this document</p>
+          <p className="text-sm font-medium">{t('documents.sharingDisabledTitle')}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            This is enforced by classification policy or document settings.
+            {t('documents.sharingDisabledDesc')}
           </p>
         </CardContent>
       </Card>
@@ -689,63 +687,63 @@ function ShareManager({ docId, shares, doc }: { docId: string; shares: any[]; do
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Sharing</CardTitle>
-        <CardDescription>Create time-limited, optionally password-protected share links.</CardDescription>
+        <CardTitle className="text-base">{t('documents.sharingTitle')}</CardTitle>
+        <CardDescription>{t('documents.sharingDesc')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="space-y-1">
-            <Label>Recipient email (optional)</Label>
-            <Input type="email" value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)} placeholder="recipient@example.com" />
+            <Label>{t('documents.recipientEmailLabel')}</Label>
+            <Input type="email" value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)} placeholder={t('documents.recipientEmailPlaceholder')} />
           </div>
           <div className="space-y-1">
-            <Label>Mode</Label>
+            <Label>{t('documents.shareModeLabel')}</Label>
             <Select value={mode} onValueChange={setMode}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="view">View only</SelectItem>
-                <SelectItem value="download">View + download</SelectItem>
-                <SelectItem value="review">Review workflow</SelectItem>
+                <SelectItem value="view">{t('documents.shareModeView')}</SelectItem>
+                <SelectItem value="download">{t('documents.shareModeDownload')}</SelectItem>
+                <SelectItem value="review">{t('documents.shareModeReview')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1">
-            <Label>Expires in</Label>
+            <Label>{t('documents.expiresInLabel')}</Label>
             <Select value={expiresInDays} onValueChange={setExpiresInDays}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">1 day</SelectItem>
-                <SelectItem value="7">7 days</SelectItem>
-                <SelectItem value="30">30 days</SelectItem>
-                <SelectItem value="90">90 days</SelectItem>
+                <SelectItem value="1">{t('documents.expiresInOne')}</SelectItem>
+                <SelectItem value="7">{t('documents.expiresInSeven')}</SelectItem>
+                <SelectItem value="30">{t('documents.expiresInThirty')}</SelectItem>
+                <SelectItem value="90">{t('documents.expiresInNinety')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1">
-            <Label>Password (optional)</Label>
-            <Input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 8 chars" />
+            <Label>{t('documents.passwordOptionalLabel')}</Label>
+            <Input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('documents.passwordMinHint')} />
           </div>
         </div>
         <Button size="sm" onClick={() => createShare.mutate()} disabled={createShare.isPending}>
           {createShare.isPending && <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" />}
-          Create share link
+          {t('documents.createShareLink')}
         </Button>
 
         {shares.length > 0 && (
           <div className="mt-6 space-y-2">
-            <p className="text-sm font-medium">Active shares ({shares.length})</p>
+            <p className="text-sm font-medium">{t('documents.activeSharesTitle', { count: shares.length })}</p>
             <div className="divide-y divide-slate-100 dark:divide-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">
               {shares.map((s: any) => (
                 <div key={s.id} className="p-3 flex items-center gap-3 text-sm">
                   <div className="flex-1 min-w-0">
                     <p className="font-mono text-xs truncate">{s.token.slice(0, 16)}…</p>
                     <p className="text-xs text-muted-foreground">
-                      {s.recipientEmail ?? 'Anonymous'} · {s.mode} · expires {s.expiresAt ? formatDistanceToNow(new Date(s.expiresAt), { addSuffix: true }) : 'never'} · {s.viewCount} view(s)
+                      {s.recipientEmail ?? t('documents.anonymous')} · {s.mode} · expires {s.expiresAt ? formatDistanceToNow(new Date(s.expiresAt), { addSuffix: true }) : t('documents.never')} · {t('documents.viewCount', { count: s.viewCount })}
                     </p>
                   </div>
                   <a href={`/shared/${s.token}`} target="_blank" rel="noreferrer">
                     <Button variant="ghost" size="sm" className="text-xs">
-                      <Eye className="me-1 h-3 w-3" /> Open
+                      <Eye className="me-1 h-3 w-3" /> {t('documents.openShare')}
                     </Button>
                   </a>
                 </div>
@@ -773,6 +771,7 @@ function safeParseObject(s: string | null | undefined): Record<string, unknown> 
 
 function DocumentPreview({ docId, doc }: { docId: string; doc: any }) {
   const { toast } = useToast();
+  const { t } = useI18n();
   const [preview, setPreview] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -782,7 +781,7 @@ function DocumentPreview({ docId, doc }: { docId: string; doc: any }) {
       const res = await api.get<{ url: string; watermark: boolean; watermarkText: string | null; fileName: string; mimeType: string }>(`/api/documents/${docId}/preview`);
       setPreview(res);
     } catch (err: any) {
-      toast({ title: 'Preview failed', description: err?.message, variant: 'destructive' });
+      toast({ title: t('documents.previewFailedToast'), description: err?.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -793,8 +792,8 @@ function DocumentPreview({ docId, doc }: { docId: string; doc: any }) {
       <Card>
         <CardContent className="p-6 text-center">
           <AlertTriangle className="h-8 w-8 mx-auto text-amber-500 mb-2" />
-          <p className="text-sm font-medium">Preview disabled</p>
-          <p className="text-xs text-muted-foreground mt-1">Preview is disabled for this document by policy.</p>
+          <p className="text-sm font-medium">{t('documents.previewDisabledTitle')}</p>
+          <p className="text-xs text-muted-foreground mt-1">{t('documents.previewDisabledDesc')}</p>
         </CardContent>
       </Card>
     );
@@ -804,24 +803,24 @@ function DocumentPreview({ docId, doc }: { docId: string; doc: any }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <Eye className="h-4 w-4" /> In-browser preview
+          <Eye className="h-4 w-4" /> {t('documents.inBrowserPreviewTitle')}
         </CardTitle>
         <CardDescription>
-          {doc.watermarkEnabled ? 'Dynamic watermark enabled — viewer identity is overlaid on the document.' : 'No watermark.'}
+          {doc.watermarkEnabled ? t('documents.watermarkEnabledDesc') : t('documents.noWatermarkDesc')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {!preview ? (
           <Button onClick={loadPreview} disabled={loading}>
             {loading && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-            <Eye className="me-2 h-4 w-4" /> Load preview
+            <Eye className="me-2 h-4 w-4" /> {t('documents.loadPreview')}
           </Button>
         ) : (
           <div className="space-y-3">
             {preview.watermark && preview.watermarkText && (
               <Alert>
                 <AlertDescription className="text-xs">
-                  <strong>Watermark:</strong> <span className="font-mono">{preview.watermarkText}</span>
+                  <strong>{t('documents.watermarkLabel')}</strong> <span className="font-mono">{preview.watermarkText}</span>
                 </AlertDescription>
               </Alert>
             )}
@@ -835,16 +834,16 @@ function DocumentPreview({ docId, doc }: { docId: string; doc: any }) {
               ) : (
                 <div className="p-8 text-center">
                   <FileText className="h-10 w-10 mx-auto text-muted-foreground/50 mb-2" />
-                  <p className="text-sm">Preview not available for {preview.mimeType}</p>
+                  <p className="text-sm">{t('documents.previewNotAvailable', { mimeType: preview.mimeType })}</p>
                   <a href={preview.url} target="_blank" rel="noreferrer">
                     <Button variant="outline" size="sm" className="mt-2">
-                      <Download className="me-2 h-3.5 w-3.5" /> Download instead
+                      <Download className="me-2 h-3.5 w-3.5" /> {t('documents.downloadInstead')}
                     </Button>
                   </a>
                 </div>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">URL expires in 60 seconds. Click "Load preview" again to refresh.</p>
+            <p className="text-xs text-muted-foreground">{t('documents.previewUrlExpiresHint')}</p>
           </div>
         )}
       </CardContent>
@@ -858,6 +857,7 @@ function DocumentPreview({ docId, doc }: { docId: string; doc: any }) {
 
 function CommentsPanel({ docId }: { docId: string }) {
   const { toast } = useToast();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const [body, setBody] = useState('');
 
@@ -872,7 +872,7 @@ function CommentsPanel({ docId }: { docId: string }) {
       qc.invalidateQueries({ queryKey: ['document-comments', docId] });
       setBody('');
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const resolve = useMutation({
@@ -884,16 +884,16 @@ function CommentsPanel({ docId }: { docId: string }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <MessageSquare className="h-4 w-4" /> Comments
+          <MessageSquare className="h-4 w-4" /> {t('documents.comments')}
         </CardTitle>
-        <CardDescription>Threaded discussion on this document</CardDescription>
+        <CardDescription>{t('documents.commentsDesc')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2">
           <Textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Add a comment…"
+            placeholder={t('documents.addCommentPlaceholder')}
             rows={2}
           />
           <Button size="sm" onClick={() => add.mutate()} disabled={!body.trim() || add.isPending} className="self-end">
@@ -904,20 +904,20 @@ function CommentsPanel({ docId }: { docId: string }) {
         {isLoading ? (
           <div className="text-center py-4"><Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" /></div>
         ) : !data?.comments?.length ? (
-          <p className="text-center text-sm text-muted-foreground py-6">No comments yet.</p>
+          <p className="text-center text-sm text-muted-foreground py-6">{t('documents.noComments')}</p>
         ) : (
           <div className="space-y-3">
             {data.comments.map((c: any) => (
               <div key={c.id} className={`p-3 rounded-md border ${c.resolvedAt ? 'opacity-60 bg-slate-50 dark:bg-slate-900' : 'border-slate-200 dark:border-slate-800'}`}>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-medium text-sm">{c.author?.name ?? c.author?.email ?? 'Unknown'}</span>
+                  <span className="font-medium text-sm">{c.author?.name ?? c.author?.email ?? t('common.unknown')}</span>
                   <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}</span>
-                  {c.resolvedAt && <Badge variant="secondary" className="text-[10px]">Resolved</Badge>}
+                  {c.resolvedAt && <Badge variant="secondary" className="text-[10px]">{t('documents.commentResolvedBadge')}</Badge>}
                 </div>
                 <p className="text-sm">{c.body}</p>
                 {!c.resolvedAt && (
                   <Button variant="ghost" size="sm" className="mt-2 h-6 text-xs" onClick={() => resolve.mutate(c.id)}>
-                    Resolve
+                    {t('documents.resolveComment')}
                   </Button>
                 )}
               </div>
@@ -935,6 +935,7 @@ function CommentsPanel({ docId }: { docId: string }) {
 
 function PiiScanner({ docId }: { docId: string }) {
   const { toast } = useToast();
+  const { t } = useI18n();
   const [result, setResult] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -944,7 +945,7 @@ function PiiScanner({ docId }: { docId: string }) {
       const res = await api.post(`/api/documents/${docId}/analyze-pii`);
       setResult(res);
     } catch (err: any) {
-      toast({ title: 'Scan failed', description: err?.message, variant: 'destructive' });
+      toast({ title: t('documents.scanFailedToast'), description: err?.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -954,21 +955,21 @@ function PiiScanner({ docId }: { docId: string }) {
     <div className="space-y-3">
       <Button variant="outline" size="sm" onClick={scan} disabled={loading}>
         {loading ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <Shield className="me-2 h-3.5 w-3.5" />}
-        Scan for PII
+        {t('documents.scanForPiiButton')}
       </Button>
       {result && (
         <div className="space-y-2">
           {result.totalMatches === 0 ? (
             <Alert>
               <CheckCircle2 className="h-4 w-4" />
-              <AlertDescription>No PII detected.</AlertDescription>
+              <AlertDescription>{t('documents.noPiiDetected')}</AlertDescription>
             </Alert>
           ) : (
             <>
               <Alert variant="default">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>{result.totalMatches}</strong> PII match(es) found ({result.source}).
+                  <strong>{result.totalMatches}</strong> {t('documents.piiMatchesFoundNoCount', { source: result.source })}
                 </AlertDescription>
               </Alert>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
@@ -980,7 +981,7 @@ function PiiScanner({ docId }: { docId: string }) {
                 ))}
               </div>
               <details className="text-xs">
-                <summary className="cursor-pointer text-muted-foreground">View masked findings</summary>
+                <summary className="cursor-pointer text-muted-foreground">{t('documents.viewMaskedFindings')}</summary>
                 <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
                   {result.findings.slice(0, 30).map((f: any, i: number) => (
                     <div key={i} className="font-mono text-[10px] text-muted-foreground">
@@ -1003,6 +1004,7 @@ function PiiScanner({ docId }: { docId: string }) {
 
 function Summarizer({ docId }: { docId: string }) {
   const { toast } = useToast();
+  const { t } = useI18n();
   const [result, setResult] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -1012,7 +1014,7 @@ function Summarizer({ docId }: { docId: string }) {
       const res = await api.post(`/api/documents/${docId}/summarize`);
       setResult(res);
     } catch (err: any) {
-      toast({ title: 'Failed', description: err?.message, variant: 'destructive' });
+      toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -1022,7 +1024,7 @@ function Summarizer({ docId }: { docId: string }) {
     <div className="space-y-3">
       <Button variant="outline" size="sm" onClick={summarize} disabled={loading}>
         {loading ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="me-2 h-3.5 w-3.5" />}
-        Generate summary
+        {t('documents.generateSummaryButton')}
       </Button>
       {result && (
         <div className="space-y-2">
@@ -1031,7 +1033,7 @@ function Summarizer({ docId }: { docId: string }) {
           </div>
           {result.keyPoints?.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-muted-foreground mb-1">Key points</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-1">{t('documents.keyPointsLabel')}</p>
               <ul className="space-y-1">
                 {result.keyPoints.map((p: string, i: number) => (
                   <li key={i} className="text-sm flex items-start gap-2">
@@ -1042,7 +1044,7 @@ function Summarizer({ docId }: { docId: string }) {
               </ul>
             </div>
           )}
-          <Badge variant="outline" className="text-xs">Source: {result.source}</Badge>
+          <Badge variant="outline" className="text-xs">{t('documents.sourceBadge', { source: result.source })}</Badge>
         </div>
       )}
     </div>
@@ -1055,6 +1057,7 @@ function Summarizer({ docId }: { docId: string }) {
 
 function PolicyRiskAnalyzer({ docId }: { docId: string }) {
   const { toast } = useToast();
+  const { t } = useI18n();
   const [result, setResult] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -1064,7 +1067,7 @@ function PolicyRiskAnalyzer({ docId }: { docId: string }) {
       const res = await api.post(`/api/documents/${docId}/policy-risk`);
       setResult(res);
     } catch (err: any) {
-      toast({ title: 'Failed', description: err?.message, variant: 'destructive' });
+      toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -1081,12 +1084,12 @@ function PolicyRiskAnalyzer({ docId }: { docId: string }) {
     <div className="space-y-3">
       <Button variant="outline" size="sm" onClick={analyze} disabled={loading}>
         {loading ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <ShieldAlert className="me-2 h-3.5 w-3.5" />}
-        Analyze risks
+        {t('documents.analyzeRisksButton')}
       </Button>
       {result && (
         <div className="space-y-3">
           <div className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-800 rounded-md">
-            <span className="text-sm font-medium">Overall risk</span>
+            <span className="text-sm font-medium">{t('documents.overallRiskLabel')}</span>
             <Badge variant={result.overallRisk === 'critical' || result.overallRisk === 'high' ? 'destructive' : 'secondary'} className="capitalize">
               {result.overallRisk}
             </Badge>
@@ -1094,7 +1097,7 @@ function PolicyRiskAnalyzer({ docId }: { docId: string }) {
           {result.risks?.length === 0 ? (
             <Alert>
               <CheckCircle2 className="h-4 w-4" />
-              <AlertDescription>No risks detected. Document is compliant.</AlertDescription>
+              <AlertDescription>{t('documents.noRisksDetected')}</AlertDescription>
             </Alert>
           ) : (
             <div className="space-y-2">
@@ -1116,7 +1119,7 @@ function PolicyRiskAnalyzer({ docId }: { docId: string }) {
             <Alert variant="default">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-xs">
-                This document requires human review due to high/critical risk findings.
+                {t('documents.humanReviewRequired')}
               </AlertDescription>
             </Alert>
           )}
@@ -1131,6 +1134,7 @@ function PolicyRiskAnalyzer({ docId }: { docId: string }) {
 // ---------------------------------------------------------------------------
 
 function DuplicateChecker({ docId }: { docId: string }) {
+  const { t } = useI18n();
   const { data, isLoading } = useQuery<{ exactDuplicates: any[]; nearDuplicates: any[] }>({
     queryKey: ['document-duplicates', docId],
     queryFn: () => api.get(`/api/documents/${docId}/duplicate-check`),
@@ -1146,7 +1150,7 @@ function DuplicateChecker({ docId }: { docId: string }) {
     return (
       <Alert>
         <CheckCircle2 className="h-4 w-4" />
-        <AlertDescription>No duplicates found. This document is unique in your tenant.</AlertDescription>
+        <AlertDescription>{t('documents.noDuplicates')}</AlertDescription>
       </Alert>
     );
   }
@@ -1155,12 +1159,12 @@ function DuplicateChecker({ docId }: { docId: string }) {
     <div className="space-y-3">
       {data.exactDuplicates.length > 0 && (
         <div>
-          <p className="text-sm font-medium text-red-600 mb-2">Exact duplicates ({data.exactDuplicates.length})</p>
+          <p className="text-sm font-medium text-red-600 mb-2">{t('documents.exactDuplicatesTitle', { count: data.exactDuplicates.length })}</p>
           <div className="space-y-1">
             {data.exactDuplicates.map((d: any) => (
               <Link key={d.documentId} href={`/documents/${d.documentId}`} className="block p-2 border border-red-200 dark:border-red-900 rounded text-sm hover:bg-red-50 dark:hover:bg-red-950/30">
                 <p className="font-medium">{d.documentTitle}</p>
-                <p className="text-xs text-muted-foreground">v{d.versionNumber} · {d.classification?.code ?? 'unclassified'} · {d.owner?.email}</p>
+                <p className="text-xs text-muted-foreground">v{d.versionNumber} · {d.classification?.code ?? t('documents.unclassified')} · {d.owner?.email}</p>
               </Link>
             ))}
           </div>
@@ -1168,12 +1172,12 @@ function DuplicateChecker({ docId }: { docId: string }) {
       )}
       {data.nearDuplicates.length > 0 && (
         <div>
-          <p className="text-sm font-medium text-amber-600 mb-2">Near duplicates ({data.nearDuplicates.length})</p>
+          <p className="text-sm font-medium text-amber-600 mb-2">{t('documents.nearDuplicatesTitle', { count: data.nearDuplicates.length })}</p>
           <div className="space-y-1">
             {data.nearDuplicates.map((d: any) => (
               <Link key={d.documentId} href={`/documents/${d.documentId}`} className="block p-2 border border-amber-200 dark:border-amber-900 rounded text-sm hover:bg-amber-50 dark:hover:bg-amber-950/30">
                 <p className="font-medium">{d.documentTitle}</p>
-                <p className="text-xs text-muted-foreground">v{d.versionNumber} · size diff: {d.sizeDiff} bytes</p>
+                <p className="text-xs text-muted-foreground">v{d.versionNumber} · {t('documents.sizeDiffLabel')} {d.sizeDiff} bytes</p>
               </Link>
             ))}
           </div>
@@ -1220,6 +1224,7 @@ function FavoriteButton({ docId }: { docId: string }) {
 
 function MoveCopyDialog({ docId }: { docId: string }) {
   const { toast } = useToast();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<'move' | 'copy'>('move');
@@ -1240,24 +1245,24 @@ function MoveCopyDialog({ docId }: { docId: string }) {
       }
     },
     onSuccess: () => {
-      toast({ title: mode === 'move' ? 'Document moved' : 'Document copied' });
+      toast({ title: mode === 'move' ? t('documents.movedToast') : t('documents.copiedToast') });
       qc.invalidateQueries({ queryKey: ['document', docId] });
       setOpen(false);
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          <FolderOpen className="me-2 h-3.5 w-3.5" /> Move/Copy
+          <FolderOpen className="me-2 h-3.5 w-3.5" /> {t('documents.moveCopy')}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Move or copy document</DialogTitle>
-          <DialogDescription>Select a destination folder (or root if none selected).</DialogDescription>
+          <DialogTitle>{t('documents.moveCopyDialogTitle')}</DialogTitle>
+          <DialogDescription>{t('documents.moveCopyDialogDesc')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div className="flex gap-2">
@@ -1267,7 +1272,7 @@ function MoveCopyDialog({ docId }: { docId: string }) {
               onClick={() => setMode('move')}
               className="flex-1"
             >
-              Move
+              {t('documents.moveButton')}
             </Button>
             <Button
               variant={mode === 'copy' ? 'default' : 'outline'}
@@ -1275,15 +1280,15 @@ function MoveCopyDialog({ docId }: { docId: string }) {
               onClick={() => setMode('copy')}
               className="flex-1"
             >
-              Copy
+              {t('documents.copyButton')}
             </Button>
           </div>
           <div className="space-y-1">
-            <Label>Destination folder</Label>
+            <Label>{t('documents.destinationFolderLabel')}</Label>
             <Select value={folderId} onValueChange={setFolderId}>
-              <SelectTrigger><SelectValue placeholder="Root (no folder)" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t('documents.rootNoFolder')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Root (no folder)</SelectItem>
+                <SelectItem value="">{t('documents.rootNoFolder')}</SelectItem>
                 {folders?.items?.map((f) => (
                   <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
                 ))}
@@ -1292,10 +1297,10 @@ function MoveCopyDialog({ docId }: { docId: string }) {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
           <Button onClick={() => execute.mutate()} disabled={execute.isPending}>
             {execute.isPending && <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" />}
-            {mode === 'move' ? 'Move' : 'Copy'}
+            {mode === 'move' ? t('documents.moveButton') : t('documents.copyButton')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1312,6 +1317,7 @@ function RedactionEntry({ docId, doc }: { docId: string; doc: any }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { t } = useI18n();
 
   async function startRedaction() {
     setLoading(true);
@@ -1320,7 +1326,7 @@ function RedactionEntry({ docId, doc }: { docId: string; doc: any }) {
       setPreviewUrl(res.url);
       setEditing(true);
     } catch (err: any) {
-      toast({ title: 'Failed to load preview', description: err?.message, variant: 'destructive' });
+      toast({ title: t('documents.previewLoadFailedToast'), description: err?.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -1342,12 +1348,12 @@ function RedactionEntry({ docId, doc }: { docId: string; doc: any }) {
     <Card className="glass-card border-0">
       <CardContent className="p-4 flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium">Redact sensitive content</p>
-          <p className="text-xs text-muted-foreground">Select regions to black out. Creates a new derivative version.</p>
+          <p className="text-sm font-medium">{t('documents.redactSensitiveTitle')}</p>
+          <p className="text-xs text-muted-foreground">{t('documents.redactSensitiveDesc')}</p>
         </div>
         <Button variant="outline" size="sm" onClick={startRedaction} disabled={loading || !doc.previewAllowed}>
           {loading ? <Loader2 className="me-2 h-3.5 w-3.5 animate-spin" /> : <Square className="me-2 h-3.5 w-3.5" />}
-          Start redaction
+          {t('documents.startRedactionButton')}
         </Button>
       </CardContent>
     </Card>

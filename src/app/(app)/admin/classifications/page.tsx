@@ -36,22 +36,22 @@ export default function AdminClassificationsPage() {
       color: form.color,
     }),
     onSuccess: () => {
-      toast({ title: 'Classification created' });
+      toast({ title: t('admin.classifications.createdToast') });
       qc.invalidateQueries({ queryKey: ['admin-classifications'] });
       qc.invalidateQueries({ queryKey: ['classifications'] });
       setCreateOpen(false);
       setForm({ code: '', name: '', description: '', level: '1', color: '#2563eb' });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const del = useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/classifications/${id}`),
     onSuccess: () => {
-      toast({ title: 'Classification deleted' });
+      toast({ title: t('admin.classifications.deletedToast') });
       qc.invalidateQueries({ queryKey: ['admin-classifications'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
@@ -60,39 +60,39 @@ export default function AdminClassificationsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('nav.classifications')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Sensitivity taxonomy used for access control and visual banners.
+            {t('admin.classifications.subtitle')}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New classification</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> {t('admin.classifications.newButton')}</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create classification</DialogTitle>
-              <DialogDescription>Codes are uppercase, immutable after creation.</DialogDescription>
+              <DialogTitle>{t('admin.classifications.createTitle')}</DialogTitle>
+              <DialogDescription>{t('admin.classifications.createDesc')}</DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Code *</Label>
-                  <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="CONFIDENTIAL" maxLength={32} />
+                  <Label>{t('admin.classifications.codeLabel')}</Label>
+                  <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder={t('admin.classifications.codePlaceholder')} maxLength={32} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Level</Label>
+                  <Label>{t('admin.classifications.levelLabel')}</Label>
                   <Input type="number" min="0" max="99" value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} />
                 </div>
               </div>
               <div className="space-y-1">
-                <Label>Name *</Label>
+                <Label>{t('admin.classifications.nameLabel')}</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
               <div className="space-y-1">
-                <Label>Description</Label>
+                <Label>{t('admin.classifications.descriptionLabel')}</Label>
                 <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </div>
               <div className="space-y-1">
-                <Label>Color (banner)</Label>
+                <Label>{t('admin.classifications.colorLabel')}</Label>
                 <div className="flex gap-2 items-center">
                   <Input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="w-16 h-10 p-1" />
                   <Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="flex-1 font-mono" />
@@ -100,10 +100,10 @@ export default function AdminClassificationsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('common.cancelButton')}</Button>
               <Button onClick={() => create.mutate()} disabled={!form.code || !form.name || create.isPending}>
                 {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                Create
+                {t('common.createButton')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -113,9 +113,9 @@ export default function AdminClassificationsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <BookMarked className="h-4 w-4" /> Taxonomy
+            <BookMarked className="h-4 w-4" /> {t('admin.classifications.cardTitle')}
           </CardTitle>
-          <CardDescription>Sorted by sensitivity level (lowest → highest)</CardDescription>
+          <CardDescription>{t('admin.classifications.cardDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -129,11 +129,11 @@ export default function AdminClassificationsPage() {
                     <div className="flex items-center gap-2">
                       <p className="font-medium">{c.name}</p>
                       <Badge variant="outline" className="font-mono text-xs">{c.code}</Badge>
-                      <Badge variant="secondary" className="text-xs">Level {c.level}</Badge>
-                      {c.isSystem && <Badge variant="outline" className="text-xs">System</Badge>}
+                      <Badge variant="secondary" className="text-xs">{t('admin.classifications.levelBadge', { level: c.level })}</Badge>
+                      {c.isSystem && <Badge variant="outline" className="text-xs">{t('common.systemBadge')}</Badge>}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{c.description ?? 'No description'}</p>
-                    <p className="text-xs text-muted-foreground">{c._count?.documents ?? 0} document(s)</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{c.description ?? t('admin.classifications.noDescription')}</p>
+                    <p className="text-xs text-muted-foreground">{t('admin.classifications.documentsCount', { count: c._count?.documents ?? 0 })}</p>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button
@@ -141,10 +141,10 @@ export default function AdminClassificationsPage() {
                       size="sm"
                       className="h-8 text-xs"
                       onClick={() => setLocalizeTarget(c)}
-                      title="Manage localized names"
+                      title={t('admin.classifications.localizeTitleAttr')}
                     >
                       <Languages className="h-4 w-4" />
-                      <span className="hidden sm:inline ms-1">Localize</span>
+                      <span className="hidden sm:inline ms-1">{t('admin.classifications.localizeButton')}</span>
                     </Button>
                     {!c.isSystem && (
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => del.mutate(c.id)}>

@@ -38,16 +38,16 @@ export default function AdminServiceAccountsPage() {
       qc.invalidateQueries({ queryKey: ['admin-service-accounts'] });
       setForm({ name: '', description: '', scopes: [], expiresAt: '' });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const revoke = useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/service-accounts/${id}`),
     onSuccess: () => {
-      toast({ title: 'Service account revoked' });
+      toast({ title: t('admin.serviceAccounts.revokedToast') });
       qc.invalidateQueries({ queryKey: ['admin-service-accounts'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
@@ -56,18 +56,18 @@ export default function AdminServiceAccountsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('nav.serviceAccounts')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Non-human identities for automation, integrations, and CI/CD pipelines.
+            {t('admin.serviceAccounts.subtitle')}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) setCreatedKey(null); }}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New service account</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> {t('admin.serviceAccounts.newButton')}</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{createdKey ? 'Service account created' : 'Create service account'}</DialogTitle>
+              <DialogTitle>{createdKey ? t('admin.serviceAccounts.createdTitle') : t('admin.serviceAccounts.createTitle')}</DialogTitle>
               <DialogDescription>
-                {createdKey ? 'Copy this key now. It will not be shown again.' : 'Issue credentials for non-human access.'}
+                {createdKey ? t('admin.serviceAccounts.createdDesc') : t('admin.serviceAccounts.createDesc')}
               </DialogDescription>
             </DialogHeader>
             {createdKey ? (
@@ -75,26 +75,26 @@ export default function AdminServiceAccountsPage() {
                 <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-md">
                   <p className="font-mono text-xs break-all">{createdKey}</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(createdKey); toast({ title: 'Copied' }); }}>
-                  <Copy className="me-2 h-3.5 w-3.5" /> Copy
+                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(createdKey); toast({ title: t('common.copiedToast') }); }}>
+                  <Copy className="me-2 h-3.5 w-3.5" /> {t('common.copyButton')}
                 </Button>
               </div>
             ) : (
               <div className="space-y-3 py-2">
                 <div className="space-y-1">
-                  <Label>Name *</Label>
-                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="ci-runner" />
+                  <Label>{t('admin.serviceAccounts.nameLabel')}</Label>
+                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('admin.serviceAccounts.namePlaceholder')} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Description</Label>
+                  <Label>{t('admin.serviceAccounts.descriptionLabel')}</Label>
                   <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Expires at (optional)</Label>
+                  <Label>{t('admin.serviceAccounts.expiresAtLabel')}</Label>
                   <Input type="datetime-local" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Scopes</Label>
+                  <Label>{t('admin.serviceAccounts.scopesLabel')}</Label>
                   <div className="max-h-40 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-md p-2 space-y-1">
                     {Object.values(PERMISSIONS).map((p) => (
                       <label key={p} className="flex items-center gap-2 text-xs">
@@ -115,13 +115,13 @@ export default function AdminServiceAccountsPage() {
             )}
             <DialogFooter>
               {createdKey ? (
-                <Button onClick={() => { setCreateOpen(false); setCreatedKey(null); }}>Done</Button>
+                <Button onClick={() => { setCreateOpen(false); setCreatedKey(null); }}>{t('common.doneButton')}</Button>
               ) : (
                 <>
-                  <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+                  <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('common.cancelButton')}</Button>
                   <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>
                     {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                    Create
+                    {t('common.createButton')}
                   </Button>
                 </>
               )}
@@ -132,14 +132,14 @@ export default function AdminServiceAccountsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Bot className="h-4 w-4" /> Active service accounts</CardTitle>
-          <CardDescription>For automation — never use human credentials in scripts</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Bot className="h-4 w-4" /> {t('admin.serviceAccounts.cardTitle')}</CardTitle>
+          <CardDescription>{t('admin.serviceAccounts.cardDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : !data?.items?.length ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">No service accounts.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">{t('admin.serviceAccounts.empty')}</p>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-900">
               {data.items.map((s) => (
@@ -149,7 +149,7 @@ export default function AdminServiceAccountsPage() {
                       <p className="font-medium">{s.name}</p>
                       <Badge variant="secondary" className="font-mono text-xs">{s.keyPrefix}…</Badge>
                       {s.expiresAt && (
-                        <Badge variant="outline" className="text-xs">Expires {formatDistanceToNow(new Date(s.expiresAt), { addSuffix: true })}</Badge>
+                        <Badge variant="outline" className="text-xs">{t('common.expiresPrefix')} {formatDistanceToNow(new Date(s.expiresAt), { addSuffix: true })}</Badge>
                       )}
                     </div>
                     {s.description && <p className="text-xs text-muted-foreground mt-0.5">{s.description}</p>}
@@ -157,15 +157,15 @@ export default function AdminServiceAccountsPage() {
                       {(s.scopes || []).slice(0, 5).map((sc: string) => (
                         <Badge key={sc} variant="outline" className="font-mono text-[10px] py-0">{sc}</Badge>
                       ))}
-                      {(s.scopes || []).length > 5 && <Badge variant="outline" className="text-[10px] py-0">+{s.scopes.length - 5} more</Badge>}
+                      {(s.scopes || []).length > 5 && <Badge variant="outline" className="text-[10px] py-0">{t('common.more', { count: s.scopes.length - 5 })}</Badge>}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Created {formatDistanceToNow(new Date(s.createdAt), { addSuffix: true })}
-                      {s.lastUsedAt && ` · last used ${formatDistanceToNow(new Date(s.lastUsedAt), { addSuffix: true })}`}
+                      {t('common.createdAt')} {formatDistanceToNow(new Date(s.createdAt), { addSuffix: true })}
+                      {s.lastUsedAt && ` · ${t('common.lastUsedPrefix')} ${formatDistanceToNow(new Date(s.lastUsedAt), { addSuffix: true })}`}
                     </p>
                   </div>
                   <Button variant="ghost" size="sm" className="text-red-600" onClick={() => revoke.mutate(s.id)}>
-                    <Trash2 className="me-1 h-3 w-3" /> Revoke
+                    <Trash2 className="me-1 h-3 w-3" /> {t('common.revokeButton')}
                   </Button>
                 </div>
               ))}

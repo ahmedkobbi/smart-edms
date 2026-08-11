@@ -43,21 +43,21 @@ export default function AdminSsoProvidersPage() {
       userInfoEndpoint: form.userInfoEndpoint || undefined,
     }),
     onSuccess: () => {
-      toast({ title: 'SSO provider created' });
+      toast({ title: t('admin.ssoProviders.createdToast') });
       qc.invalidateQueries({ queryKey: ['admin-sso-providers'] });
       setCreateOpen(false);
       setForm({ name: '', type: 'oidc', issuerUrl: '', clientId: '', clientSecret: '', authorizationEndpoint: '', tokenEndpoint: '', userInfoEndpoint: '' });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const del = useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/sso-providers/${id}`),
     onSuccess: () => {
-      toast({ title: 'Provider deleted' });
+      toast({ title: t('admin.ssoProviders.deletedToast') });
       qc.invalidateQueries({ queryKey: ['admin-sso-providers'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const toggle = useMutation({
@@ -72,31 +72,31 @@ export default function AdminSsoProvidersPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('nav.ssoProviders')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure OIDC / SAML identity providers for enterprise sign-in.
+            {t('admin.ssoProviders.subtitle')}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New provider</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> {t('admin.ssoProviders.newButton')}</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>Create SSO provider</DialogTitle>
-              <DialogDescription>Configure an OIDC or SAML identity provider.</DialogDescription>
+              <DialogTitle>{t('admin.ssoProviders.createTitle')}</DialogTitle>
+              <DialogDescription>{t('admin.ssoProviders.createDesc')}</DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Name *</Label>
-                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Corporate Okta" />
+                  <Label>{t('admin.ssoProviders.nameLabel')}</Label>
+                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('admin.ssoProviders.namePlaceholder')} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Type</Label>
+                  <Label>{t('admin.ssoProviders.typeLabel')}</Label>
                   <Select value={form.type} onValueChange={(v: any) => setForm({ ...form, type: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="oidc">OIDC</SelectItem>
-                      <SelectItem value="saml">SAML</SelectItem>
+                      <SelectItem value="oidc">{t('admin.ssoProviders.typeOidc')}</SelectItem>
+                      <SelectItem value="saml">{t('admin.ssoProviders.typeSaml')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -104,40 +104,40 @@ export default function AdminSsoProvidersPage() {
               {form.type === 'oidc' && (
                 <>
                   <div className="space-y-1">
-                    <Label>Issuer URL</Label>
-                    <Input value={form.issuerUrl} onChange={(e) => setForm({ ...form, issuerUrl: e.target.value })} placeholder="https://yourtenant.okta.com" />
+                    <Label>{t('admin.ssoProviders.issuerUrlLabel')}</Label>
+                    <Input value={form.issuerUrl} onChange={(e) => setForm({ ...form, issuerUrl: e.target.value })} placeholder={t('admin.ssoProviders.issuerUrlPlaceholder')} />
                   </div>
                   <div className="space-y-1">
-                    <Label>Authorization endpoint</Label>
-                    <Input value={form.authorizationEndpoint} onChange={(e) => setForm({ ...form, authorizationEndpoint: e.target.value })} placeholder="https://…/authorize" />
+                    <Label>{t('admin.ssoProviders.authEndpointLabel')}</Label>
+                    <Input value={form.authorizationEndpoint} onChange={(e) => setForm({ ...form, authorizationEndpoint: e.target.value })} placeholder={t('admin.ssoProviders.authEndpointPlaceholder')} />
                   </div>
                   <div className="space-y-1">
-                    <Label>Token endpoint</Label>
-                    <Input value={form.tokenEndpoint} onChange={(e) => setForm({ ...form, tokenEndpoint: e.target.value })} placeholder="https://…/token" />
+                    <Label>{t('admin.ssoProviders.tokenEndpointLabel')}</Label>
+                    <Input value={form.tokenEndpoint} onChange={(e) => setForm({ ...form, tokenEndpoint: e.target.value })} placeholder={t('admin.ssoProviders.tokenEndpointPlaceholder')} />
                   </div>
                   <div className="space-y-1">
-                    <Label>Userinfo endpoint</Label>
-                    <Input value={form.userInfoEndpoint} onChange={(e) => setForm({ ...form, userInfoEndpoint: e.target.value })} placeholder="https://…/userinfo" />
+                    <Label>{t('admin.ssoProviders.userinfoEndpointLabel')}</Label>
+                    <Input value={form.userInfoEndpoint} onChange={(e) => setForm({ ...form, userInfoEndpoint: e.target.value })} placeholder={t('admin.ssoProviders.userinfoEndpointPlaceholder')} />
                   </div>
                 </>
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Client ID *</Label>
+                  <Label>{t('admin.ssoProviders.clientIdLabel')}</Label>
                   <Input value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Client secret</Label>
+                  <Label>{t('admin.ssoProviders.clientSecretLabel')}</Label>
                   <Input type="password" value={form.clientSecret} onChange={(e) => setForm({ ...form, clientSecret: e.target.value })} />
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">Client secret is AES-256-GCM encrypted at rest.</p>
+              <p className="text-xs text-muted-foreground">{t('admin.ssoProviders.secretHint')}</p>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('common.cancelButton')}</Button>
               <Button onClick={() => create.mutate()} disabled={!form.name || !form.clientId || create.isPending}>
                 {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                Create
+                {t('common.createButton')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -146,14 +146,14 @@ export default function AdminSsoProvidersPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><LogIn className="h-4 w-4" /> Configured providers</CardTitle>
-          <CardDescription>Client secrets are encrypted and never displayed again</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><LogIn className="h-4 w-4" /> {t('admin.ssoProviders.cardTitle')}</CardTitle>
+          <CardDescription>{t('admin.ssoProviders.cardDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : !data?.items?.length ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">No SSO providers configured.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">{t('admin.ssoProviders.empty')}</p>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-900">
               {data.items.map((p) => (
@@ -162,20 +162,20 @@ export default function AdminSsoProvidersPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium">{p.name}</p>
                       <Badge variant="outline" className="text-xs uppercase">{p.type}</Badge>
-                      {p.enabled ? <Badge variant="default" className="text-xs">Enabled</Badge> : <Badge variant="secondary" className="text-xs">Disabled</Badge>}
-                      {p.hasSecret && <Badge variant="outline" className="text-xs">Secret set</Badge>}
+                      {p.enabled ? <Badge variant="default" className="text-xs">{t('common.enabledBadge')}</Badge> : <Badge variant="secondary" className="text-xs">{t('common.disabledBadge')}</Badge>}
+                      {p.hasSecret && <Badge variant="outline" className="text-xs">{t('admin.ssoProviders.secretSetBadge')}</Badge>}
                     </div>
                     <p className="text-xs font-mono text-muted-foreground mt-0.5 truncate">{p.issuerUrl || p.metadataUrl || p.entityId || '—'}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Created {formatDistanceToNow(new Date(p.createdAt), { addSuffix: true })} · Client ID: <span className="font-mono">{p.clientId}</span>
+                      {t('common.createdAt')} {formatDistanceToNow(new Date(p.createdAt), { addSuffix: true })} · {t('admin.ssoProviders.clientIdPrefix')} <span className="font-mono">{p.clientId}</span>
                     </p>
                   </div>
                   <div className="flex flex-col gap-1">
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => toggle.mutate({ id: p.id, enabled: !p.enabled })}>
-                      {p.enabled ? 'Disable' : 'Enable'}
+                      {p.enabled ? t('common.disableButton') : t('common.enableButton')}
                     </Button>
                     <Button variant="ghost" size="sm" className="h-7 text-xs text-red-600" onClick={() => del.mutate(p.id)}>
-                      <Trash2 className="me-1 h-3 w-3" /> Delete
+                      <Trash2 className="me-1 h-3 w-3" /> {t('common.deleteButton')}
                     </Button>
                   </div>
                 </div>

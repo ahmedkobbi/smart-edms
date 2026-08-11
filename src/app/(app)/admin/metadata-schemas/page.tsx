@@ -33,21 +33,21 @@ export default function AdminMetadataSchemasPage() {
   const create = useMutation({
     mutationFn: () => api.post('/api/admin/metadata-schemas', form),
     onSuccess: () => {
-      toast({ title: 'Schema created' });
+      toast({ title: t('admin.metadataSchemas.createdToast') });
       qc.invalidateQueries({ queryKey: ['admin-metadata-schemas'] });
       setCreateOpen(false);
       setForm({ name: '', description: '', appliesTo: '*', fields: [{ name: '', label: '', type: 'text', required: false }] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const del = useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/metadata-schemas/${id}`),
     onSuccess: () => {
-      toast({ title: 'Schema deleted' });
+      toast({ title: t('admin.metadataSchemas.deletedToast') });
       qc.invalidateQueries({ queryKey: ['admin-metadata-schemas'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
@@ -56,39 +56,39 @@ export default function AdminMetadataSchemasPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('nav.metadataSchemas')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Define typed metadata fields per document type for structured data capture.
+            {t('admin.metadataSchemas.subtitle')}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New schema</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> {t('admin.metadataSchemas.newButton')}</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Create metadata schema</DialogTitle>
-              <DialogDescription>Define fields that documents of this type should expose.</DialogDescription>
+              <DialogTitle>{t('admin.metadataSchemas.createTitle')}</DialogTitle>
+              <DialogDescription>{t('admin.metadataSchemas.createDesc')}</DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Name *</Label>
+                  <Label>{t('admin.metadataSchemas.nameLabel')}</Label>
                   <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Applies to</Label>
-                  <Input value={form.appliesTo} onChange={(e) => setForm({ ...form, appliesTo: e.target.value })} placeholder="* or type list" />
+                  <Label>{t('admin.metadataSchemas.appliesToLabel')}</Label>
+                  <Input value={form.appliesTo} onChange={(e) => setForm({ ...form, appliesTo: e.target.value })} placeholder={t('admin.metadataSchemas.appliesToPlaceholder')} />
                 </div>
               </div>
               <div className="space-y-1">
-                <Label>Description</Label>
+                <Label>{t('admin.metadataSchemas.descriptionLabel')}</Label>
                 <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Fields</Label>
+                <Label>{t('admin.metadataSchemas.fieldsLabel')}</Label>
                 {form.fields.map((f, i) => (
                   <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                    <Input className="col-span-3" placeholder="name" value={f.name} onChange={(e) => updateField(form, setForm, i, 'name', e.target.value)} />
-                    <Input className="col-span-3" placeholder="Label" value={f.label} onChange={(e) => updateField(form, setForm, i, 'label', e.target.value)} />
+                    <Input className="col-span-3" placeholder={t('admin.metadataSchemas.fieldNamePlaceholder')} value={f.name} onChange={(e) => updateField(form, setForm, i, 'name', e.target.value)} />
+                    <Input className="col-span-3" placeholder={t('admin.metadataSchemas.fieldLabelPlaceholder')} value={f.label} onChange={(e) => updateField(form, setForm, i, 'label', e.target.value)} />
                     <select className="col-span-3 h-9 rounded-md border border-input bg-background px-2 text-sm" value={f.type} onChange={(e) => updateField(form, setForm, i, 'type', e.target.value)}>
                       <option value="text">text</option>
                       <option value="number">number</option>
@@ -98,7 +98,7 @@ export default function AdminMetadataSchemasPage() {
                     </select>
                     <label className="col-span-2 flex items-center gap-1 text-xs">
                       <input type="checkbox" checked={f.required} onChange={(e) => updateField(form, setForm, i, 'required', e.target.checked)} />
-                      required
+                      {t('admin.metadataSchemas.requiredLabel')}
                     </label>
                     <Button variant="ghost" size="sm" className="col-span-1 h-8 px-0 text-red-600" onClick={() => setForm({ ...form, fields: form.fields.filter((_, idx) => idx !== i) })}>
                       <Trash2 className="h-3 w-3" />
@@ -106,15 +106,15 @@ export default function AdminMetadataSchemasPage() {
                   </div>
                 ))}
                 <Button variant="outline" size="sm" onClick={() => setForm({ ...form, fields: [...form.fields, { name: '', label: '', type: 'text', required: false }] })}>
-                  <Plus className="me-1 h-3 w-3" /> Add field
+                  <Plus className="me-1 h-3 w-3" /> {t('admin.metadataSchemas.addFieldButton')}
                 </Button>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('common.cancelButton')}</Button>
               <Button onClick={() => create.mutate()} disabled={!form.name || form.fields.some((f) => !f.name) || create.isPending}>
                 {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                Create
+                {t('common.createButton')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -123,14 +123,14 @@ export default function AdminMetadataSchemasPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Database className="h-4 w-4" /> Schemas</CardTitle>
-          <CardDescription>Each schema defines a typed metadata structure</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Database className="h-4 w-4" /> {t('admin.metadataSchemas.cardTitle')}</CardTitle>
+          <CardDescription>{t('admin.metadataSchemas.cardDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : !data?.items?.length ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">No schemas defined.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">{t('admin.metadataSchemas.empty')}</p>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-900">
               {data.items.map((s) => (
@@ -138,8 +138,8 @@ export default function AdminMetadataSchemasPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium">{s.name}</p>
-                      <Badge variant="secondary" className="text-xs">{s.fields?.length ?? 0} field(s)</Badge>
-                      <Badge variant="outline" className="text-xs font-mono">appliesTo: {s.appliesTo}</Badge>
+                      <Badge variant="secondary" className="text-xs">{t('admin.metadataSchemas.fieldsCount', { count: s.fields?.length ?? 0 })}</Badge>
+                      <Badge variant="outline" className="text-xs font-mono">{t('admin.metadataSchemas.appliesToBadge', { value: s.appliesTo })}</Badge>
                     </div>
                     {s.description && <p className="text-xs text-muted-foreground mt-0.5">{s.description}</p>}
                     <div className="flex flex-wrap gap-1 mt-2">
@@ -151,7 +151,7 @@ export default function AdminMetadataSchemasPage() {
                     </div>
                   </div>
                   <Button variant="ghost" size="sm" className="text-red-600" onClick={() => del.mutate(s.id)}>
-                    <Trash2 className="me-1 h-3 w-3" /> Delete
+                    <Trash2 className="me-1 h-3 w-3" /> {t('common.deleteButton')}
                   </Button>
                 </div>
               ))}

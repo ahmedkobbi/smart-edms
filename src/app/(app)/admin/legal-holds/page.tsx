@@ -30,21 +30,21 @@ export default function AdminLegalHoldsPage() {
   const create = useMutation({
     mutationFn: () => api.post('/api/admin/legal-holds', { ...form, documentIds: [] }),
     onSuccess: () => {
-      toast({ title: 'Legal hold created' });
+      toast({ title: t('admin.legalHolds.createdToast') });
       qc.invalidateQueries({ queryKey: ['admin-legal-holds'] });
       setCreateOpen(false);
       setForm({ name: '', reason: '', caseRef: '' });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const release = useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/legal-holds/${id}?reason=Released%20by%20admin`),
     onSuccess: () => {
-      toast({ title: 'Legal hold released' });
+      toast({ title: t('admin.legalHolds.releasedToast') });
       qc.invalidateQueries({ queryKey: ['admin-legal-holds'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
@@ -53,37 +53,37 @@ export default function AdminLegalHoldsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('nav.legalHolds')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Active legal holds override retention disposition. Releases are audit-logged.
+            {t('admin.legalHolds.subtitle')}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New hold</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> {t('admin.legalHolds.newButton')}</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create legal hold</DialogTitle>
-              <DialogDescription>You can attach documents after creation.</DialogDescription>
+              <DialogTitle>{t('admin.legalHolds.createTitle')}</DialogTitle>
+              <DialogDescription>{t('admin.legalHolds.createDesc')}</DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
               <div className="space-y-1">
-                <Label>Name *</Label>
+                <Label>{t('admin.legalHolds.nameLabel')}</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
               <div className="space-y-1">
-                <Label>Reason *</Label>
+                <Label>{t('admin.legalHolds.reasonLabel')}</Label>
                 <Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} rows={3} />
               </div>
               <div className="space-y-1">
-                <Label>Case reference</Label>
+                <Label>{t('admin.legalHolds.caseRefLabel')}</Label>
                 <Input value={form.caseRef} onChange={(e) => setForm({ ...form, caseRef: e.target.value })} />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('common.cancelButton')}</Button>
               <Button onClick={() => create.mutate()} disabled={!form.name || !form.reason || create.isPending}>
                 {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                Create
+                {t('common.createButton')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -93,15 +93,15 @@ export default function AdminLegalHoldsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <FileLock className="h-4 w-4" /> Active holds
+            <FileLock className="h-4 w-4" /> {t('admin.legalHolds.cardTitle')}
           </CardTitle>
-          <CardDescription>Released holds are excluded from this view.</CardDescription>
+          <CardDescription>{t('admin.legalHolds.cardDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : !data?.items?.length ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">No active legal holds.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">{t('admin.legalHolds.empty')}</p>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-900">
               {data.items.map((h) => (
@@ -110,11 +110,11 @@ export default function AdminLegalHoldsPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium">{h.name}</p>
                       {h.caseRef && <Badge variant="outline" className="text-xs">{h.caseRef}</Badge>}
-                      <Badge variant="secondary" className="text-xs">{h._count?.documents ?? 0} doc(s)</Badge>
+                      <Badge variant="secondary" className="text-xs">{t('admin.legalHolds.docsCount', { count: h._count?.documents ?? 0 })}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">{h.reason}</p>
                     <p className="text-xs text-muted-foreground">
-                      Set {formatDistanceToNow(new Date(h.createdAt), { addSuffix: true })}
+                      {t('common.setPrefix')} {formatDistanceToNow(new Date(h.createdAt), { addSuffix: true })}
                     </p>
                   </div>
                   <Button
@@ -123,7 +123,7 @@ export default function AdminLegalHoldsPage() {
                     className="text-red-600 border-red-300 hover:bg-red-50"
                     onClick={() => release.mutate(h.id)}
                   >
-                    Release
+                    {t('admin.legalHolds.releaseButton')}
                   </Button>
                 </div>
               ))}

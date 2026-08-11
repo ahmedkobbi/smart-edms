@@ -31,14 +31,14 @@ export default function AdminTenantsPage() {
     mutationFn: () => api.post('/api/admin/tenants', form),
     onSuccess: (res: any) => {
       toast({
-        title: 'Tenant created',
-        description: `${res.tenant.name} (${res.tenant.slug}) — admin: ${res.adminEmail}`,
+        title: t('admin.tenants.createdToast'),
+        description: t('admin.tenants.createdToastDesc', { name: res.tenant.name, slug: res.tenant.slug, email: res.adminEmail }),
       });
       qc.invalidateQueries({ queryKey: ['admin-tenants'] });
       setCreateOpen(false);
       setForm({ name: '', slug: '', adminEmail: '', adminName: '', adminPassword: '' });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
@@ -47,51 +47,51 @@ export default function AdminTenantsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('nav.tenants')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Multi-tenant onboarding. Each tenant is fully isolated.
+            {t('admin.tenants.subtitle')}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New tenant</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> {t('admin.tenants.newButton')}</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create tenant</DialogTitle>
+              <DialogTitle>{t('admin.tenants.createTitle')}</DialogTitle>
               <DialogDescription>
-                Provisions a new tenant with default roles, classifications, and trial subscription.
+                {t('admin.tenants.createDesc')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Name *</Label>
+                  <Label>{t('admin.tenants.nameLabel')}</Label>
                   <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Slug *</Label>
-                  <Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })} placeholder="acme-corp" />
+                  <Label>{t('admin.tenants.slugLabel')}</Label>
+                  <Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })} placeholder={t('admin.tenants.slugPlaceholder')} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Admin email *</Label>
+                  <Label>{t('admin.tenants.adminEmailLabel')}</Label>
                   <Input type="email" value={form.adminEmail} onChange={(e) => setForm({ ...form, adminEmail: e.target.value })} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Admin name *</Label>
+                  <Label>{t('admin.tenants.adminNameLabel')}</Label>
                   <Input value={form.adminName} onChange={(e) => setForm({ ...form, adminName: e.target.value })} />
                 </div>
               </div>
               <div className="space-y-1">
-                <Label>Admin password *</Label>
-                <Input type="password" value={form.adminPassword} onChange={(e) => setForm({ ...form, adminPassword: e.target.value })} placeholder="Min 12 chars" />
+                <Label>{t('admin.tenants.adminPasswordLabel')}</Label>
+                <Input type="password" value={form.adminPassword} onChange={(e) => setForm({ ...form, adminPassword: e.target.value })} placeholder={t('admin.tenants.adminPasswordPlaceholder')} />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('common.cancelButton')}</Button>
               <Button onClick={() => create.mutate()} disabled={!form.name || !form.slug || !form.adminEmail || !form.adminPassword || create.isPending}>
                 {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                Create
+                {t('common.createButton')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -100,8 +100,8 @@ export default function AdminTenantsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Building2 className="h-4 w-4" /> Tenants</CardTitle>
-          <CardDescription>Multi-tenant listing requires platform-admin elevation</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Building2 className="h-4 w-4" /> {t('admin.tenants.cardTitle')}</CardTitle>
+          <CardDescription>{t('admin.tenants.cardDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (

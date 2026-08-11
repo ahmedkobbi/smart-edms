@@ -29,12 +29,12 @@ export default function AdminRecertificationPage() {
   const create = useMutation({
     mutationFn: () => api.post('/api/admin/recertification', form),
     onSuccess: (res: any) => {
-      toast({ title: 'Campaign created', description: `${res.userCount} user(s) require review` });
+      toast({ title: t('admin.recertification.createdToast'), description: t('admin.recertification.createdToastDesc', { count: res.userCount }) });
       qc.invalidateQueries({ queryKey: ['admin-recertification'] });
       setCreateOpen(false);
       setForm({ name: '', description: '', reviewerId: '' });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
@@ -43,37 +43,37 @@ export default function AdminRecertificationPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('nav.recertification')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Periodic review of user access rights. Required for SOC 2 / ISO 27001 compliance.
+            {t('admin.recertification.subtitle')}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New campaign</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> {t('admin.recertification.newButton')}</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create recertification campaign</DialogTitle>
-              <DialogDescription>Generates one review item per active user.</DialogDescription>
+              <DialogTitle>{t('admin.recertification.createTitle')}</DialogTitle>
+              <DialogDescription>{t('admin.recertification.createDesc')}</DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
               <div className="space-y-1">
-                <Label>Name *</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Q4 2025 access review" />
+                <Label>{t('admin.recertification.nameLabel')}</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('admin.recertification.namePlaceholder')} />
               </div>
               <div className="space-y-1">
-                <Label>Description</Label>
+                <Label>{t('admin.recertification.descriptionLabel')}</Label>
                 <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </div>
               <div className="space-y-1">
-                <Label>Reviewer user ID *</Label>
-                <Input value={form.reviewerId} onChange={(e) => setForm({ ...form, reviewerId: e.target.value })} placeholder="cusr..." />
+                <Label>{t('admin.recertification.reviewerLabel')}</Label>
+                <Input value={form.reviewerId} onChange={(e) => setForm({ ...form, reviewerId: e.target.value })} placeholder={t('admin.recertification.reviewerPlaceholder')} />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('common.cancelButton')}</Button>
               <Button onClick={() => create.mutate()} disabled={!form.name || !form.reviewerId || create.isPending}>
                 {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                Create
+                {t('common.createButton')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -82,14 +82,14 @@ export default function AdminRecertificationPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><RefreshCw className="h-4 w-4" /> Campaigns</CardTitle>
-          <CardDescription>Each campaign generates per-user review items</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><RefreshCw className="h-4 w-4" /> {t('admin.recertification.cardTitle')}</CardTitle>
+          <CardDescription>{t('admin.recertification.cardDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : !data?.items?.length ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">No recertification campaigns yet.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">{t('admin.recertification.empty')}</p>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-900">
               {data.items.map((c) => (
@@ -98,12 +98,12 @@ export default function AdminRecertificationPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium">{c.name}</p>
                       <Badge variant={c.status === 'open' ? 'default' : 'secondary'} className="text-xs">{c.status}</Badge>
-                      <Badge variant="outline" className="text-xs">{c._count?.items ?? 0} item(s)</Badge>
+                      <Badge variant="outline" className="text-xs">{t('admin.recertification.itemsCount', { count: c._count?.items ?? 0 })}</Badge>
                     </div>
                     {c.description && <p className="text-xs text-muted-foreground mt-0.5">{c.description}</p>}
                     <p className="text-xs text-muted-foreground mt-1">
-                      Created {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
-                      {c.dueAt && ` · due ${formatDistanceToNow(new Date(c.dueAt), { addSuffix: true })}`}
+                      {t('common.createdAt')} {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
+                      {c.dueAt && ` · ${t('common.duePrefix')} ${formatDistanceToNow(new Date(c.dueAt), { addSuffix: true })}`}
                     </p>
                   </div>
                 </div>

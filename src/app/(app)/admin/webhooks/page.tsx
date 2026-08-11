@@ -42,16 +42,16 @@ export default function AdminWebhooksPage() {
       qc.invalidateQueries({ queryKey: ['admin-webhooks'] });
       setForm({ name: '', url: '', events: [], enabled: true });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const del = useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/webhooks/${id}`),
     onSuccess: () => {
-      toast({ title: 'Webhook deleted' });
+      toast({ title: t('admin.webhooks.deletedToast') });
       qc.invalidateQueries({ queryKey: ['admin-webhooks'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
@@ -60,18 +60,18 @@ export default function AdminWebhooksPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('nav.webhooks')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Outgoing HTTP notifications for system events. HMAC-signed with a shared secret.
+            {t('admin.webhooks.subtitle')}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) setCreatedSecret(null); }}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New webhook</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> {t('admin.webhooks.newButton')}</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{createdSecret ? 'Webhook created' : 'Create webhook'}</DialogTitle>
+              <DialogTitle>{createdSecret ? t('admin.webhooks.createdTitle') : t('admin.webhooks.createTitle')}</DialogTitle>
               <DialogDescription>
-                {createdSecret ? 'Save this signing secret. It will not be shown again.' : 'Configure a new outgoing webhook.'}
+                {createdSecret ? t('admin.webhooks.createdDesc') : t('admin.webhooks.createDesc')}
               </DialogDescription>
             </DialogHeader>
             {createdSecret ? (
@@ -80,25 +80,24 @@ export default function AdminWebhooksPage() {
                   <p className="font-mono text-xs break-all">{createdSecret}</p>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  The X-Smart-EDMS-Signature header is computed as SHA256(payload + secret).
-                  Verify this signature on receipt.
+                  {t('admin.webhooks.secretHelp')}
                 </p>
-                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(createdSecret); toast({ title: 'Copied' }); }}>
-                  <Copy className="me-2 h-3.5 w-3.5" /> Copy
+                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(createdSecret); toast({ title: t('common.copiedToast') }); }}>
+                  <Copy className="me-2 h-3.5 w-3.5" /> {t('common.copyButton')}
                 </Button>
               </div>
             ) : (
               <div className="space-y-3 py-2">
                 <div className="space-y-1">
-                  <Label>Name *</Label>
+                  <Label>{t('admin.webhooks.nameLabel')}</Label>
                   <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                 </div>
                 <div className="space-y-1">
-                  <Label>URL *</Label>
-                  <Input type="url" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://example.com/webhook" />
+                  <Label>{t('admin.webhooks.urlLabel')}</Label>
+                  <Input type="url" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder={t('admin.webhooks.urlPlaceholder')} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Events</Label>
+                  <Label>{t('admin.webhooks.eventsLabel')}</Label>
                   <div className="max-h-40 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-md p-2 space-y-1">
                     {COMMON_EVENTS.map((ev) => (
                       <label key={ev} className="flex items-center gap-2 text-xs">
@@ -114,19 +113,19 @@ export default function AdminWebhooksPage() {
                       </label>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground">{form.events.length} event(s) selected</p>
+                  <p className="text-xs text-muted-foreground">{t('admin.webhooks.eventsSelected', { count: form.events.length })}</p>
                 </div>
               </div>
             )}
             <DialogFooter>
               {createdSecret ? (
-                <Button onClick={() => { setCreateOpen(false); setCreatedSecret(null); }}>Done</Button>
+                <Button onClick={() => { setCreateOpen(false); setCreatedSecret(null); }}>{t('common.doneButton')}</Button>
               ) : (
                 <>
-                  <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+                  <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('common.cancelButton')}</Button>
                   <Button onClick={() => create.mutate()} disabled={!form.name || !form.url || create.isPending}>
                     {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                    Create
+                    {t('common.createButton')}
                   </Button>
                 </>
               )}
@@ -137,14 +136,14 @@ export default function AdminWebhooksPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Webhook className="h-4 w-4" /> Configured webhooks</CardTitle>
-          <CardDescription>Delivery status is recorded on each attempt</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Webhook className="h-4 w-4" /> {t('admin.webhooks.cardTitle')}</CardTitle>
+          <CardDescription>{t('admin.webhooks.cardDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : !data?.items?.length ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">No webhooks configured.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">{t('admin.webhooks.empty')}</p>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-900">
               {data.items.map((w) => (
@@ -152,26 +151,26 @@ export default function AdminWebhooksPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium">{w.name}</p>
-                      {w.enabled ? <Badge variant="default" className="text-xs">Enabled</Badge> : <Badge variant="secondary" className="text-xs">Disabled</Badge>}
+                      {w.enabled ? <Badge variant="default" className="text-xs">{t('common.enabledBadge')}</Badge> : <Badge variant="secondary" className="text-xs">{t('common.disabledBadge')}</Badge>}
                       {w.lastStatus && (
                         <Badge variant={w.lastStatus === '200' ? 'default' : 'destructive'} className="text-xs">{w.lastStatus}</Badge>
                       )}
-                      {w.hasSecret && <Badge variant="outline" className="text-xs">Signed</Badge>}
+                      {w.hasSecret && <Badge variant="outline" className="text-xs">{t('common.signedBadge')}</Badge>}
                     </div>
                     <p className="text-xs font-mono text-muted-foreground mt-0.5 truncate">{w.url}</p>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {(w.events || []).slice(0, 6).map((e: string) => (
                         <Badge key={e} variant="outline" className="font-mono text-[10px] py-0">{e}</Badge>
                       ))}
-                      {(w.events || []).length > 6 && <Badge variant="outline" className="text-[10px] py-0">+{w.events.length - 6} more</Badge>}
+                      {(w.events || []).length > 6 && <Badge variant="outline" className="text-[10px] py-0">{t('common.more', { count: w.events.length - 6 })}</Badge>}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Created {formatDistanceToNow(new Date(w.createdAt), { addSuffix: true })}
-                      {w.lastSentAt && ` · last sent ${formatDistanceToNow(new Date(w.lastSentAt), { addSuffix: true })}`}
+                      {t('common.createdAt')} {formatDistanceToNow(new Date(w.createdAt), { addSuffix: true })}
+                      {w.lastSentAt && ` · ${t('common.lastSentPrefix')} ${formatDistanceToNow(new Date(w.lastSentAt), { addSuffix: true })}`}
                     </p>
                   </div>
                   <Button variant="ghost" size="sm" className="text-red-600" onClick={() => del.mutate(w.id)}>
-                    <Trash2 className="me-1 h-3 w-3" /> Delete
+                    <Trash2 className="me-1 h-3 w-3" /> {t('common.deleteButton')}
                   </Button>
                 </div>
               ))}

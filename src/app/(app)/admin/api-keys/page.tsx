@@ -35,16 +35,16 @@ export default function AdminApiKeysPage() {
       qc.invalidateQueries({ queryKey: ['admin-api-keys'] });
       setForm({ name: '', description: '', scopes: [] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const revoke = useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/api-keys/${id}`),
     onSuccess: () => {
-      toast({ title: 'Key revoked' });
+      toast({ title: t('admin.apiKeys.revokedToast') });
       qc.invalidateQueries({ queryKey: ['admin-api-keys'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
@@ -53,18 +53,18 @@ export default function AdminApiKeysPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('nav.apiKeys')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Programmatic access keys for integrations. Keys are shown once at creation.
+            {t('admin.apiKeys.subtitle')}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) setCreatedKey(null); }}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New API key</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> {t('admin.apiKeys.newButton')}</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{createdKey ? 'API key created' : 'Create API key'}</DialogTitle>
+              <DialogTitle>{createdKey ? t('admin.apiKeys.createdTitle') : t('admin.apiKeys.createTitle')}</DialogTitle>
               <DialogDescription>
-                {createdKey ? 'Copy this key now. It will not be shown again.' : 'Issue a new API key for programmatic access.'}
+                {createdKey ? t('admin.apiKeys.createdDesc') : t('admin.apiKeys.createDesc')}
               </DialogDescription>
             </DialogHeader>
             {createdKey ? (
@@ -72,22 +72,22 @@ export default function AdminApiKeysPage() {
                 <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-md">
                   <p className="font-mono text-xs break-all">{createdKey}</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(createdKey); toast({ title: 'Copied' }); }}>
-                  <Copy className="me-2 h-3.5 w-3.5" /> Copy
+                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(createdKey); toast({ title: t('common.copiedToast') }); }}>
+                  <Copy className="me-2 h-3.5 w-3.5" /> {t('common.copyButton')}
                 </Button>
               </div>
             ) : (
               <div className="space-y-3 py-2">
                 <div className="space-y-1">
-                  <Label>Name *</Label>
-                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="CI/CD integration" />
+                  <Label>{t('admin.apiKeys.nameLabel')}</Label>
+                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('admin.apiKeys.namePlaceholder')} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Description</Label>
+                  <Label>{t('admin.apiKeys.descriptionLabel')}</Label>
                   <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Scopes (permissions)</Label>
+                  <Label>{t('admin.apiKeys.scopesLabel')}</Label>
                   <div className="max-h-40 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-md p-2 space-y-1">
                     {Object.values(PERMISSIONS).map((p) => (
                       <label key={p} className="flex items-center gap-2 text-xs">
@@ -108,13 +108,13 @@ export default function AdminApiKeysPage() {
             )}
             <DialogFooter>
               {createdKey ? (
-                <Button onClick={() => { setCreateOpen(false); setCreatedKey(null); }}>Done</Button>
+                <Button onClick={() => { setCreateOpen(false); setCreatedKey(null); }}>{t('common.doneButton')}</Button>
               ) : (
                 <>
-                  <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+                  <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('common.cancelButton')}</Button>
                   <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>
                     {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                    Create
+                    {t('common.createButton')}
                   </Button>
                 </>
               )}
@@ -125,14 +125,14 @@ export default function AdminApiKeysPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><KeyRound className="h-4 w-4" /> Active keys</CardTitle>
-          <CardDescription>Revoked keys are excluded</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><KeyRound className="h-4 w-4" /> {t('admin.apiKeys.cardTitle')}</CardTitle>
+          <CardDescription>{t('admin.apiKeys.cardDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : !data?.items?.length ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">No active API keys.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">{t('admin.apiKeys.empty')}</p>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-900">
               {data.items.map((k) => (
@@ -142,7 +142,7 @@ export default function AdminApiKeysPage() {
                       <p className="font-medium">{k.name}</p>
                       <Badge variant="secondary" className="font-mono text-xs">{k.keyPrefix}…</Badge>
                       {k.expiresAt && (
-                        <Badge variant="outline" className="text-xs">Expires {formatDistanceToNow(new Date(k.expiresAt), { addSuffix: true })}</Badge>
+                        <Badge variant="outline" className="text-xs">{t('common.expiresPrefix')} {formatDistanceToNow(new Date(k.expiresAt), { addSuffix: true })}</Badge>
                       )}
                     </div>
                     {k.description && <p className="text-xs text-muted-foreground mt-0.5">{k.description}</p>}
@@ -150,15 +150,15 @@ export default function AdminApiKeysPage() {
                       {(k.scopes || []).slice(0, 5).map((s: string) => (
                         <Badge key={s} variant="outline" className="font-mono text-[10px] py-0">{s}</Badge>
                       ))}
-                      {(k.scopes || []).length > 5 && <Badge variant="outline" className="text-[10px] py-0">+{k.scopes.length - 5} more</Badge>}
+                      {(k.scopes || []).length > 5 && <Badge variant="outline" className="text-[10px] py-0">{t('common.more', { count: k.scopes.length - 5 })}</Badge>}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Created {formatDistanceToNow(new Date(k.createdAt), { addSuffix: true })}
-                      {k.lastUsedAt && ` · last used ${formatDistanceToNow(new Date(k.lastUsedAt), { addSuffix: true })}`}
+                      {t('common.createdAt')} {formatDistanceToNow(new Date(k.createdAt), { addSuffix: true })}
+                      {k.lastUsedAt && ` · ${t('common.lastUsedPrefix')} ${formatDistanceToNow(new Date(k.lastUsedAt), { addSuffix: true })}`}
                     </p>
                   </div>
                   <Button variant="ghost" size="sm" className="text-red-600" onClick={() => revoke.mutate(k.id)}>
-                    <Trash2 className="me-1 h-3 w-3" /> Revoke
+                    <Trash2 className="me-1 h-3 w-3" /> {t('common.revokeButton')}
                   </Button>
                 </div>
               ))}

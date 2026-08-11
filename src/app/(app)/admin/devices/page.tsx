@@ -24,19 +24,19 @@ export default function AdminDevicesPage() {
     mutationFn: ({ id, trusted }: { id: string; trusted: boolean }) =>
       api.patch(`/api/admin/devices/${id}`, { trusted }),
     onSuccess: () => {
-      toast({ title: 'Device updated' });
+      toast({ title: t('admin.devices.updatedToast') });
       qc.invalidateQueries({ queryKey: ['admin-devices'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const revoke = useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/devices/${id}`),
     onSuccess: () => {
-      toast({ title: 'Device revoked' });
+      toast({ title: t('admin.devices.revokedToast') });
       qc.invalidateQueries({ queryKey: ['admin-devices'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
@@ -44,20 +44,20 @@ export default function AdminDevicesPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{t('nav.devices')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Manage trusted devices for the current user.
+          {t('admin.devices.subtitle')}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Smartphone className="h-4 w-4" /> Your devices</CardTitle>
-          <CardDescription>Trusted devices skip additional friction; untrusted devices require verification</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Smartphone className="h-4 w-4" /> {t('admin.devices.cardTitle')}</CardTitle>
+          <CardDescription>{t('admin.devices.cardDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : !data?.items?.length ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">No devices registered.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">{t('admin.devices.empty')}</p>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-900">
               {data.items.map((d) => (
@@ -70,20 +70,20 @@ export default function AdminDevicesPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium">{d.label}</p>
-                      {d.trusted ? <Badge variant="default" className="text-xs">Trusted</Badge> : <Badge variant="secondary" className="text-xs">Untrusted</Badge>}
+                      {d.trusted ? <Badge variant="default" className="text-xs">{t('admin.devices.trustedBadge')}</Badge> : <Badge variant="secondary" className="text-xs">{t('admin.devices.untrustedBadge')}</Badge>}
                     </div>
                     <p className="text-xs font-mono text-muted-foreground mt-0.5">{d.fingerprint.slice(0, 24)}…</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Last seen {formatDistanceToNow(new Date(d.lastSeenAt), { addSuffix: true })}
-                      {d.lastSeenIp && ` · IP: ${d.lastSeenIp}`}
+                      {t('common.lastSeenPrefix')} {formatDistanceToNow(new Date(d.lastSeenAt), { addSuffix: true })}
+                      {d.lastSeenIp && ` · ${t('common.ipLabel')} ${d.lastSeenIp}`}
                     </p>
                   </div>
                   <div className="flex flex-col gap-1">
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => toggleTrust.mutate({ id: d.id, trusted: !d.trusted })}>
-                      {d.trusted ? 'Untrust' : 'Trust'}
+                      {d.trusted ? t('admin.devices.untrustButton') : t('admin.devices.trustButton')}
                     </Button>
                     <Button variant="ghost" size="sm" className="h-7 text-xs text-red-600" onClick={() => revoke.mutate(d.id)}>
-                      Revoke
+                      {t('common.revokeButton')}
                     </Button>
                   </div>
                 </div>

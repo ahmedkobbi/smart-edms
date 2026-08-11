@@ -29,21 +29,21 @@ export default function AdminRolesPage() {
   const create = useMutation({
     mutationFn: () => api.post('/api/admin/roles', form),
     onSuccess: () => {
-      toast({ title: 'Role created' });
+      toast({ title: t('admin.roles.createdToast') });
       qc.invalidateQueries({ queryKey: ['admin-roles'] });
       setCreateOpen(false);
       setForm({ name: '', description: '', permissions: [] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const del = useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/roles/${id}`),
     onSuccess: () => {
-      toast({ title: 'Role deleted' });
+      toast({ title: t('admin.roles.deletedToast') });
       qc.invalidateQueries({ queryKey: ['admin-roles'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
@@ -52,29 +52,29 @@ export default function AdminRolesPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('nav.roles')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage RBAC roles and their permission grants.
+            {t('admin.roles.subtitle')}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New role</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> {t('admin.roles.newButton')}</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create role</DialogTitle>
-              <DialogDescription>Custom roles can be assigned to users and groups.</DialogDescription>
+              <DialogTitle>{t('admin.roles.createTitle')}</DialogTitle>
+              <DialogDescription>{t('admin.roles.createDesc')}</DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
               <div className="space-y-1">
-                <Label>Name *</Label>
+                <Label>{t('admin.roles.nameLabel')}</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
               <div className="space-y-1">
-                <Label>Description</Label>
+                <Label>{t('admin.roles.descriptionLabel')}</Label>
                 <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </div>
               <div className="space-y-1">
-                <Label>Permissions</Label>
+                <Label>{t('admin.roles.permissionsLabel')}</Label>
                 <div className="max-h-48 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-md p-2 space-y-1">
                   {Object.values(PERMISSIONS).map((p) => (
                     <label key={p} className="flex items-center gap-2 text-xs">
@@ -90,14 +90,14 @@ export default function AdminRolesPage() {
                     </label>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">{form.permissions.length} selected</p>
+                <p className="text-xs text-muted-foreground">{t('admin.roles.selectedCount', { count: form.permissions.length })}</p>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('common.cancelButton')}</Button>
               <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>
                 {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                Create
+                {t('common.createButton')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -107,9 +107,9 @@ export default function AdminRolesPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <KeyRound className="h-4 w-4" /> Roles
+            <KeyRound className="h-4 w-4" /> {t('admin.roles.cardTitle')}
           </CardTitle>
-          <CardDescription>System roles ship with predefined permissions and cannot be deleted.</CardDescription>
+          <CardDescription>{t('admin.roles.cardDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -120,8 +120,8 @@ export default function AdminRolesPage() {
                 <div key={r.id} className="p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <p className="font-medium">{r.name}</p>
-                    {r.isSystem && <Badge variant="outline" className="text-xs">System</Badge>}
-                    <Badge variant="secondary" className="text-xs">{r._count?.assignments ?? 0} user(s)</Badge>
+                    {r.isSystem && <Badge variant="outline" className="text-xs">{t('common.systemBadge')}</Badge>}
+                    <Badge variant="secondary" className="text-xs">{t('admin.roles.usersCount', { count: r._count?.assignments ?? 0 })}</Badge>
                   </div>
                   {r.description && <p className="text-xs text-muted-foreground mb-2">{r.description}</p>}
                   <div className="flex flex-wrap gap-1">
@@ -129,12 +129,12 @@ export default function AdminRolesPage() {
                       <Badge key={p} variant="outline" className="font-mono text-[10px] py-0">{p}</Badge>
                     ))}
                     {(r.permissions || []).length > 12 && (
-                      <Badge variant="outline" className="text-[10px] py-0">+{r.permissions.length - 12} more</Badge>
+                      <Badge variant="outline" className="text-[10px] py-0">{t('common.more', { count: r.permissions.length - 12 })}</Badge>
                     )}
                   </div>
                   {!r.isSystem && (
                     <Button variant="ghost" size="sm" className="mt-2 text-red-600 h-7" onClick={() => del.mutate(r.id)}>
-                      <Trash2 className="me-1 h-3 w-3" /> Delete
+                      <Trash2 className="me-1 h-3 w-3" /> {t('common.deleteButton')}
                     </Button>
                   )}
                 </div>

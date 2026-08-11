@@ -93,29 +93,29 @@ export default function AdminLocalesPage() {
   const createMutation = useMutation({
     mutationFn: () => api.post('/api/admin/translations', { ...createForm, reviewStatus: 'draft' }),
     onSuccess: () => {
-      toast({ title: 'Translation override created' });
+      toast({ title: t('admin.localesPage.overrideCreatedToast') });
       qc.invalidateQueries({ queryKey: ['admin-translations'] });
       setCreateOpen(false);
       setCreateForm({ locale: 'ar', namespace: 'common', key: '', value: '' });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, value }: { id: string; value: string }) =>
       api.patch(`/api/admin/translations/${id}`, { value, reviewStatus: 'reviewed' }),
     onSuccess: () => {
-      toast({ title: 'Translation updated' });
+      toast({ title: t('admin.localesPage.updatedToast') });
       setEditingId(null);
       qc.invalidateQueries({ queryKey: ['admin-translations'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => api.patch(`/api/admin/translations/${id}`, { reviewStatus: 'approved' }),
     onSuccess: () => {
-      toast({ title: 'Translation approved' });
+      toast({ title: t('admin.localesPage.approvedToast') });
       qc.invalidateQueries({ queryKey: ['admin-translations'] });
     },
   });
@@ -123,7 +123,7 @@ export default function AdminLocalesPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/translations/${id}`),
     onSuccess: () => {
-      toast({ title: 'Translation deleted' });
+      toast({ title: t('admin.localesPage.deletedToast') });
       qc.invalidateQueries({ queryKey: ['admin-translations'] });
     },
   });
@@ -143,24 +143,24 @@ export default function AdminLocalesPage() {
             <Languages className="h-6 w-6" /> {t('admin.locales')}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage enabled languages, translation overrides, and terminology.
+            {t('admin.localesPage.subtitle')}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New override</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> {t('admin.localesPage.newOverrideButton')}</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create translation override</DialogTitle>
+              <DialogTitle>{t('admin.localesPage.createTitle')}</DialogTitle>
               <DialogDescription>
-                Overrides supplement the static JSON files. Use for tenant-specific terminology or corrections.
+                {t('admin.localesPage.createDesc')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Locale</Label>
+                  <Label>{t('admin.localesPage.localeLabel')}</Label>
                   <Select value={createForm.locale} onValueChange={(v) => setCreateForm({ ...createForm, locale: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -171,24 +171,24 @@ export default function AdminLocalesPage() {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label>Namespace</Label>
-                  <Input value={createForm.namespace} onChange={(e) => setCreateForm({ ...createForm, namespace: e.target.value })} placeholder="common, auth, documents…" dir="ltr" />
+                  <Label>{t('admin.localesPage.namespaceLabel')}</Label>
+                  <Input value={createForm.namespace} onChange={(e) => setCreateForm({ ...createForm, namespace: e.target.value })} placeholder={t('admin.localesPage.namespacePlaceholder')} dir="ltr" />
                 </div>
               </div>
               <div className="space-y-1">
-                <Label>Key</Label>
-                <Input value={createForm.key} onChange={(e) => setCreateForm({ ...createForm, key: e.target.value })} placeholder="appName, signIn,…" dir="ltr" />
+                <Label>{t('admin.localesPage.keyLabel')}</Label>
+                <Input value={createForm.key} onChange={(e) => setCreateForm({ ...createForm, key: e.target.value })} placeholder={t('admin.localesPage.keyPlaceholder')} dir="ltr" />
               </div>
               <div className="space-y-1">
-                <Label>Value</Label>
+                <Label>{t('admin.localesPage.valueLabel')}</Label>
                 <Textarea value={createForm.value} onChange={(e) => setCreateForm({ ...createForm, value: e.target.value })} rows={3} dir="auto" />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('common.cancelButton')}</Button>
               <Button onClick={() => createMutation.mutate()} disabled={!createForm.key || !createForm.value || createMutation.isPending}>
                 {createMutation.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                Create override
+                {t('admin.localesPage.createOverrideButton')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -203,7 +203,7 @@ export default function AdminLocalesPage() {
               <span className="text-2xl">{localeFlags[locale]}</span>
               <div>
                 <p className="text-sm font-medium">{localeNames[locale]}</p>
-                <p className="text-xs text-muted-foreground">{statusData?.[locale] || '—'} keys</p>
+                <p className="text-xs text-muted-foreground">{statusData?.[locale] || '—'} {t('admin.localesPage.keysSuffix')}</p>
               </div>
             </CardContent>
           </Card>
@@ -214,10 +214,10 @@ export default function AdminLocalesPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <BookOpen className="h-4 w-4" /> Translation Overrides
+            <BookOpen className="h-4 w-4" /> {t('admin.localesPage.overridesCardTitle')}
           </CardTitle>
           <CardDescription>
-            Tenant-specific translation overrides. These take precedence over the static JSON files.
+            {t('admin.localesPage.overridesCardDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -225,21 +225,21 @@ export default function AdminLocalesPage() {
           <div className="flex items-center gap-2 p-3 border-b">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={filterLocale} onValueChange={setFilterLocale}>
-              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue placeholder="Locale" /></SelectTrigger>
+              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue placeholder={t('admin.localesPage.localePlaceholder')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All locales</SelectItem>
+                <SelectItem value="all">{t('admin.localesPage.allLocalesFilter')}</SelectItem>
                 {locales.map((l) => (
                   <SelectItem key={l} value={l}>{localeFlags[l]} {localeNames[l]}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue placeholder={t('admin.localesPage.statusPlaceholder')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All status</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="reviewed">Reviewed</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="all">{t('admin.localesPage.allStatusFilter')}</SelectItem>
+                <SelectItem value="draft">{t('admin.localesPage.draftFilter')}</SelectItem>
+                <SelectItem value="reviewed">{t('admin.localesPage.reviewedFilter')}</SelectItem>
+                <SelectItem value="approved">{t('admin.localesPage.approvedFilter')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -248,7 +248,7 @@ export default function AdminLocalesPage() {
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : filteredEntries.length === 0 ? (
             <p className="p-8 text-center text-sm text-muted-foreground">
-              No translation overrides. Click "New override" to create one.
+              {t('admin.localesPage.empty')}
             </p>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-900">
@@ -271,9 +271,9 @@ export default function AdminLocalesPage() {
                           />
                           <div className="flex gap-2">
                             <Button size="sm" onClick={() => updateMutation.mutate({ id: entry.id, value: editValue })} disabled={updateMutation.isPending}>
-                              <Save className="me-1 h-3 w-3" /> Save
+                              <Save className="me-1 h-3 w-3" /> {t('admin.localesPage.saveButton')}
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>Cancel</Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>{t('common.cancelButton')}</Button>
                           </div>
                         </div>
                       ) : (
@@ -288,7 +288,7 @@ export default function AdminLocalesPage() {
                           className="h-7 text-xs"
                           onClick={() => { setEditingId(entry.id); setEditValue(entry.value); }}
                         >
-                          Edit
+                          {t('admin.localesPage.editButton')}
                         </Button>
                         {entry.reviewStatus !== 'approved' && (
                           <Button
@@ -297,7 +297,7 @@ export default function AdminLocalesPage() {
                             className="h-7 text-xs text-green-600"
                             onClick={() => approveMutation.mutate(entry.id)}
                           >
-                            <CheckCircle2 className="me-1 h-3 w-3" /> Approve
+                            <CheckCircle2 className="me-1 h-3 w-3" /> {t('admin.localesPage.approveButton')}
                           </Button>
                         )}
                         <Button
@@ -306,7 +306,7 @@ export default function AdminLocalesPage() {
                           className="h-7 text-xs text-red-600"
                           onClick={() => deleteMutation.mutate(entry.id)}
                         >
-                          <Trash2 className="me-1 h-3 w-3" /> Delete
+                          <Trash2 className="me-1 h-3 w-3" /> {t('common.deleteButton')}
                         </Button>
                       </div>
                     )}
@@ -321,13 +321,13 @@ export default function AdminLocalesPage() {
       {/* Glossary link */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Bilingual Glossary</CardTitle>
-          <CardDescription>Canonical terminology for English ↔ Arabic</CardDescription>
+          <CardTitle className="text-base">{t('admin.localesPage.glossaryCardTitle')}</CardTitle>
+          <CardDescription>{t('admin.localesPage.glossaryCardDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Link href="https://github.com/ahmedkobbi/smart-edms/blob/main/docs/GLOSSARY-EN-AR.md" target="_blank">
             <Button variant="outline" size="sm">
-              <BookOpen className="me-2 h-3.5 w-3.5" /> View Glossary
+              <BookOpen className="me-2 h-3.5 w-3.5" /> {t('admin.localesPage.viewGlossaryButton')}
             </Button>
           </Link>
         </CardContent>

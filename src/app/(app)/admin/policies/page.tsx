@@ -18,38 +18,38 @@ import { useI18n } from '@/i18n/use-i18n';
 // Condition presets — common ABAC rules admins can apply with one click
 const CONDITION_PRESETS: { label: string; description: string; conditions: Record<string, unknown> }[] = [
   {
-    label: 'Restrict by classification',
-    description: 'Only applies to documents with specific classification codes',
+    label: 'admin.policies.presetRestrictClassification',
+    description: 'admin.policies.presetRestrictClassificationDesc',
     conditions: { classification: ['RESTRICTED', 'HS'] },
   },
   {
-    label: 'Restrict by tag',
-    description: 'Only applies to documents with a specific tag',
+    label: 'admin.policies.presetRestrictTag',
+    description: 'admin.policies.presetRestrictTagDesc',
     conditions: { hasTag: 'confidential' },
   },
   {
-    label: 'Business hours only',
-    description: 'Only applies Monday-Friday 09:00-17:00',
+    label: 'admin.policies.presetBusinessHours',
+    description: 'admin.policies.presetBusinessHoursDesc',
     conditions: { timeOfDay: { start: '09:00', end: '17:00' }, dayOfWeek: [1, 2, 3, 4, 5] },
   },
   {
-    label: 'Internal network only',
-    description: 'Only applies when actor is on the internal network',
+    label: 'admin.policies.presetInternalNetwork',
+    description: 'admin.policies.presetInternalNetworkDesc',
     conditions: { ipRange: ['10.0.0.0/8', '192.168.0.0/16', '172.16.0.0/12'] },
   },
   {
-    label: 'Owner only',
-    description: 'Only applies when the actor is the document owner',
+    label: 'admin.policies.presetOwnerOnly',
+    description: 'admin.policies.presetOwnerOnlyDesc',
     conditions: { ownerOnly: true },
   },
   {
-    label: 'Records only',
-    description: 'Only applies to documents declared as records',
+    label: 'admin.policies.presetRecordsOnly',
+    description: 'admin.policies.presetRecordsOnlyDesc',
     conditions: { isRecord: true },
   },
   {
-    label: 'Under legal hold',
-    description: 'Only applies to documents under legal hold',
+    label: 'admin.policies.presetLegalHold',
+    description: 'admin.policies.presetLegalHoldDesc',
     conditions: { legalHold: true },
   },
 ];
@@ -77,8 +77,8 @@ export default function AdminPoliciesPage() {
         conditions = JSON.parse(conditionsJson);
         setConditionsError(null);
       } catch (err) {
-        setConditionsError('Invalid JSON: ' + (err as Error).message);
-        throw new Error('Invalid conditions JSON');
+        setConditionsError(t('admin.policies.invalidJsonPrefix') + ' ' + (err as Error).message);
+        throw new Error(t('admin.policies.invalidConditionsJson'));
       }
       return api.post('/api/admin/policies', {
         ...form,
@@ -87,23 +87,23 @@ export default function AdminPoliciesPage() {
       });
     },
     onSuccess: () => {
-      toast({ title: 'Policy created' });
+      toast({ title: t('admin.policies.createdToast') });
       qc.invalidateQueries({ queryKey: ['admin-policies'] });
       setCreateOpen(false);
       setForm({ name: '', description: '', effect: 'deny', action: '', resource: '', priority: '100' });
       setConditionsJson('{}');
       setConditionsError(null);
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const del = useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/policies/${id}`),
     onSuccess: () => {
-      toast({ title: 'Policy deleted' });
+      toast({ title: t('admin.policies.deletedToast') });
       qc.invalidateQueries({ queryKey: ['admin-policies'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const toggle = useMutation({
@@ -123,66 +123,65 @@ export default function AdminPoliciesPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('nav.policies')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            ABAC rules evaluated alongside RBAC permissions. Deny wins over allow at equal priority.
+            {t('admin.policies.subtitle')}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (o) { setConditionsJson('{}'); setConditionsError(null); } }}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New policy</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> {t('admin.policies.newButton')}</Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create policy</DialogTitle>
+              <DialogTitle>{t('admin.policies.createTitle')}</DialogTitle>
               <DialogDescription>
-                Higher priority is evaluated first. Deny wins over allow at the same priority.
-                Policies are cached for 60 seconds — changes take effect immediately via cache invalidation.
+                {t('admin.policies.createDesc')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
               <div className="space-y-1">
-                <Label>Name *</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Deny HS download outside business hours" dir="auto" />
+                <Label>{t('admin.policies.nameLabel')}</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('admin.policies.namePlaceholder')} dir="auto" />
               </div>
               <div className="space-y-1">
-                <Label>Description</Label>
-                <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Optional — what this policy enforces" dir="auto" />
+                <Label>{t('admin.policies.descriptionLabel')}</Label>
+                <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder={t('admin.policies.descriptionPlaceholder')} dir="auto" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Effect</Label>
+                  <Label>{t('admin.policies.effectLabel')}</Label>
                   <Select value={form.effect} onValueChange={(v) => setForm({ ...form, effect: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="allow">Allow</SelectItem>
-                      <SelectItem value="deny">Deny</SelectItem>
+                      <SelectItem value="allow">{t('admin.policies.effectAllow')}</SelectItem>
+                      <SelectItem value="deny">{t('admin.policies.effectDeny')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label>Priority (0-1000, higher = first)</Label>
+                  <Label>{t('admin.policies.priorityLabel')}</Label>
                   <Input type="number" min="0" max="1000" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} />
                 </div>
               </div>
               <div className="space-y-1">
-                <Label>Action pattern *</Label>
-                <Input value={form.action} onChange={(e) => setForm({ ...form, action: e.target.value })} placeholder="document:download" dir="auto" />
+                <Label>{t('admin.policies.actionLabel')}</Label>
+                <Input value={form.action} onChange={(e) => setForm({ ...form, action: e.target.value })} placeholder={t('admin.policies.actionPlaceholder')} dir="auto" />
                 <p className="text-xs text-muted-foreground">
-                  Supports wildcards: <code className="font-mono">document:*</code> matches all document actions, <code className="font-mono">*</code> matches everything.
+                  {t('admin.policies.actionHint')}
                 </p>
               </div>
               <div className="space-y-1">
-                <Label>Resource pattern *</Label>
-                <Input value={form.resource} onChange={(e) => setForm({ ...form, resource: e.target.value })} placeholder="document:*" dir="auto" />
+                <Label>{t('admin.policies.resourceLabel')}</Label>
+                <Input value={form.resource} onChange={(e) => setForm({ ...form, resource: e.target.value })} placeholder={t('admin.policies.resourcePlaceholder')} dir="auto" />
                 <p className="text-xs text-muted-foreground">
-                  <code className="font-mono">document:*</code> = all documents, <code className="font-mono">document:abc123</code> = specific document, <code className="font-mono">*</code> = all resources.
+                  {t('admin.policies.resourceHint')}
                 </p>
               </div>
 
               {/* Conditions editor */}
               <div className="space-y-2 pt-2 border-t">
                 <div className="flex items-center justify-between">
-                  <Label>Conditions (JSON)</Label>
-                  <span className="text-xs text-muted-foreground">All conditions must match (AND)</span>
+                  <Label>{t('admin.policies.conditionsLabel')}</Label>
+                  <span className="text-xs text-muted-foreground">{t('admin.policies.conditionsHint')}</span>
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {CONDITION_PRESETS.map((preset) => (
@@ -193,9 +192,9 @@ export default function AdminPoliciesPage() {
                       size="sm"
                       className="h-7 text-xs"
                       onClick={() => applyPreset(preset)}
-                      title={preset.description}
+                      title={t(preset.description)}
                     >
-                      {preset.label}
+                      {t(preset.label)}
                     </Button>
                   ))}
                 </div>
@@ -213,18 +212,15 @@ export default function AdminPoliciesPage() {
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Supported: <code>classification</code>, <code>classificationMin</code>, <code>hasTag</code>,
-                  <code>hasAnyTag</code>, <code>state</code>, <code>isRecord</code>, <code>legalHold</code>,
-                  <code>ownerOnly</code>, <code>actorRole</code>, <code>timeOfDay</code>, <code>dayOfWeek</code>,
-                  <code>ipRange</code>.
+                  {t('admin.policies.conditionsSupported')}
                 </p>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('common.cancelButton')}</Button>
               <Button onClick={() => create.mutate()} disabled={!form.name || !form.action || !form.resource || create.isPending}>
                 {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                Create policy
+                {t('admin.policies.createPolicyButton')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -234,11 +230,10 @@ export default function AdminPoliciesPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4" /> Policies
+            <ShieldCheck className="h-4 w-4" /> {t('admin.policies.cardTitle')}
           </CardTitle>
           <CardDescription>
-            Evaluated in priority order (highest first). Deny wins over allow at equal priority.
-            All policies with matching action + resource + conditions are evaluated; the first match decides.
+            {t('admin.policies.cardDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -246,10 +241,9 @@ export default function AdminPoliciesPage() {
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : !data?.items?.length ? (
             <div className="p-8 text-center">
-              <p className="text-sm text-muted-foreground mb-3">No policies defined.</p>
+              <p className="text-sm text-muted-foreground mb-3">{t('admin.policies.empty')}</p>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                Without ABAC policies, access is controlled only by RBAC permissions.
-                Create a policy to add attribute-based rules (e.g. "deny download of HS documents outside business hours").
+                {t('admin.policies.emptyHint')}
               </p>
             </div>
           ) : (
@@ -263,13 +257,13 @@ export default function AdminPoliciesPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium">{p.name}</p>
-                        <Badge variant="secondary" className="text-xs">Priority {p.priority}</Badge>
-                        {!p.enabled && <Badge variant="outline" className="text-xs">Disabled</Badge>}
+                        <Badge variant="secondary" className="text-xs">{t('admin.policies.priorityBadge', { priority: p.priority })}</Badge>
+                        {!p.enabled && <Badge variant="outline" className="text-xs">{t('common.disabledBadge')}</Badge>}
                       </div>
                       {p.description && <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>}
                       <p className="text-xs font-mono mt-1">
-                        <span className="text-muted-foreground">action:</span> {p.action}{' '}
-                        <span className="text-muted-foreground">resource:</span> {p.resource}
+                        <span className="text-muted-foreground">{t('admin.policies.actionPrefix')}</span> {p.action}{' '}
+                        <span className="text-muted-foreground">{t('admin.policies.resourcePrefix')}</span> {p.resource}
                       </p>
                       {conditionKeys.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1.5">
@@ -288,10 +282,10 @@ export default function AdminPoliciesPage() {
                         className="h-7 text-xs"
                         onClick={() => toggle.mutate({ id: p.id, enabled: !p.enabled })}
                       >
-                        {p.enabled ? 'Disable' : 'Enable'}
+                        {p.enabled ? t('common.disableButton') : t('common.enableButton')}
                       </Button>
                       <Button variant="ghost" size="sm" className="h-7 text-xs text-red-600" onClick={() => del.mutate(p.id)}>
-                        <Trash2 className="me-1 h-3 w-3" /> Delete
+                        <Trash2 className="me-1 h-3 w-3" /> {t('common.deleteButton')}
                       </Button>
                     </div>
                   </div>

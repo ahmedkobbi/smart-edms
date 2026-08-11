@@ -57,22 +57,22 @@ export default function NotificationRoutingPage() {
       targetRoles: rolesInput.split(',').map((s) => s.trim()).filter(Boolean),
     }),
     onSuccess: () => {
-      toast({ title: 'Routing rule created' });
+      toast({ title: t('admin.notificationRoutingPage.createdToast') });
       qc.invalidateQueries({ queryKey: ['notification-routing'] });
       setCreateOpen(false);
       setForm({ name: '', minSeverity: 'warning', typePattern: '*', channels: ['in_app'], targetRoles: [], priority: '100' });
       setRolesInput('');
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const del = useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/notification-routing/${id}`),
     onSuccess: () => {
-      toast({ title: 'Routing rule deleted' });
+      toast({ title: t('admin.notificationRoutingPage.deletedToast') });
       qc.invalidateQueries({ queryKey: ['notification-routing'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const toggle = useMutation({
@@ -95,55 +95,53 @@ export default function NotificationRoutingPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-            <Bell className="h-6 w-6" /> Notification Routing
+            <Bell className="h-6 w-6" /> {t('admin.notificationRouting')}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure how notifications are delivered based on severity and type.
-            Rules are evaluated in priority order (highest first).
+            {t('admin.notificationRoutingPage.subtitle')}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New rule</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> {t('admin.notificationRoutingPage.newRuleButton')}</Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Create routing rule</DialogTitle>
+              <DialogTitle>{t('admin.notificationRoutingPage.createTitle')}</DialogTitle>
               <DialogDescription>
-                Rules determine which delivery channels are used for notifications
-                matching the severity + type pattern.
+                {t('admin.notificationRoutingPage.createDesc')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
               <div className="space-y-1">
-                <Label>Name *</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Critical alerts → email admins" dir="auto" />
+                <Label>{t('admin.notificationRoutingPage.nameLabel')}</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('admin.notificationRoutingPage.namePlaceholder')} dir="auto" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Minimum severity</Label>
+                  <Label>{t('admin.notificationRoutingPage.minSeverityLabel')}</Label>
                   <Select value={form.minSeverity} onValueChange={(v) => setForm({ ...form, minSeverity: v as any })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="info">Info+</SelectItem>
-                      <SelectItem value="success">Success+</SelectItem>
-                      <SelectItem value="warning">Warning+</SelectItem>
-                      <SelectItem value="critical">Critical only</SelectItem>
+                      <SelectItem value="info">{t('admin.notificationRoutingPage.infoPlus')}</SelectItem>
+                      <SelectItem value="success">{t('admin.notificationRoutingPage.successPlus')}</SelectItem>
+                      <SelectItem value="warning">{t('admin.notificationRoutingPage.warningPlus')}</SelectItem>
+                      <SelectItem value="critical">{t('admin.notificationRoutingPage.criticalOnly')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label>Priority (higher = first)</Label>
+                  <Label>{t('admin.notificationRoutingPage.priorityLabel')}</Label>
                   <Input type="number" min="0" max="1000" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} />
                 </div>
               </div>
               <div className="space-y-1">
-                <Label>Type pattern</Label>
-                <Input value={form.typePattern} onChange={(e) => setForm({ ...form, typePattern: e.target.value })} placeholder="security.*, workflow.*, or *" dir="auto" />
-                <p className="text-xs text-muted-foreground">Use <code>*</code> for all types, or <code>security.*</code> for a category.</p>
+                <Label>{t('admin.notificationRoutingPage.typePatternLabel')}</Label>
+                <Input value={form.typePattern} onChange={(e) => setForm({ ...form, typePattern: e.target.value })} placeholder={t('admin.notificationRoutingPage.typePatternPlaceholder')} dir="auto" />
+                <p className="text-xs text-muted-foreground">{t('admin.notificationRoutingPage.typePatternHint')}</p>
               </div>
               <div className="space-y-1">
-                <Label>Delivery channels</Label>
+                <Label>{t('admin.notificationRoutingPage.channelsLabel')}</Label>
                 <div className="flex gap-2">
                   {['in_app', 'email', 'webhook'].map((ch) => (
                     <Button
@@ -153,22 +151,22 @@ export default function NotificationRoutingPage() {
                       size="sm"
                       onClick={() => toggleChannel(ch)}
                     >
-                      {ch === 'in_app' ? 'In-app' : ch === 'email' ? 'Email' : 'Webhook'}
+                      {ch === 'in_app' ? t('admin.notificationRoutingPage.inApp') : ch === 'email' ? t('admin.notificationRoutingPage.emailChannel') : t('admin.notificationRoutingPage.webhook')}
                     </Button>
                   ))}
                 </div>
               </div>
               <div className="space-y-1">
-                <Label>Target roles (comma-separated, empty = original recipient)</Label>
-                <Input value={rolesInput} onChange={(e) => setRolesInput(e.target.value)} placeholder="tenant_admin, security_officer" dir="auto" />
-                <p className="text-xs text-muted-foreground">When set, notifications are delivered to all users with these roles instead of the original recipient.</p>
+                <Label>{t('admin.notificationRoutingPage.targetRolesLabel')}</Label>
+                <Input value={rolesInput} onChange={(e) => setRolesInput(e.target.value)} placeholder={t('admin.notificationRoutingPage.targetRolesPlaceholder')} dir="auto" />
+                <p className="text-xs text-muted-foreground">{t('admin.notificationRoutingPage.targetRolesHint')}</p>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('common.cancelButton')}</Button>
               <Button onClick={() => create.mutate()} disabled={!form.name || form.channels.length === 0 || create.isPending}>
                 {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                Create rule
+                {t('admin.notificationRoutingPage.createRuleButton')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -178,19 +176,18 @@ export default function NotificationRoutingPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Bell className="h-4 w-4" /> Routing Rules
+            <Bell className="h-4 w-4" /> {t('admin.notificationRoutingPage.cardTitle')}
           </CardTitle>
-          <CardDescription>Evaluated in priority order. First match wins.</CardDescription>
+          <CardDescription>{t('admin.notificationRoutingPage.cardDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
           ) : !data?.items?.length ? (
             <div className="p-8 text-center">
-              <p className="text-sm text-muted-foreground mb-2">No routing rules defined.</p>
+              <p className="text-sm text-muted-foreground mb-2">{t('admin.notificationRoutingPage.empty')}</p>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                Without routing rules, all notifications are delivered in-app only.
-                Create a rule to route critical alerts via email or webhook.
+                {t('admin.notificationRoutingPage.emptyHint')}
               </p>
             </div>
           ) : (
@@ -200,8 +197,8 @@ export default function NotificationRoutingPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium">{r.name}</p>
-                      <Badge variant="secondary" className="text-xs">Priority {r.priority}</Badge>
-                      {!r.enabled && <Badge variant="outline" className="text-xs">Disabled</Badge>}
+                      <Badge variant="secondary" className="text-xs">{t('admin.notificationRoutingPage.priorityBadge', { priority: r.priority })}</Badge>
+                      {!r.enabled && <Badge variant="outline" className="text-xs">{t('common.disabledBadge')}</Badge>}
                     </div>
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       <Badge variant={r.minSeverity === 'critical' ? 'destructive' : r.minSeverity === 'warning' ? 'default' : 'secondary'} className="text-xs">
@@ -218,10 +215,10 @@ export default function NotificationRoutingPage() {
                   </div>
                   <div className="flex flex-col gap-1">
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => toggle.mutate({ id: r.id, enabled: !r.enabled })}>
-                      {r.enabled ? 'Disable' : 'Enable'}
+                      {r.enabled ? t('common.disableButton') : t('common.enableButton')}
                     </Button>
                     <Button variant="ghost" size="sm" className="h-7 text-xs text-red-600" onClick={() => del.mutate(r.id)}>
-                      <Trash2 className="me-1 h-3 w-3" /> Delete
+                      <Trash2 className="me-1 h-3 w-3" /> {t('common.deleteButton')}
                     </Button>
                   </div>
                 </div>

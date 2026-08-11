@@ -35,20 +35,20 @@ export default function AdminRetentionPage() {
       retentionDays: parseInt(form.retentionDays, 10),
     }),
     onSuccess: () => {
-      toast({ title: 'Schedule created' });
+      toast({ title: t('admin.retention.createdToast') });
       qc.invalidateQueries({ queryKey: ['admin-retention'] });
       setCreateOpen(false);
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   const del = useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/retention/${id}`),
     onSuccess: () => {
-      toast({ title: 'Schedule deleted' });
+      toast({ title: t('admin.retention.deletedToast') });
       qc.invalidateQueries({ queryKey: ['admin-retention'] });
     },
-    onError: (err: any) => toast({ title: 'Failed', description: err?.message, variant: 'destructive' }),
+    onError: (err: any) => toast({ title: t('common.failed'), description: err?.message, variant: 'destructive' }),
   });
 
   return (
@@ -57,67 +57,67 @@ export default function AdminRetentionPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('nav.retention')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Define how long documents are kept and what happens when retention expires.
+            {t('admin.retention.subtitle')}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="me-2 h-4 w-4" /> New schedule</Button>
+            <Button size="sm"><Plus className="me-2 h-4 w-4" /> {t('admin.retention.newButton')}</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create retention schedule</DialogTitle>
-              <DialogDescription>Disposition requires approval by default.</DialogDescription>
+              <DialogTitle>{t('admin.retention.createTitle')}</DialogTitle>
+              <DialogDescription>{t('admin.retention.createDesc')}</DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
               <div className="space-y-1">
-                <Label>Name *</Label>
+                <Label>{t('admin.retention.nameLabel')}</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
               <div className="space-y-1">
-                <Label>Description</Label>
+                <Label>{t('admin.retention.descriptionLabel')}</Label>
                 <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Retention (days)</Label>
+                  <Label>{t('admin.retention.retentionDaysLabel')}</Label>
                   <Input type="number" min="1" value={form.retentionDays} onChange={(e) => setForm({ ...form, retentionDays: e.target.value })} />
                 </div>
                 <div className="space-y-1">
-                  <Label>Start trigger</Label>
+                  <Label>{t('admin.retention.startTriggerLabel')}</Label>
                   <Select value={form.startTrigger} onValueChange={(v) => setForm({ ...form, startTrigger: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="document.created">Document created</SelectItem>
-                      <SelectItem value="document.closed">Document closed</SelectItem>
-                      <SelectItem value="document.lastModified">Last modified</SelectItem>
+                      <SelectItem value="document.created">{t('admin.retention.triggerDocCreated')}</SelectItem>
+                      <SelectItem value="document.closed">{t('admin.retention.triggerDocClosed')}</SelectItem>
+                      <SelectItem value="document.lastModified">{t('admin.retention.triggerLastModified')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Disposition</Label>
+                  <Label>{t('admin.retention.dispositionLabel')}</Label>
                   <Select value={form.dispositionAction} onValueChange={(v) => setForm({ ...form, dispositionAction: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="review">Review</SelectItem>
-                      <SelectItem value="archive">Archive</SelectItem>
-                      <SelectItem value="delete">Delete</SelectItem>
+                      <SelectItem value="review">{t('admin.retention.dispositionReview')}</SelectItem>
+                      <SelectItem value="archive">{t('admin.retention.dispositionArchive')}</SelectItem>
+                      <SelectItem value="delete">{t('admin.retention.dispositionDelete')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label>Applies to</Label>
-                  <Input value={form.appliesTo} onChange={(e) => setForm({ ...form, appliesTo: e.target.value })} placeholder="* or type list" />
+                  <Label>{t('admin.retention.appliesToLabel')}</Label>
+                  <Input value={form.appliesTo} onChange={(e) => setForm({ ...form, appliesTo: e.target.value })} placeholder={t('admin.retention.appliesToPlaceholder')} />
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('common.cancelButton')}</Button>
               <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>
                 {create.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                Create
+                {t('common.createButton')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -127,9 +127,9 @@ export default function AdminRetentionPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Clock className="h-4 w-4" /> Schedules
+            <Clock className="h-4 w-4" /> {t('admin.retention.cardTitle')}
           </CardTitle>
-          <CardDescription>Sorted by retention period</CardDescription>
+          <CardDescription>{t('admin.retention.cardDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -141,13 +141,13 @@ export default function AdminRetentionPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium">{s.name}</p>
-                      <Badge variant="secondary" className="text-xs">{s.retentionDays} days</Badge>
+                      <Badge variant="secondary" className="text-xs">{t('admin.retention.daysBadge', { count: s.retentionDays })}</Badge>
                       <Badge variant="outline" className="text-xs">{s.dispositionAction}</Badge>
-                      {s.requireApproval && <Badge variant="outline" className="text-xs">Approval required</Badge>}
+                      {s.requireApproval && <Badge variant="outline" className="text-xs">{t('admin.retention.approvalRequiredBadge')}</Badge>}
                     </div>
                     {s.description && <p className="text-xs text-muted-foreground mt-0.5">{s.description}</p>}
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Trigger: {s.startTrigger} · Applies to: {s.appliesTo} · {s._count?.documents ?? 0} document(s)
+                      {t('admin.retention.triggerPrefix')} {s.startTrigger} · {t('admin.retention.appliesToPrefix')} {s.appliesTo} · {t('admin.retention.documentsCount', { count: s._count?.documents ?? 0 })}
                     </p>
                   </div>
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => del.mutate(s.id)}>
