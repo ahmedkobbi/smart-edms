@@ -1346,28 +1346,29 @@ model Subscription {
 model License {
   id              String   @id @default(cuid())
   tenantId        String   @unique
-  // The license key (HMAC-signed JSON, base64-encoded)
   licenseKey      String   @unique
-  // Parsed license data (JSON: { tenantName, plan, seats, storageBytes, features, issuedAt, expiresAt, signature })
   licenseData     String   @default("{}")
-  // Status: active | grace_period | expired | locked | revoked
   status          String   @default("active")
-  // License metadata
-  licenseeName    String   // organization name
-  plan            String   @default("enterprise") // on-prem is always enterprise-tier
+  licenseeName    String
+  plan            String   @default("enterprise")
   seats           Int      @default(25)
-  storageBytes    BigInt   @default(5368709120) // 5GB default
-  features        String   @default("[]") // JSON array of enabled features
+  storageBytes    BigInt   @default(5368709120)
+  features        String   @default("[]")
   issuedAt        DateTime
   expiresAt       DateTime
-  // Grace period tracking (configurable, default 30 days)
   gracePeriodDays Int      @default(30)
   gracePeriodEndsAt DateTime?
   lockedAt        DateTime?
-  // The vendor signature (HMAC-SHA256 of the license data)
   signature       String
-  // Who issued the license (for audit)
   issuedBy        String?
+  // CLOCK ROLLBACK PROTECTION: The maximum timestamp ever observed by the server.
+  // On every license check, we compare `now` with this value. If `now` is less
+  // than `lastCheckedAt`, the system clock has been rolled back (tampering).
+  // The license is immediately locked, and a security audit event is recorded.
+  // This doesn't prevent a determined attacker who also modifies the database,
+  // but it catches casual clock manipulation without requiring NTP or internet.
+  lastCheckedAt   DateTime?
+  clockRollbackDetected Boolean @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

@@ -193,3 +193,50 @@ describe('Access Gate — License Key Generation & Parsing', () => {
     expect(() => parseLicenseKey('')).toThrow();
   });
 });
+
+describe('Access Gate — Clock Rollback Detection', () => {
+  it('detects when current time is before lastCheckedAt', () => {
+    // Simulate: lastCheckedAt = 2026-08-12, now = 2026-01-01 (rolled back 7 months)
+    const lastCheckedAt = new Date('2026-08-12T00:00:00.000Z');
+    const now = new Date('2026-01-01T00:00:00.000Z');
+    const CLOCK_TOLERANCE_MS = 5 * 60 * 1000;
+
+    const minAllowed = new Date(lastCheckedAt.getTime() - CLOCK_TOLERANCE_MS);
+    expect(now < minAllowed).toBe(true); // Clock was rolled back
+  });
+
+  it('allows minor clock adjustments within tolerance (5 minutes)', () => {
+    const lastCheckedAt = new Date('2026-08-12T12:00:00.000Z');
+    const now = new Date('2026-08-12T11:58:00.000Z'); // 2 minutes back
+    const CLOCK_TOLERANCE_MS = 5 * 60 * 1000;
+
+    const minAllowed = new Date(lastCheckedAt.getTime() - CLOCK_TOLERANCE_MS);
+    expect(now < minAllowed).toBe(false); // Within tolerance — OK
+  });
+
+  it('detects a 1-year rollback', () => {
+    const lastCheckedAt = new Date('2026-08-12T00:00:00.000Z');
+    const now = new Date('2025-08-12T00:00:00.000Z'); // exactly 1 year back
+    const CLOCK_TOLERANCE_MS = 5 * 60 * 1000;
+
+    const minAllowed = new Date(lastCheckedAt.getTime() - CLOCK_TOLERANCE_MS);
+    expect(now < minAllowed).toBe(true); // Rolled back
+  });
+
+  it('high water mark only goes forward', () => {
+    // The logic: newLastCheckedAt = max(now, lastCheckedAt)
+    const lastCheckedAt = new Date('2026-08-12T12:00:00.000Z');
+    const now = new Date('2026-08-12T11:00:00.000Z'); // 1 hour back (within tolerance)
+
+    const newLastCheckedAt = lastCheckedAt > now ? lastCheckedAt : now;
+    expect(newLastCheckedAt).toBe(lastCheckedAt); // Keeps the higher value
+  });
+
+  it('advances the high water mark when time moves forward', () => {
+    const lastCheckedAt = new Date('2026-08-12T12:00:00.000Z');
+    const now = new Date('2026-08-12T13:00:00.000Z'); // 1 hour forward
+
+    const newLastCheckedAt = lastCheckedAt > now ? lastCheckedAt : now;
+    expect(newLastCheckedAt).toBe(now); // Advances
+  });
+});

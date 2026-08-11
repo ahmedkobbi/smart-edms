@@ -26,6 +26,7 @@
 
 import { db } from '@/lib/db';
 import { logger } from '@/lib/config/logger';
+import { recordAuditEvent } from '@/lib/audit/audit-service';
 import { createHmac, timingSafeEqual } from 'crypto';
 
 // ============================================================================
@@ -298,6 +299,91 @@ export async function checkLicenseAccess(tenantId: string): Promise<AccessCheckR
     };
   }
 
+  // --- CLOCK ROLLBACK DETECTION ---
+  // On-premise customers control the server clock. If they roll it back to
+  // before the license expires, we detect it by comparing `now` with the
+  // maximum timestamp we've ever seen (`lastCheckedAt`).
+  //
+  // We allow a small tolerance (5 minutes) to account for minor NTP adjustments
+  // and daylight saving time transitions. Anything more than 5 minutes backward
+  // is treated as deliberate tampering.
+  const now = new Date();
+  const CLOCK_TOLERANCE_MS = 5 * 60 * 1000; // 5 minutes
+
+  if (license.lastCheckedAt) {
+    const minAllowed = new Date(license.lastCheckedAt.getTime() - CLOCK_TOLERANCE_MS);
+    if (now < minAllowed) {
+      // Clock was rolled back — lock immediately
+      logger.error('CLOCK ROLLBACK DETECTED', {
+        tenantId,
+        lastCheckedAt: license.lastCheckedAt,
+        currentTime: now,
+        rollbackMs: license.lastCheckedAt.getTime() - now.getTime(),
+      });
+
+      // Lock the license and flag the tampering
+      await db.license.update({
+        where: { id: license.id },
+        data: {
+          status: 'locked',
+          lockedAt: now,
+          clockRollbackDetected: true,
+          // Do NOT update lastCheckedAt — keep the higher value to prevent
+          // further rollback attempts below the detected point
+        },
+      });
+
+      // Record a security audit event
+      await recordAuditEvent({
+        tenantId,
+        eventType: 'security.clock_rollback_detected',
+        action: 'update',
+        resourceType: 'license',
+        resourceId: license.id,
+        result: 'deny',
+        reason: 'System clock rolled back — license tampering suspected',
+        metadata: {
+          lastCheckedAt: license.lastCheckedAt.toISOString(),
+          detectedAt: now.toISOString(),
+          rollbackMs: license.lastCheckedAt.getTime() - now.getTime(),
+        },
+      });
+
+      return {
+        allowed: false,
+        level: 'locked',
+        mode: 'onprem',
+        status: 'locked',
+        message: 'License locked: system clock manipulation detected. Contact the vendor to restore access.',
+      };
+    }
+  }
+
+  // Update lastCheckedAt to the maximum of (now, lastCheckedAt)
+  // This ensures the "high water mark" only goes forward, never backward
+  const newLastCheckedAt = license.lastCheckedAt && license.lastCheckedAt > now
+    ? license.lastCheckedAt  // keep the higher value
+    : now;                    // advance to current time
+
+  // Only update if the value actually changed (avoid unnecessary DB writes)
+  if (!license.lastCheckedAt || newLastCheckedAt > license.lastCheckedAt) {
+    await db.license.update({
+      where: { id: license.id },
+      data: { lastCheckedAt: newLastCheckedAt },
+    });
+  }
+
+  // If clock rollback was previously detected, stay locked
+  if (license.clockRollbackDetected) {
+    return {
+      allowed: false,
+      level: 'locked',
+      mode: 'onprem',
+      status: 'locked',
+      message: 'License locked: system clock manipulation was detected. Contact the vendor with your license ID to restore access.',
+    };
+  }
+
   // Revoked license — immediate lock
   if (license.status === 'revoked') {
     return {
@@ -309,9 +395,7 @@ export async function checkLicenseAccess(tenantId: string): Promise<AccessCheckR
     };
   }
 
-  const now = new Date();
-
-  // Active license — check expiry
+  // Active license — check expiry (now was already set above for clock rollback)
   if (license.status === 'active') {
     if (now > license.expiresAt) {
       // License expired — enter grace period
@@ -583,6 +667,10 @@ export async function installLicense(licenseKey: string, tenantId: string): Prom
       issuedBy: parsed.issuedBy,
       lockedAt: null,
       gracePeriodEndsAt: null,
+      // Reset clock rollback detection when a new valid license is installed
+      // (the new license is HMAC-signed, so it's from the vendor)
+      clockRollbackDetected: false,
+      lastCheckedAt: new Date(),
     },
   });
 
