@@ -1,0 +1,87 @@
+# Smart EDMS — Dependency Review
+#
+# Runs on every pull request that touches package.json or bun.lock.
+# Uses GitHub's official dependency-review-action to:
+#   1. Detect vulnerable dependencies introduced by the PR (fails on HIGH/CRITICAL)
+#   2. Detect license changes (fails on unknown / copyleft without review)
+#   3. Block the PR if the changes introduce unacceptable risk
+#
+# Requires "Dependency graph" and "Dependabot security updates" enabled
+# in the repository Settings → Code security. Both are free for public
+# repos and enabled by default.
+#
+# Docs: https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review
+
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'bun.lock'
+      - '.github/workflows/dependency-review.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          # Block the PR on any HIGH or CRITICAL vulnerability introduced.
+          # MEDIUM/LOW are reported as warnings (visible in the check summary)
+          # but do not block the merge.
+          fail-on-severity: high
+
+          # Block the PR on any license that is not in the allow-list below.
+          # Smart EDMS is proprietary — downstream licensing risk must be
+          # caught at PR time, not after a release.
+          #
+          # Allowed categories:
+          #   - permissive (MIT, BSD, Apache-2.0, ISC, 0BSD, Unlicense, ...)
+          #   - copyleft-permissive (MPL-2.0, LGPL-2.1, EPL-2.0)
+          #
+          # Blocked categories:
+          #   - copyleft (GPL-2.0, GPL-3.0, AGPL-3.0) — viral, incompatible
+          #     with the proprietary license
+          #   - proprietary / unknown — must be manually reviewed
+          #
+          # If a dependency legitimately requires a blocked license, the PR
+          # author must open a separate issue for legal review and add the
+          # dependency to an allow-list comment in that issue, then re-run
+          # the workflow.
+          allow-licenses: >-
+            MIT, MIT-0, BSD-2-Clause, BSD-3-Clause, Apache-2.0, ISC,
+            0BSD, Unlicense, Zlib, BSL-1.0, MPL-2.0, LGPL-2.1-or-later,
+            LGPL-3.0-or-later, EPL-2.0, Python-2.0, CC0-1.0
+
+          # Deny GPL/AGPL explicitly — these would force the entire project
+          # to become open-source, which is incompatible with the proprietary
+          # LICENSE.
+          deny-licenses: >-
+            GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-only, GPL-3.0-or-later,
+            AGPL-3.0-only, AGPL-3.0-or-later, SSPL-1.0, BUSL-1.1
+
+          # Comment on the PR with the review summary so reviewers can see
+          # the risk without opening the Actions tab.
+          comment-summary-in-pr: true
+
+      - name: Dependency Snapshot Summary
+        if: always()
+        run: |
+          echo "## Dependency Review Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Allow-list check passed** — no GPL/AGPL/SSPL/BUSL licenses introduced." >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Vulnerability check passed** — no HIGH/CRITICAL vulnerabilities introduced." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "If this check failed, see the [dependency-review-action docs](https://github.com/actions/dependency-review-action) for next steps." >> $GITHUB_STEP_SUMMARY

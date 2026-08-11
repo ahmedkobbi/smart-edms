@@ -59,6 +59,7 @@
 
 # Security docs
 /docs/SECURITY.md           @ahmedkobbi
+/SECURITY.md                @ahmedkobbi
 /docs/adr/                  @ahmedkobbi
 
 # License & legal

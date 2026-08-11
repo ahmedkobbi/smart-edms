@@ -728,6 +728,7 @@ Smart EDMS is a fully installable PWA:
 | [API Documentation (Swagger)](api-docs) | Interactive OpenAPI 3.1 spec for all 148 endpoints |
 | [OpenAPI Spec](docs/openapi.json) | Raw OpenAPI 3.1 JSON |
 | [API Auth Guide](docs/API-AUTH.md) | Authentication methods, authorization model, rate limits |
+| [Security Policy](SECURITY.md) | How to report vulnerabilities, SLAs, supported versions, scope |
 | [Security Architecture](docs/SECURITY.md) | Threat model, encryption, audit, anomaly detection |
 | [Operations Runbook](docs/OPERATIONS-RUNBOOK.md) | Incident response, backup/restore, scaling, troubleshooting |
 | [PostgreSQL Migration](docs/POSTGRESQL-MIGRATION.md) | SQLite → PostgreSQL with Row-Level Security |

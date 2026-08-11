@@ -701,6 +701,7 @@ bun run check:translations    # التحقق من اكتمال المفاتيح 
 | [توثيق الـ API (Swagger)](api-docs) | مواصفات OpenAPI 3.1 تفاعلية لكل الـ 148 نقطة |
 | [مواصفات OpenAPI](docs/openapi.json) | JSON الخام لـ OpenAPI 3.1 |
 | [دليل مصادقة الـ API](docs/API-AUTH.md) | طرق المصادقة، نموذج التفويض، حدود المعدل |
+| [سياسة الأمان](SECURITY.md) | كيفية الإبلاغ عن الثغرات، SLAs، الإصدارات المدعومة، النطاق |
 | [معمارية الأمان](docs/SECURITY.md) | نموذج التهديد، التشفير، التدقيق، كشف الشذوذ |
 | [دليل العمليات](docs/OPERATIONS-RUNBOOK.md) | الاستجابة للحوادث، النسخ/الاستعادة، التوسع، استكشاف الأخطاء |
 | [ترحيل PostgreSQL](docs/POSTGRESQL-MIGRATION.md) | SQLite → PostgreSQL مع Row-Level Security |

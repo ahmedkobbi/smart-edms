@@ -1,0 +1,22 @@
+# FUNDING.yml — Smart EDMS sponsorship configuration
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+
+# Smart EDMS is a proprietary project, but the Author welcomes sponsorship
+# to support ongoing development, security audits, infrastructure costs,
+# and continued craftsmanship.
+
+# ----------------------------------------------------------------------------
+# GitHub Sponsors — primary channel
+# ----------------------------------------------------------------------------
+github: [ahmedkobbi]
+
+# ----------------------------------------------------------------------------
+# Custom URL — project page / direct contact for enterprise licensing
+# ----------------------------------------------------------------------------
+custom: ["https://github.com/ahmedkobbi/smart-edms#license"]
+
+# ----------------------------------------------------------------------------
+# Note: other platforms (Patreon, Open Collective, Ko-fi, Buy me a coffee,
+# Liberapay, IssueHunt, CommunityBridge, Thanks app) can be added as the
+# project grows. Only include platforms you actively maintain.
+# ----------------------------------------------------------------------------
