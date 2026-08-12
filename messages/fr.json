@@ -143,7 +143,8 @@
     "recordsManagement": "Gestion des Documents",
     "securityAudit": "Audit de Sécurité",
     "signatures": "Signatures Électroniques",
-    "bpmnDesigner": "Concepteur BPMN"
+    "bpmnDesigner": "Concepteur BPMN",
+    "branding": "Marque"
   },
   "auth": {
     "signIn": "Se connecter",
@@ -1652,5 +1653,26 @@
     "expiresAt": "Expire",
     "gracePeriodEnds": "Fin de période de grâce",
     "features": "Fonctionnalités"
+  },
+  "branding": {
+    "title": "Marque & Personnalisation",
+    "subtitle": "Personnalisez le logo, les couleurs et l'identité de votre organisation",
+    "colorPresets": "Préréglages de Couleur",
+    "identity": "Identité de l'Organisation",
+    "appName": "Nom de l'Application",
+    "loginTitle": "Titre de la Page de Connexion",
+    "loginSubtitle": "Sous-titre de la Page de Connexion",
+    "logo": "Logo de l'Organisation",
+    "noLogo": "Pas de logo",
+    "uploadLogo": "Télécharger le Logo",
+    "removeLogo": "Supprimer le Logo",
+    "logoHint": "SVG, PNG ou JPEG. Max 100 Ko. Recommandé: 200×200px.",
+    "logoTooLarge": "Le fichier logo est trop volumineux (max 100 Ko)",
+    "preview": "Aperçu en Direct",
+    "signInButton": "Se Connecter",
+    "save": "Enregistrer la Marque",
+    "saved": "Marque enregistrée avec succès",
+    "failed": "Échec de l'enregistrement de la marque",
+    "reset": "Réinitialiser"
   }
 }

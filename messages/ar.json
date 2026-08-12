@@ -143,7 +143,8 @@
     "recordsManagement": "إدارة السجلات",
     "securityAudit": "تدقيق الأمان",
     "signatures": "التوقيعات الإلكترونية",
-    "bpmnDesigner": "مصمم BPMN"
+    "bpmnDesigner": "مصمم BPMN",
+    "branding": "الهوية"
   },
   "auth": {
     "signIn": "تسجيل الدخول",
@@ -1652,5 +1653,26 @@
     "expiresAt": "ينتهي في",
     "gracePeriodEnds": "نهاية فترة السماح",
     "features": "الميزات"
+  },
+  "branding": {
+    "title": "الهوية والتخصيص",
+    "subtitle": "خصص شعار مؤسستك وألوانها وهويتها",
+    "colorPresets": "ألوان جاهزة",
+    "identity": "هوية المؤسسة",
+    "appName": "اسم التطبيق",
+    "loginTitle": "عنوان صفحة تسجيل الدخول",
+    "loginSubtitle": "العنوان الفرعي لصفحة تسجيل الدخول",
+    "logo": "شعار المؤسسة",
+    "noLogo": "لا يوجد شعار",
+    "uploadLogo": "تحميل الشعار",
+    "removeLogo": "إزالة الشعار",
+    "logoHint": "SVG أو PNG أو JPEG. الحد الأقصى 100 كيلوبايت. موصى به: 200×200 بكسل.",
+    "logoTooLarge": "ملف الشعار كبير جداً (الحد الأقصى 100 كيلوبايت)",
+    "preview": "معاينة مباشرة",
+    "signInButton": "تسجيل الدخول",
+    "save": "حفظ الهوية",
+    "saved": "تم حفظ الهوية بنجاح",
+    "failed": "فشل حفظ الهوية",
+    "reset": "إعادة التعيين"
   }
 }

@@ -143,7 +143,8 @@
     "recordsManagement": "Records Management",
     "securityAudit": "Security Audit",
     "signatures": "E-Signatures",
-    "bpmnDesigner": "BPMN Designer"
+    "bpmnDesigner": "BPMN Designer",
+    "branding": "Branding"
   },
   "auth": {
     "signIn": "Sign in",
@@ -1652,5 +1653,26 @@
     "expiresAt": "Expires",
     "gracePeriodEnds": "Grace period ends",
     "features": "Features"
+  },
+  "branding": {
+    "title": "Branding & Customization",
+    "subtitle": "Customize your organization logo, colors, and identity",
+    "colorPresets": "Color Presets",
+    "identity": "Organization Identity",
+    "appName": "Application Name",
+    "loginTitle": "Login Page Title",
+    "loginSubtitle": "Login Page Subtitle",
+    "logo": "Organization Logo",
+    "noLogo": "No logo",
+    "uploadLogo": "Upload Logo",
+    "removeLogo": "Remove Logo",
+    "logoHint": "SVG, PNG, or JPEG. Max 100KB. Recommended: 200×200px.",
+    "logoTooLarge": "Logo file is too large (max 100KB)",
+    "preview": "Live Preview",
+    "signInButton": "Sign In",
+    "save": "Save Branding",
+    "saved": "Branding saved successfully",
+    "failed": "Failed to save branding",
+    "reset": "Reset to Default"
   }
 }

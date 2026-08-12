@@ -9,6 +9,7 @@ import {
   Bot, ShieldAlert, FileCheck, Smartphone, Mail, BookOpen, LogIn, RefreshCw,
   AlertTriangle, CreditCard, Building2, FolderOpen, Menu, X, Code2, Globe,
   Bell, Activity, PenTool, Workflow, FolderTree, ShieldCheck as ShieldCheckIcon,
+  Palette,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSessionData } from '@/components/providers/use-session-data';
@@ -83,6 +84,7 @@ const NAV_GROUPS: { titleKey: string; items: NavItem[] }[] = [
       { href: '/admin/tenant', labelKey: 'nav.tenantSettings', icon: Settings, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
       { href: '/admin/billing', labelKey: 'nav.billing', icon: CreditCard, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
       { href: '/admin/license', labelKey: 'license.title', icon: KeyRound, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
+      { href: '/admin/branding', labelKey: 'nav.branding', icon: Palette, permission: PERMISSIONS.ADMIN_TENANT_MANAGE },
     ],
   },
   {

@@ -143,7 +143,8 @@
     "recordsManagement": "Aktenverwaltung",
     "securityAudit": "Sicherheitsaudit",
     "signatures": "E-Signaturen",
-    "bpmnDesigner": "BPMN-Designer"
+    "bpmnDesigner": "BPMN-Designer",
+    "branding": "Branding"
   },
   "auth": {
     "signIn": "Anmelden",
@@ -1652,5 +1653,26 @@
     "expiresAt": "Läuft ab",
     "gracePeriodEnds": "Ende der Kulanzfrist",
     "features": "Funktionen"
+  },
+  "branding": {
+    "title": "Branding & Anpassung",
+    "subtitle": "Passen Sie Logo, Farben und Identität Ihrer Organisation an",
+    "colorPresets": "Farb-Voreinstellungen",
+    "identity": "Organisationsidentität",
+    "appName": "Anwendungsname",
+    "loginTitle": "Anmeldeseite-Titel",
+    "loginSubtitle": "Anmeldeseite-Untertitel",
+    "logo": "Organisationslogo",
+    "noLogo": "Kein Logo",
+    "uploadLogo": "Logo Hochladen",
+    "removeLogo": "Logo Entfernen",
+    "logoHint": "SVG, PNG oder JPEG. Max 100KB. Empfohlen: 200×200px.",
+    "logoTooLarge": "Logo-Datei ist zu groß (max 100KB)",
+    "preview": "Live-Vorschau",
+    "signInButton": "Anmelden",
+    "save": "Branding Speichern",
+    "saved": "Branding erfolgreich gespeichert",
+    "failed": "Branding konnte nicht gespeichert werden",
+    "reset": "Zurücksetzen"
   }
 }

@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/top-bar';
 import { BottomNav } from '@/components/layout/bottom-nav';
 import { SubscriptionBanner } from '@/components/layout/subscription-banner';
+import { BrandingProvider } from '@/components/providers/branding-provider';
 import { useSessionData } from '@/components/providers/use-session-data';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
@@ -88,6 +89,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // (WCAG 2.3.3). When the user has the OS setting enabled, Framer Motion
     // disables all animations automatically.
     <MotionConfig reducedMotion="user">
+      <BrandingProvider>
       <div className="min-h-screen flex mesh-bg">
         {/* Skip to content — accessibility (WCAG 2.4.1) */}
         <a
@@ -113,6 +115,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* P10: Bottom navigation — visible only on mobile (md:hidden) */}
         <BottomNav />
       </div>
+      </BrandingProvider>
     </MotionConfig>
   );
 }

@@ -143,7 +143,8 @@
     "recordsManagement": "Gestión de Registros",
     "securityAudit": "Auditoría de Seguridad",
     "signatures": "Firmas Electrónicas",
-    "bpmnDesigner": "Diseñador BPMN"
+    "bpmnDesigner": "Diseñador BPMN",
+    "branding": "Marca"
   },
   "auth": {
     "signIn": "Iniciar sesión",
@@ -1652,5 +1653,26 @@
     "expiresAt": "Expira",
     "gracePeriodEnds": "Fin del período de gracia",
     "features": "Características"
+  },
+  "branding": {
+    "title": "Marca y Personalización",
+    "subtitle": "Personalice el logo, los colores y la identidad de su organización",
+    "colorPresets": "Preajustes de Color",
+    "identity": "Identidad de la Organización",
+    "appName": "Nombre de la Aplicación",
+    "loginTitle": "Título de la Página de Inicio",
+    "loginSubtitle": "Subtítulo de la Página de Inicio",
+    "logo": "Logo de la Organización",
+    "noLogo": "Sin logo",
+    "uploadLogo": "Subir Logo",
+    "removeLogo": "Quitar Logo",
+    "logoHint": "SVG, PNG o JPEG. Máx 100KB. Recomendado: 200×200px.",
+    "logoTooLarge": "El archivo del logo es demasiado grande (máx 100KB)",
+    "preview": "Vista Previa en Vivo",
+    "signInButton": "Iniciar Sesión",
+    "save": "Guardar Marca",
+    "saved": "Marca guardada exitosamente",
+    "failed": "Error al guardar la marca",
+    "reset": "Restablecer"
   }
 }
